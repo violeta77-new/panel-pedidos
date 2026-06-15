@@ -7,7 +7,6 @@
 <meta name="theme-color" content="#1a5276">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📋</text></svg>">
 <title>Panel de Pedidos – PARCELAR</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: 'Segoe UI', sans-serif; background: #f0f4f8; color: #2d3748; }
@@ -21,7 +20,7 @@ body { font-family: 'Segoe UI', sans-serif; background: #f0f4f8; color: #2d3748;
 }
 .header h1 { font-size: 1.35rem; font-weight: 700; }
 .header .sub { font-size: 0.8rem; opacity: 0.82; margin-top: 2px; }
-#hdr-file { font-size: 0.78rem; opacity: 0.75; }
+#hdr-status { font-size: 0.78rem; opacity: 0.85; }
 
 /* ── LOAD ZONE ── */
 #load-zone {
@@ -31,22 +30,19 @@ body { font-family: 'Segoe UI', sans-serif; background: #f0f4f8; color: #2d3748;
 }
 #load-zone h2 { color: #1a5276; margin-bottom: 10px; font-size: 1.15rem; }
 #load-zone p  { color: #718096; font-size: 0.88rem; margin-bottom: 22px; }
-.btn-load {
-  display: inline-block; background: #1a5276; color: white;
-  padding: 11px 28px; border-radius: 8px; cursor: pointer; border: none;
-  font-size: 0.95rem; font-weight: 600; transition: background 0.2s;
-}
-.btn-load:hover { background: #154360; }
-#file-input { display: none; }
-.file-tag { margin-top: 13px; font-size: 0.82rem; color: #4a5568; min-height: 20px; }
+.spinner { display: inline-block; width: 36px; height: 36px; border: 4px solid #e2e8f0; border-top-color: #1a5276; border-radius: 50%; animation: spin 0.8s linear infinite; margin-bottom: 14px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+#load-error { color: #e53e3e; font-weight: 600; margin-top: 12px; display: none; }
+.btn-retry { display: inline-block; background: #1a5276; color: white; padding: 9px 22px; border-radius: 8px; cursor: pointer; border: none; font-size: 0.9rem; font-weight: 600; margin-top: 10px; }
 
-/* ── SAVE STATUS ── */
-#save-status {
+/* ── SYNC STATUS ── */
+#sync-status {
   background: #eaf4fb; border: 1px solid #aed6f1;
   border-radius: 8px; padding: 8px 16px; margin-bottom: 14px;
   font-size: 0.82rem; color: #1a5276; display: flex; align-items: center; gap: 8px;
 }
-#save-status.unsaved { background: #fff8e1; border-color: #f9ca24; color: #856404; }
+#sync-status.syncing { background: #fff8e1; border-color: #f9ca24; color: #856404; }
+#sync-status.error { background: #fde8e8; border-color: #e74c3c; color: #922b21; }
 
 /* ── MAIN ── */
 #main { display: none; padding: 20px 24px; max-width: 1400px; margin: 0 auto; }
@@ -248,6 +244,7 @@ tbody td { padding: 9px 12px; vertical-align: middle; }
   transition: background 0.2s;
 }
 .btn-confirm:hover { background: #154360; }
+.btn-confirm:disabled { background: #a0aec0; cursor: not-allowed; }
 
 /* ── TOAST ── */
 .toast {
@@ -262,9 +259,9 @@ tbody td { padding: 9px 12px; vertical-align: middle; }
 /* ── SORTABLE HEADERS ── */
 thead th.sortable { cursor: pointer; user-select: none; white-space: nowrap; }
 thead th.sortable:hover { background: #edf2f7; }
-thead th.sort-asc  .sort-icon::after { content: ' ↑'; color: #1a5276; }
-thead th.sort-desc .sort-icon::after { content: ' ↓'; color: #1a5276; }
-thead th:not(.sort-asc):not(.sort-desc) .sort-icon::after { content: ' ↕'; color: #cbd5e0; font-size: 0.7rem; }
+thead th.sort-asc  .sort-icon::after { content: ' \2191'; color: #1a5276; }
+thead th.sort-desc .sort-icon::after { content: ' \2193'; color: #1a5276; }
+thead th:not(.sort-asc):not(.sort-desc) .sort-icon::after { content: ' \2195'; color: #cbd5e0; font-size: 0.7rem; }
 .sort-badge {
   display: inline-flex; align-items: center; justify-content: center;
   background: #1a5276; color: white; border-radius: 50%;
@@ -287,26 +284,31 @@ thead th:not(.sort-asc):not(.sort-desc) .sort-icon::after { content: ' ↕'; col
 </head>
 <body>
 
-<!-- ═══════════ HEADER ═══════════ -->
+<!-- HEADER -->
 <div class="header">
   <div>
-    <div class="header h1" style="font-size:1.35rem;font-weight:700">📋 Panel de Pedidos</div>
-    <div class="sub">Vista por orden · Registro de entregas</div>
+    <div style="font-size:1.35rem;font-weight:700">📋 Panel de Pedidos</div>
+    <div class="sub">Vista por orden · Registro de entregas · Sincronizado con Google Sheets</div>
   </div>
-  <div id="hdr-file"></div>
+  <div id="hdr-status"></div>
 </div>
 
-<!-- ═══════════ LOAD ═══════════ -->
+<!-- LOAD ZONE (loading) -->
 <div id="load-zone">
-  <h2>📂 Cargar Pedidos_Consolidados.xlsx</h2>
-  <p>Selecciona el archivo para visualizar todas las órdenes y registrar entregas por pedido</p>
-  <button class="btn-load" onclick="pickFile()">Seleccionar archivo</button>
-  <input type="file" id="file-input" accept=".xlsx,.xls" style="display:none">
-  <div class="file-tag" id="file-tag"></div>
+  <div class="spinner" id="load-spinner"></div>
+  <h2>Conectando con Google Sheets...</h2>
+  <p>Cargando datos de pedidos desde la nube</p>
+  <div id="load-error"></div>
+  <button class="btn-retry" id="btn-retry" style="display:none" onclick="loadFromAPI()">Reintentar</button>
 </div>
 
-<!-- ═══════════ MAIN ═══════════ -->
+<!-- MAIN -->
 <div id="main">
+
+  <div id="sync-status">
+    <span id="sync-icon">☁️</span>
+    <span id="sync-msg">Conectado a Google Sheets. Los cambios se guardan directamente en la nube.</span>
+  </div>
 
   <div class="stats">
     <div class="sc recibido"><div class="num" id="s-rec">0</div><div class="lbl">Recibidos</div></div>
@@ -331,17 +333,12 @@ thead th:not(.sort-asc):not(.sort-desc) .sort-icon::after { content: ' ↕'; col
     <button onclick="clearFilters()" style="margin-left:auto;background:none;border:1px solid #cbd5e0;color:#4a5568;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:0.82rem;font-weight:600;transition:background 0.2s" onmouseover="this.style.background='#f7fafc'" onmouseout="this.style.background='none'">✕ Limpiar filtros</button>
   </div>
 
-  <div id="save-status" style="display:none">
-    <span id="save-icon">💾</span>
-    <span id="save-msg">Archivo cargado. Registra entregas y guarda los cambios.</span>
-  </div>
-
   <div class="card">
     <div class="card-head">
       <h3>Órdenes registradas <span id="row-ct" style="font-weight:400;color:#718096"></span></h3>
       <div style="display:flex;gap:8px;align-items:center">
         <button id="btn-clear-sort" onclick="clearSort()" title="Quitar todos los ordenamientos">✕ Limpiar orden</button>
-        <button class="btn-dl" id="btn-save" onclick="saveFile()">💾 Guardar cambios</button>
+        <button class="btn-dl" onclick="loadFromAPI()">🔄 Actualizar datos</button>
       </div>
     </div>
     <div style="overflow-x:auto">
@@ -355,7 +352,7 @@ thead th:not(.sort-asc):not(.sort-desc) .sort-icon::after { content: ' ↕'; col
   </div>
 </div>
 
-<!-- ═══════════ DETAIL MODAL ═══════════ -->
+<!-- DETAIL MODAL -->
 <div class="overlay" id="overlay">
   <div class="modal-box">
     <div class="mhdr">
@@ -401,13 +398,13 @@ thead th:not(.sort-asc):not(.sort-desc) .sort-icon::after { content: ' ↕'; col
       <div class="total-tag">Total orden: <strong id="m-total">$0</strong></div>
       <div class="mftr-btns">
         <button class="btn-cancel" onclick="closeModal()">Cancelar</button>
-        <button class="btn-confirm" onclick="confirmarEntregas()">✓ Registrar entregas</button>
+        <button class="btn-confirm" id="btn-confirmar" onclick="confirmarEntregas()">✓ Registrar entregas</button>
       </div>
     </div>
   </div>
 </div>
 
-<!-- ═══════════ EDIT MODAL ═══════════ -->
+<!-- EDIT MODAL -->
 <div class="overlay" id="edit-overlay">
   <div class="modal-box" style="max-width:900px">
     <div class="mhdr">
@@ -456,10 +453,10 @@ thead th:not(.sort-asc):not(.sort-desc) .sort-icon::after { content: ' ↕'; col
       </div>
     </div>
     <div class="mftr">
-      <div style="font-size:0.8rem;color:#718096">Los cambios se aplican en memoria; guarda el archivo para persistirlos</div>
+      <div style="font-size:0.8rem;color:#718096">Los cambios se guardan directamente en Google Sheets</div>
       <div class="mftr-btns">
         <button class="btn-cancel" onclick="closeEdit()">Cancelar</button>
-        <button class="btn-confirm" onclick="saveEdit()">✓ Aplicar cambios</button>
+        <button class="btn-confirm" id="btn-saveEdit" onclick="saveEdit()">✓ Aplicar cambios</button>
       </div>
     </div>
   </div>
@@ -468,9 +465,10 @@ thead th:not(.sort-asc):not(.sort-desc) .sort-icon::after { content: ' ↕'; col
 <div class="toast" id="toast"></div>
 
 <script>
-// ── Ordenamiento multinivel ───────────────────────────────────────────────────
-// sortLevels: [{ id, dir }, ...] — primer elemento = criterio principal
-let sortLevels = [];   // vacío = orden original
+const API_URL = 'https://script.google.com/macros/s/AKfycbwvHvKokrsTQv9Ot-LKC4Qmm4j2HSCS-aKQPmNT2XBjqSYWnkooIzS-LtWejJP7K3wHVQ/exec';
+
+// ── Sorting ──
+let sortLevels = [];
 
 const SORT_COLS = [
   { id:'empresa',     label:'Empresa',      fn: c => getSigla(c.Nombre_Empresa) },
@@ -484,32 +482,16 @@ const SORT_COLS = [
   { id:'estado',      label:'Estado',       fn: c => derivedStatus(getLinesFor(c)) },
 ];
 
-// Clic normal → añade/cicla nivel. Shift+clic → quita ese nivel.
 function toggleSort(id, e) {
   const shift = e && e.shiftKey;
-  const idx   = sortLevels.findIndex(l => l.id === id);
-
-  if (shift) {
-    // Shift+clic: elimina este nivel del orden
-    if (idx >= 0) sortLevels.splice(idx, 1);
-  } else if (idx >= 0) {
-    // La columna ya está en el orden: cicla asc → desc → quitar
-    if (sortLevels[idx].dir === 'asc') {
-      sortLevels[idx].dir = 'desc';
-    } else {
-      sortLevels.splice(idx, 1);
-    }
-  } else {
-    // Columna nueva: agregar al final de los niveles
-    sortLevels.push({ id, dir: 'asc' });
-  }
+  const idx = sortLevels.findIndex(l => l.id === id);
+  if (shift) { if (idx >= 0) sortLevels.splice(idx, 1); }
+  else if (idx >= 0) { if (sortLevels[idx].dir === 'asc') sortLevels[idx].dir = 'desc'; else sortLevels.splice(idx, 1); }
+  else { sortLevels.push({ id, dir: 'asc' }); }
   renderTable();
 }
 
-function clearSort() {
-  sortLevels = [];
-  renderTable();
-}
+function clearSort() { sortLevels = []; renderTable(); }
 
 function applySort(rows) {
   if (!sortLevels.length) return rows;
@@ -527,345 +509,333 @@ function applySort(rows) {
 
 function renderHeader() {
   const cols = [
-    { label:'#',           id:null },
-    { label:'Empresa',     id:'empresa' },
-    { label:'Consecutivo', id:'consecutivo' },
-    { label:'Cliente',     id:'cliente' },
-    { label:'Fecha Pedido',id:'fecha' },
-    { label:'Comercial',   id:'comercial' },
-    { label:'Total Orden', id:'total' },
-    { label:'Productos',   id:'productos' },
-    { label:'Avance',      id:'avance' },
-    { label:'Estado',      id:'estado' },
-    { label:'Acción',      id:null },
+    { label:'#', id:null }, { label:'Empresa', id:'empresa' }, { label:'Consecutivo', id:'consecutivo' },
+    { label:'Cliente', id:'cliente' }, { label:'Fecha Pedido', id:'fecha' }, { label:'Comercial', id:'comercial' },
+    { label:'Total Orden', id:'total' }, { label:'Productos', id:'productos' }, { label:'Avance', id:'avance' },
+    { label:'Estado', id:'estado' }, { label:'Acción', id:null },
   ];
   document.getElementById('t-head').innerHTML = cols.map(col => {
-    if (!col.id) return `<th>${col.label}</th>`;
+    if (!col.id) return '<th>' + col.label + '</th>';
     const lvlIdx = sortLevels.findIndex(l => l.id === col.id);
-    const active  = lvlIdx >= 0;
-    const lvl     = active ? sortLevels[lvlIdx] : null;
-    const dirCls  = active ? (lvl.dir === 'asc' ? 'sort-asc' : 'sort-desc') : '';
-    const badge   = sortLevels.length > 1 && active
-      ? `<span class="sort-badge">${lvlIdx + 1}</span>` : '';
-    return `<th class="sortable ${dirCls}" onclick="toggleSort('${col.id}',event)" title="Clic: ordenar · Clic otra vez: invertir · Clic otra vez: quitar · Shift+clic: quitar">
-      ${col.label}${badge}<span class="sort-icon"></span>
-    </th>`;
+    const active = lvlIdx >= 0;
+    const lvl = active ? sortLevels[lvlIdx] : null;
+    const dirCls = active ? (lvl.dir === 'asc' ? 'sort-asc' : 'sort-desc') : '';
+    const badge = sortLevels.length > 1 && active ? '<span class="sort-badge">' + (lvlIdx+1) + '</span>' : '';
+    return '<th class="sortable ' + dirCls + '" onclick="toggleSort(\'' + col.id + '\',event)">' + col.label + badge + '<span class="sort-icon"></span></th>';
   }).join('');
-
-  // Mostrar/ocultar botón limpiar orden
-  const btn = document.getElementById('btn-clear-sort');
+  var btn = document.getElementById('btn-clear-sort');
   if (btn) btn.style.display = sortLevels.length ? 'inline-block' : 'none';
 }
 
-// ── Siglas ──────────────────────────────────────────────────────────────────
+// ── Siglas ──
 const SIGLAS = {
-  'PARCELAR DE COLOMBIA SAS':              'PARCELAR',
-  'GREEN AGROSOLUCIONES DE COLOMBIA SAS':  'GREEN',
-  'SOLUCIONES INTEGRALES RESO SAS':        'RESO',
+  'PARCELAR DE COLOMBIA SAS': 'PARCELAR',
+  'GREEN AGROSOLUCIONES DE COLOMBIA SAS': 'GREEN',
+  'SOLUCIONES INTEGRALES RESO SAS': 'RESO',
   'INSUMOS AGROPECUARIOS SOSTENIBLES SAS': 'IASO',
-  'INSUMOS AGROPECUARIOS DE LA SABANA SAS':  'IAS',
+  'INSUMOS AGROPECUARIOS DE LA SABANA SAS': 'IAS',
   'INSUMOS AGROPECUARIOS DE LA SABANA SAS ': 'IAS',
 };
-const getSigla      = n => SIGLAS[(n||'').trim()] || n || '—';
+const getSigla = n => SIGLAS[(n||'').trim()] || n || '—';
 const SIGLA_CLASSES = ['PARCELAR','GREEN','RESO','IASO','IAS'];
-const getSiglaClass = n => {
-  const s = getSigla(n);
-  return SIGLA_CLASSES.includes(s) ? 'sigla-'+s : 'sigla-DEFAULT';
-};
+const getSiglaClass = n => { const s = getSigla(n); return SIGLA_CLASSES.includes(s) ? 'sigla-'+s : 'sigla-DEFAULT'; };
 
-// ── Estado global ───────────────────────────────────────────────────────────
-let wb        = null;
-let consecs   = [];   // un objeto por orden (derivado de la hoja Pedidos)
-let pedidos   = [];   // un objeto por línea de producto
+// ── State ──
+let consecs = [];
+let pedidos = [];
 let activeIdx = null;
-let fileHandle = null;
-let hasUnsaved = false;
-const TRACK = ['Cant_Entregada','Cant_Pendiente','Estado_Entrega','Fecha_Ult_Entrega','Remisiones'];
-
-let editIdx         = null;
-let editKey         = null;
+let editIdx = null;
+let editKey = null;
 let editWorkingLines = [];
 
-// ── Carga del archivo ────────────────────────────────────────────────────────
-async function pickFile() {
-  if ('showOpenFilePicker' in window) {
-    try {
-      const [handle] = await window.showOpenFilePicker({
-        types:[{description:'Excel',accept:{'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet':['.xlsx','.xls']}}]
-      });
-      fileHandle = handle;
-      readFileObj(await handle.getFile());
-    } catch(e) {
-      if (e.name !== 'AbortError') document.getElementById('file-input').click();
-    }
+// ── API calls ──
+async function apiGet(action) {
+  const r = await fetch(API_URL + '?action=' + action);
+  return r.json();
+}
+
+async function apiPost(body) {
+  const r = await fetch(API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain' },
+    body: JSON.stringify(body)
+  });
+  return r.json();
+}
+
+// ── Load from API ──
+async function loadFromAPI() {
+  var loadZone = document.getElementById('load-zone');
+  var mainEl = document.getElementById('main');
+  var errEl = document.getElementById('load-error');
+  var retryBtn = document.getElementById('btn-retry');
+  var spinnerEl = document.getElementById('load-spinner');
+
+  if (mainEl.style.display === 'block') {
+    setSyncStatus('syncing', 'Actualizando datos...');
   } else {
-    document.getElementById('file-input').click();
+    loadZone.style.display = 'block';
+    spinnerEl.style.display = 'inline-block';
+    errEl.style.display = 'none';
+    retryBtn.style.display = 'none';
+  }
+
+  try {
+    var data = await apiGet('getPedidos');
+    if (!data.ok) throw new Error(data.error || 'Error desconocido');
+
+    pedidos = data.pedidos.map(function(p) {
+      if (p.Consecutivo !== null && p.Consecutivo !== undefined) {
+        var n = Number(p.Consecutivo);
+        if (!isNaN(n)) p.Consecutivo = n;
+      }
+      if (!p.Cant_Entregada && p.Cant_Entregada !== 0) {
+        p.Cant_Entregada = 0;
+        p.Cant_Pendiente = Number(p.Cantidad) || 0;
+        p.Estado_Entrega = 'Recibido';
+        p.Fecha_Ult_Entrega = null;
+        p.Remisiones = '';
+      }
+      return p;
+    });
+
+    rebuildConsecs();
+    populateFilters();
+    renderTable();
+
+    loadZone.style.display = 'none';
+    mainEl.style.display = 'block';
+    setSyncStatus('ok', 'Conectado a Google Sheets. Última actualización: ' + new Date().toLocaleTimeString('es-CO'));
+    document.getElementById('hdr-status').textContent = '☁️ Google Sheets · ' + pedidos.length + ' líneas';
+  } catch (err) {
+    if (mainEl.style.display === 'block') {
+      setSyncStatus('error', 'Error al actualizar: ' + err.message);
+    } else {
+      spinnerEl.style.display = 'none';
+      errEl.textContent = '⚠️ ' + err.message;
+      errEl.style.display = 'block';
+      retryBtn.style.display = 'inline-block';
+    }
   }
 }
 
-document.getElementById('file-input').addEventListener('change', function(e) {
-  const f = e.target.files[0]; if (f) { fileHandle = null; readFileObj(f); }
-});
-
-function readFileObj(file) {
-  document.getElementById('file-tag').textContent = '📄 ' + file.name;
-  document.getElementById('hdr-file').textContent = file.name;
-  const reader = new FileReader();
-  reader.onload = ev => {
-    wb = XLSX.read(ev.target.result, { type:'array', cellDates:true });
-    if (!wb.Sheets['Pedidos']) {
-      document.getElementById('file-tag').innerHTML =
-        '<span style="color:#e53e3e;font-weight:600">⚠️ Archivo incorrecto — carga <u>Pedidos_Consolidados.xlsx</u></span>';
-      return;
-    }
-    parseSheets();
-    document.getElementById('load-zone').style.display = 'none';
-    document.getElementById('main').style.display = 'block';
-    setSaveStatus('clean', file.name);
-  };
-  reader.readAsArrayBuffer(file);
+function setSyncStatus(state, msg) {
+  var el = document.getElementById('sync-status');
+  var ico = document.getElementById('sync-icon');
+  var msgEl = document.getElementById('sync-msg');
+  el.className = state === 'ok' ? '' : state === 'syncing' ? 'syncing' : 'error';
+  ico.textContent = state === 'ok' ? '☁️' : state === 'syncing' ? '🔄' : '⚠️';
+  msgEl.textContent = msg;
 }
 
-// ── Parsear datos ────────────────────────────────────────────────────────────
-function parseSheets() {
-  const wsP  = wb.Sheets['Pedidos'];
-  const rawP = XLSX.utils.sheet_to_json(wsP, { header:1, defval:null });
-  const hdrs = rawP[0] || [];
-  const hasCantE = hdrs.includes('Cant_Entregada');
-
-  pedidos = rawP.slice(1).filter(r => r.some(c => c !== null)).map((row, i) => {
-    const o = {}; hdrs.forEach((h,j) => { o[h] = row[j]; });
-    // Normalizar Consecutivo a número
-    if (o.Consecutivo !== null && o.Consecutivo !== undefined) {
-      const n = Number(o.Consecutivo);
-      if (!isNaN(n)) o.Consecutivo = n;
-    }
-    if (!hasCantE) {
-      o.Cant_Entregada    = 0;
-      o.Cant_Pendiente    = Number(o.Cantidad) || 0;
-      o.Estado_Entrega    = 'Recibido';
-      o.Fecha_Ult_Entrega = null;
-      o.Remisiones        = '';
-    }
-    o.__pi = i;
-    return o;
-  });
-
-  rebuildConsecs();
-  populateFilters();
-  renderTable();
-}
-
+// ── Parse data ──
 function rebuildConsecs() {
-  const seen = {};
-  pedidos.forEach(p => {
-    const k = keyOf(p.Nombre_Empresa, p.Consecutivo);
+  var seen = {};
+  pedidos.forEach(function(p) {
+    var k = keyOf(p.Nombre_Empresa, p.Consecutivo);
     if (!seen[k]) seen[k] = {
-      Nombre_Empresa:     p.Nombre_Empresa,
-      Consecutivo:        p.Consecutivo,
-      Fecha_Pedido:       p.Fecha_Pedido,
-      Cliente:            p.Cliente,
-      NIT:                p.NIT,
-      Telefono:           p.Telefono,
-      Direccion_Envio:    p.Direccion_Envio,
-      Comercial:          p.Comercial,
-      Municipio:          p.Municipio,
-      Departamento:       p.Departamento,
-      Plazo_Pago:         p.Plazo_Pago,
-      Precio_Facturacion: p.Precio_Facturacion,
-      Total_Orden:        p.Total_Orden,
+      Nombre_Empresa: p.Nombre_Empresa, Consecutivo: p.Consecutivo,
+      Fecha_Pedido: p.Fecha_Pedido, Cliente: p.Cliente, NIT: p.NIT,
+      Telefono: p.Telefono, Direccion_Envio: p.Direccion_Envio,
+      Comercial: p.Comercial, Municipio: p.Municipio, Departamento: p.Departamento,
+      Plazo_Pago: p.Plazo_Pago, Precio_Facturacion: p.Precio_Facturacion, Total_Orden: p.Total_Orden,
     };
   });
-  consecs = Object.values(seen).sort((a,b) => {
-    const da = +new Date(a.Fecha_Pedido), db = +new Date(b.Fecha_Pedido);
-    return db-da || (b.Consecutivo||0)-(a.Consecutivo||0);
-  }).map((c,i) => { c['N°'] = i+1; return c; });
+  consecs = Object.values(seen).sort(function(a, b) {
+    var da = +new Date(a.Fecha_Pedido), db = +new Date(b.Fecha_Pedido);
+    return db - da || (b.Consecutivo||0) - (a.Consecutivo||0);
+  }).map(function(c, i) { c['N°'] = i + 1; return c; });
 }
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
-function keyOf(emp, con) { return (emp||'')+'||'+String(con||'').trim(); }
+// ── Helpers ──
+function keyOf(emp, con) { return (emp||'') + '||' + String(con||'').trim(); }
 
 function getLinesFor(c) {
-  const k = keyOf(c.Nombre_Empresa, c.Consecutivo);
-  return pedidos.filter(p => keyOf(p.Nombre_Empresa, p.Consecutivo) === k);
+  var k = keyOf(c.Nombre_Empresa, c.Consecutivo);
+  return pedidos.filter(function(p) { return keyOf(p.Nombre_Empresa, p.Consecutivo) === k; });
 }
 
 function derivedStatus(lines) {
   if (!lines.length) return 'Recibido';
-  const ent = lines.filter(l => norm(l.Estado_Entrega) === 'entregado').length;
-  const par = lines.filter(l => norm(l.Estado_Entrega) === 'parcial').length;
+  var ent = lines.filter(function(l) { return norm(l.Estado_Entrega) === 'entregado'; }).length;
+  var par = lines.filter(function(l) { return norm(l.Estado_Entrega) === 'parcial'; }).length;
   if (ent === lines.length) return 'Entregado';
-  if (ent > 0 || par > 0)  return 'Parcial';
+  if (ent > 0 || par > 0) return 'Parcial';
   return 'Recibido';
 }
 
 function derivedPct(lines) {
-  const totPed = lines.reduce((s,l) => s+(Number(l.Cantidad)||0), 0);
-  const totEnt = lines.reduce((s,l) => s+(Number(l.Cant_Entregada)||0), 0);
-  return totPed > 0 ? Math.round(totEnt/totPed*100) : 0;
+  var totPed = lines.reduce(function(s, l) { return s + (Number(l.Cantidad)||0); }, 0);
+  var totEnt = lines.reduce(function(s, l) { return s + (Number(l.Cant_Entregada)||0); }, 0);
+  return totPed > 0 ? Math.round(totEnt / totPed * 100) : 0;
 }
 
 function norm(s) { return (s||'').toLowerCase().trim(); }
 
 function fmtMoney(v) {
-  const n = Number(v); if (!n && n!==0) return '—';
-  return '$'+n.toLocaleString('es-CO');
+  var n = Number(v); if (!n && n !== 0) return '—';
+  return '$' + n.toLocaleString('es-CO');
 }
 
 function fmtDate(v) {
   if (!v) return '—';
-  let d = v instanceof Date ? v : (typeof v==='number' ? new Date((v-25569)*86400000) : new Date(v));
-  return isNaN(d) ? String(v) : d.toLocaleDateString('es-CO',{day:'2-digit',month:'2-digit',year:'numeric'});
+  var d = v instanceof Date ? v : new Date(v);
+  return isNaN(d) ? String(v) : d.toLocaleDateString('es-CO', { day:'2-digit', month:'2-digit', year:'numeric' });
 }
 
 function today() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  var d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
 }
 
 function toDateInput(v) {
   if (!v) return '';
-  let d = v instanceof Date ? v : (typeof v==='number' ? new Date((v-25569)*86400000) : new Date(v));
+  var d = v instanceof Date ? v : new Date(v);
   if (isNaN(d)) return '';
-  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
 }
 
-// ── Filtros ──────────────────────────────────────────────────────────────────
+// ── Filters ──
+var filtersAttached = false;
 function populateFilters() {
-  const emps = [...new Set(consecs.map(c=>c.Nombre_Empresa).filter(Boolean))].sort();
-  const clis = [...new Set(consecs.map(c=>c.Cliente).filter(Boolean))].sort();
-  const fe = document.getElementById('f-emp');
-  const fc = document.getElementById('f-cli');
-  fe.innerHTML = '<option value="">Todas</option>' +
-    emps.map(e=>`<option value="${e}">${getSigla(e)} — ${e}</option>`).join('');
-  fc.innerHTML = '<option value="">Todos</option>' +
-    clis.map(c=>`<option value="${c}">${c}</option>`).join('');
-  ['f-emp','f-cli','f-est','f-txt'].forEach(id => {
-    document.getElementById(id).addEventListener('change', renderTable);
-    document.getElementById(id).addEventListener('input', renderTable);
+  var emps = []; var clis = [];
+  consecs.forEach(function(c) {
+    if (c.Nombre_Empresa && emps.indexOf(c.Nombre_Empresa) < 0) emps.push(c.Nombre_Empresa);
+    if (c.Cliente && clis.indexOf(c.Cliente) < 0) clis.push(c.Cliente);
   });
+  emps.sort(); clis.sort();
+  var fe = document.getElementById('f-emp');
+  var fc = document.getElementById('f-cli');
+  fe.innerHTML = '<option value="">Todas</option>' + emps.map(function(e) { return '<option value="' + e + '">' + getSigla(e) + ' — ' + e + '</option>'; }).join('');
+  fc.innerHTML = '<option value="">Todos</option>' + clis.map(function(c) { return '<option value="' + c + '">' + c + '</option>'; }).join('');
+  if (!filtersAttached) {
+    ['f-emp','f-cli','f-est','f-txt'].forEach(function(id) {
+      document.getElementById(id).addEventListener('change', renderTable);
+      document.getElementById(id).addEventListener('input', renderTable);
+    });
+    filtersAttached = true;
+  }
 }
 
 function filtered() {
-  const fe = document.getElementById('f-emp').value;
-  const fc = document.getElementById('f-cli').value;
-  const fs = document.getElementById('f-est').value;
-  const ft = document.getElementById('f-txt').value.toLowerCase();
-  return consecs.filter(c => {
+  var fe = document.getElementById('f-emp').value;
+  var fc = document.getElementById('f-cli').value;
+  var fs = document.getElementById('f-est').value;
+  var ft = document.getElementById('f-txt').value.toLowerCase();
+  return consecs.filter(function(c) {
     if (fe && c.Nombre_Empresa !== fe) return false;
     if (fc && c.Cliente !== fc) return false;
-    const est = derivedStatus(getLinesFor(c));
+    var est = derivedStatus(getLinesFor(c));
     if (fs && norm(est) !== norm(fs)) return false;
     if (ft) {
-      const hay = [c.Cliente, String(c.Consecutivo), getSigla(c.Nombre_Empresa), c.Comercial].join(' ').toLowerCase();
-      if (!hay.includes(ft)) return false;
+      var hay = [c.Cliente, String(c.Consecutivo), getSigla(c.Nombre_Empresa), c.Comercial].join(' ').toLowerCase();
+      if (hay.indexOf(ft) < 0) return false;
     }
     return true;
   });
 }
 
-// ── Render tabla ─────────────────────────────────────────────────────────────
+function clearFilters() {
+  document.getElementById('f-emp').value = '';
+  document.getElementById('f-cli').value = '';
+  document.getElementById('f-est').value = '';
+  document.getElementById('f-txt').value = '';
+  renderTable();
+}
+
+// ── Render table ──
 function renderTable() {
-  const rows = applySort(filtered());
-  const all  = consecs.map(c => derivedStatus(getLinesFor(c)));
-  document.getElementById('s-rec').textContent = all.filter(e=>e==='Recibido').length;
-  document.getElementById('s-par').textContent = all.filter(e=>e==='Parcial').length;
-  document.getElementById('s-ent').textContent = all.filter(e=>e==='Entregado').length;
+  var rows = applySort(filtered());
+  var all = consecs.map(function(c) { return derivedStatus(getLinesFor(c)); });
+  document.getElementById('s-rec').textContent = all.filter(function(e) { return e === 'Recibido'; }).length;
+  document.getElementById('s-par').textContent = all.filter(function(e) { return e === 'Parcial'; }).length;
+  document.getElementById('s-ent').textContent = all.filter(function(e) { return e === 'Entregado'; }).length;
   document.getElementById('s-tot').textContent = consecs.length;
-  document.getElementById('row-ct').textContent = `(${rows.length} mostradas)`;
+  document.getElementById('row-ct').textContent = '(' + rows.length + ' mostradas)';
 
   renderHeader();
 
-  const tbody = document.getElementById('t-body');
+  var tbody = document.getElementById('t-body');
   if (!rows.length) {
-    tbody.innerHTML = `<tr><td colspan="11"><div class="empty">No hay órdenes con los filtros seleccionados.</div></td></tr>`;
+    tbody.innerHTML = '<tr><td colspan="11"><div class="empty">No hay órdenes con los filtros seleccionados.</div></td></tr>';
     return;
   }
 
-  tbody.innerHTML = rows.map(c => {
-    const lines = getLinesFor(c);
-    const est   = derivedStatus(lines);
-    const pct   = derivedPct(lines);
-    const badge = est==='Recibido' ? 'b-rec' : est==='Parcial' ? 'b-par' : 'b-ent';
-    const done  = est === 'Entregado';
-    const idx   = consecs.indexOf(c);
-    return `<tr>
-      <td style="color:#718096;font-size:0.78rem">${c['N°']||''}</td>
-      <td title="${c.Nombre_Empresa||''}"><span class="sigla-badge ${getSiglaClass(c.Nombre_Empresa)}">${getSigla(c.Nombre_Empresa)}</span></td>
-      <td style="text-align:center;font-weight:700">${c.Consecutivo||''}</td>
-      <td style="max-width:170px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${c.Cliente||''}">${c.Cliente||'—'}</td>
-      <td style="white-space:nowrap;font-size:0.78rem">${fmtDate(c.Fecha_Pedido)}</td>
-      <td style="font-size:0.78rem">${c.Comercial||'—'}</td>
-      <td class="money">${fmtMoney(c.Total_Orden)}</td>
-      <td style="text-align:center">
-        ${lines.length ? `<span style="background:#e8f4fb;color:#1a5276;padding:2px 9px;border-radius:12px;font-size:0.75rem;font-weight:700">${lines.length}</span>` : '<span class="tag-sin">—</span>'}
-      </td>
-      <td>
-        <div class="prog">
-          <div class="prog-bar"><div class="prog-fill" style="width:${pct}%"></div></div>
-          <div class="prog-pct">${pct}%</div>
-        </div>
-      </td>
-      <td><span class="badge ${badge}">${est}</span></td>
-      <td>
-        <div style="display:flex;gap:6px;align-items:center">
-          <button class="btn-ver ${done?'done':''}" onclick="openDetail(${idx})">
-            ${lines.length===0 ? '👁 Ver' : done ? '✓ Entregado' : '📦 Ver pedido'}
-          </button>
-          <button class="btn-edit" onclick="openEdit(${idx})" title="Editar pedido">✏️</button>
-        </div>
-      </td>
-    </tr>`;
+  tbody.innerHTML = rows.map(function(c) {
+    var lines = getLinesFor(c);
+    var est = derivedStatus(lines);
+    var pct = derivedPct(lines);
+    var badge = est === 'Recibido' ? 'b-rec' : est === 'Parcial' ? 'b-par' : 'b-ent';
+    var done = est === 'Entregado';
+    var idx = consecs.indexOf(c);
+    return '<tr>' +
+      '<td style="color:#718096;font-size:0.78rem">' + (c['N°']||'') + '</td>' +
+      '<td title="' + (c.Nombre_Empresa||'') + '"><span class="sigla-badge ' + getSiglaClass(c.Nombre_Empresa) + '">' + getSigla(c.Nombre_Empresa) + '</span></td>' +
+      '<td style="text-align:center;font-weight:700">' + (c.Consecutivo||'') + '</td>' +
+      '<td style="max-width:170px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + (c.Cliente||'') + '">' + (c.Cliente||'—') + '</td>' +
+      '<td style="white-space:nowrap;font-size:0.78rem">' + fmtDate(c.Fecha_Pedido) + '</td>' +
+      '<td style="font-size:0.78rem">' + (c.Comercial||'—') + '</td>' +
+      '<td class="money">' + fmtMoney(c.Total_Orden) + '</td>' +
+      '<td style="text-align:center">' +
+        (lines.length ? '<span style="background:#e8f4fb;color:#1a5276;padding:2px 9px;border-radius:12px;font-size:0.75rem;font-weight:700">' + lines.length + '</span>' : '<span class="tag-sin">—</span>') +
+      '</td>' +
+      '<td><div class="prog"><div class="prog-bar"><div class="prog-fill" style="width:' + pct + '%"></div></div><div class="prog-pct">' + pct + '%</div></div></td>' +
+      '<td><span class="badge ' + badge + '">' + est + '</span></td>' +
+      '<td><div style="display:flex;gap:6px;align-items:center">' +
+        '<button class="btn-ver ' + (done?'done':'') + '" onclick="openDetail(' + idx + ')">' +
+          (lines.length === 0 ? '👁 Ver' : done ? '✓ Entregado' : '📦 Ver pedido') +
+        '</button>' +
+        '<button class="btn-edit" onclick="openEdit(' + idx + ')" title="Editar pedido">✏️</button>' +
+      '</div></td>' +
+    '</tr>';
   }).join('');
 }
 
-// ── Detalle / Modal ───────────────────────────────────────────────────────────
+// ── Detail Modal ──
 function openDetail(idx) {
   activeIdx = idx;
-  const c     = consecs[idx];
-  const lines = getLinesFor(c);
+  var c = consecs[idx];
+  var lines = getLinesFor(c);
 
-  document.getElementById('m-titulo').textContent =
-    `[${getSigla(c.Nombre_Empresa)}] ${c.Nombre_Empresa||'—'} · Orden #${c.Consecutivo||''}`;
+  document.getElementById('m-titulo').textContent = '[' + getSigla(c.Nombre_Empresa) + '] ' + (c.Nombre_Empresa||'—') + ' · Orden #' + (c.Consecutivo||'');
   document.getElementById('m-meta').innerHTML = [
-    `👤 <span>${c.Cliente||'—'}</span>`,
-    `📅 <span>${fmtDate(c.Fecha_Pedido)}</span>`,
-    c.Comercial ? `🧑‍💼 <span>${c.Comercial}</span>` : '',
-    `💵 <span>${fmtMoney(c.Total_Orden)}</span>`,
-    c.Municipio ? `📍 <span>${c.Municipio}${c.Departamento?', '+c.Departamento:''}</span>` : '',
+    '👤 <span>' + (c.Cliente||'—') + '</span>',
+    '📅 <span>' + fmtDate(c.Fecha_Pedido) + '</span>',
+    c.Comercial ? '🧑‍💼 <span>' + c.Comercial + '</span>' : '',
+    '💵 <span>' + fmtMoney(c.Total_Orden) + '</span>',
+    c.Municipio ? '📍 <span>' + c.Municipio + (c.Departamento ? ', ' + c.Departamento : '') + '</span>' : '',
   ].filter(Boolean).join('');
   document.getElementById('m-total').textContent = fmtMoney(c.Total_Orden);
   document.getElementById('m-fecha').value = today();
   document.getElementById('m-remision').value = '';
   document.getElementById('m-remision').classList.remove('error');
+  document.getElementById('btn-confirmar').disabled = false;
+  document.getElementById('btn-confirmar').textContent = '✓ Registrar entregas';
 
-  const tbody = document.getElementById('m-lines');
+  var tbody = document.getElementById('m-lines');
   if (!lines.length) {
-    tbody.innerHTML = `<tr><td colspan="11"><div class="no-lines">⚠ Esta orden no tiene líneas de producto registradas.</div></td></tr>`;
+    tbody.innerHTML = '<tr><td colspan="11"><div class="no-lines">⚠ Esta orden no tiene líneas de producto registradas.</div></td></tr>';
   } else {
-    tbody.innerHTML = lines.map((l,i) => {
-      const pedida    = Number(l.Cantidad)||0;
-      const entregada = Number(l.Cant_Entregada)||0;
-      const pendiente = Math.max(0, pedida - entregada);
-      const estL      = l.Estado_Entrega||'Recibido';
-      const badgeL    = norm(estL)==='recibido' ? 'b-rec' : norm(estL)==='parcial' ? 'b-par' : 'b-ent';
-      const done      = norm(estL)==='entregado';
-      return `<tr>
-        <td style="color:#a0aec0;font-size:0.74rem">${i+1}</td>
-        <td style="font-weight:700;white-space:nowrap">${l.Producto||'—'}</td>
-        <td>${l.Presentacion||''}</td>
-        <td class="money">${pedida}</td>
-        <td class="money" style="color:#27ae60;font-weight:700">${entregada}</td>
-        <td class="money"><span class="pend-tag ${pendiente>0?'pend':'ok'}">${pendiente}</span></td>
-        <td><span class="badge ${badgeL}">${estL}</span></td>
-        <td class="money" style="font-size:0.78rem">${fmtMoney(l.Valor_Unitario)}</td>
-        <td class="money" style="font-size:0.78rem">${fmtMoney(l.Valor_Total)}</td>
-        <td>
-          <input type="number" class="qty-input" data-pi="${l.__pi}" data-max="${pendiente}"
-            min="0" max="${pendiente}" value="0" placeholder="0"
-            ${done?'disabled style="background:#f7fafc;color:#a0aec0"':''}>
-        </td>
-      </tr>`;
+    tbody.innerHTML = lines.map(function(l, i) {
+      var pedida = Number(l.Cantidad)||0;
+      var entregada = Number(l.Cant_Entregada)||0;
+      var pendiente = Math.max(0, pedida - entregada);
+      var estL = l.Estado_Entrega || 'Recibido';
+      var badgeL = norm(estL) === 'recibido' ? 'b-rec' : norm(estL) === 'parcial' ? 'b-par' : 'b-ent';
+      var done = norm(estL) === 'entregado';
+      return '<tr>' +
+        '<td style="color:#a0aec0;font-size:0.74rem">' + (i+1) + '</td>' +
+        '<td style="font-weight:700;white-space:nowrap">' + (l.Producto||'—') + '</td>' +
+        '<td>' + (l.Presentacion||'') + '</td>' +
+        '<td class="money">' + pedida + '</td>' +
+        '<td class="money" style="color:#27ae60;font-weight:700">' + entregada + '</td>' +
+        '<td class="money"><span class="pend-tag ' + (pendiente > 0 ? 'pend' : 'ok') + '">' + pendiente + '</span></td>' +
+        '<td><span class="badge ' + badgeL + '">' + estL + '</span></td>' +
+        '<td class="money" style="font-size:0.78rem">' + fmtMoney(l.Valor_Unitario) + '</td>' +
+        '<td class="money" style="font-size:0.78rem">' + fmtMoney(l.Valor_Total) + '</td>' +
+        '<td><input type="number" class="qty-input" data-row="' + l.__row + '" data-max="' + pendiente + '" min="0" max="' + pendiente + '" value="0" placeholder="0"' +
+          (done ? ' disabled style="background:#f7fafc;color:#a0aec0"' : '') + '></td>' +
+      '</tr>';
     }).join('');
   }
 
@@ -877,158 +847,77 @@ function closeModal() {
   activeIdx = null;
 }
 
-document.getElementById('overlay').addEventListener('click', function(e) {
-  if (e.target === this) closeModal();
-});
+document.getElementById('overlay').addEventListener('click', function(e) { if (e.target === this) closeModal(); });
 
-// ── Confirmar entregas ────────────────────────────────────────────────────────
-function confirmarEntregas() {
-  const fecha = document.getElementById('m-fecha').value;
-  if (!fecha) { showToast('Selecciona la fecha de entrega','#e74c3c'); return; }
+// ── Confirm deliveries (POST to API) ──
+async function confirmarEntregas() {
+  var fecha = document.getElementById('m-fecha').value;
+  if (!fecha) { showToast('Selecciona la fecha de entrega', '#e74c3c'); return; }
 
-  const remInput = document.getElementById('m-remision');
-  const rem = remInput.value.trim();
+  var remInput = document.getElementById('m-remision');
+  var rem = remInput.value.trim();
 
-  const qtyInputs = document.querySelectorAll('#m-lines input.qty-input');
-  let hasSomething = false, hasError = false;
+  var qtyInputs = document.querySelectorAll('#m-lines input.qty-input');
+  var hasSomething = false, hasError = false;
 
-  qtyInputs.forEach(inp => {
+  qtyInputs.forEach(function(inp) {
     inp.classList.remove('error');
-    const cant = Number(inp.value)||0;
+    var cant = Number(inp.value) || 0;
     if (cant > 0) {
       hasSomething = true;
       if (cant > Number(inp.dataset.max)) { inp.classList.add('error'); hasError = true; }
     }
   });
 
-  if (hasError) { showToast('Verifica las cantidades en rojo','#e74c3c'); return; }
-  if (!hasSomething) { showToast('Ingresa al menos una cantidad mayor a 0','#e67e22'); return; }
-
-  if (!rem) {
-    remInput.classList.add('error');
-    showToast('Ingresa el número de remisión del pedido','#e74c3c');
-    return;
-  }
+  if (hasError) { showToast('Verifica las cantidades en rojo', '#e74c3c'); return; }
+  if (!hasSomething) { showToast('Ingresa al menos una cantidad mayor a 0', '#e67e22'); return; }
+  if (!rem) { remInput.classList.add('error'); showToast('Ingresa el número de remisión del pedido', '#e74c3c'); return; }
   remInput.classList.remove('error');
 
-  let updated = 0;
-  qtyInputs.forEach(inp => {
-    const cant = Number(inp.value)||0; if (cant<=0) return;
-    const pi = Number(inp.dataset.pi);
-    const p  = pedidos.find(x => x.__pi===pi); if (!p) return;
-    const prevEnt  = Number(p.Cant_Entregada)||0;
-    const pedida   = Number(p.Cantidad)||0;
-    const nuevaEnt = prevEnt+cant;
-    p.Cant_Entregada    = nuevaEnt;
-    p.Cant_Pendiente    = Math.max(0, pedida-nuevaEnt);
-    p.Estado_Entrega    = p.Cant_Pendiente<=0 ? 'Entregado' : 'Parcial';
-    p.Fecha_Ult_Entrega = fecha;
-    p.Remisiones        = p.Remisiones ? p.Remisiones+', '+rem : rem;
-    updated++;
+  var entregas = [];
+  qtyInputs.forEach(function(inp) {
+    var cant = Number(inp.value) || 0;
+    if (cant <= 0) return;
+    entregas.push({ row: Number(inp.dataset.row), cantidad: cant, fecha: fecha, remision: rem });
   });
 
-  closeModal();
-  renderTable();
-  markUnsaved();
-  showToast(`✓ ${updated} línea(s) actualizadas — recuerda guardar los cambios`);
-}
+  var btn = document.getElementById('btn-confirmar');
+  btn.disabled = true;
+  btn.textContent = '⏳ Guardando...';
 
-// ── Save status ───────────────────────────────────────────────────────────────
-function setSaveStatus(state, filename) {
-  const el  = document.getElementById('save-status');
-  const msg = document.getElementById('save-msg');
-  const ico = document.getElementById('save-icon');
-  const btn = document.getElementById('btn-save');
-  el.style.display = 'flex';
-  if (state === 'clean') {
-    el.className = '';
-    ico.textContent = '✅';
-    msg.textContent = `${filename||'Archivo'} guardado correctamente.`;
-    btn.textContent = '💾 Guardar cambios';
-    btn.style.background = '#1a5276';
-    hasUnsaved = false;
-  } else {
-    el.className = 'unsaved';
-    ico.textContent = '⚠️';
-    msg.textContent = 'Tienes cambios sin guardar. Haz clic en "Guardar cambios" para actualizarlos en el archivo.';
-    btn.textContent = '💾 Guardar cambios *';
-    btn.style.background = '#c0392b';
-    hasUnsaved = true;
+  try {
+    var result = await apiPost({ action: 'registrarEntrega', entregas: entregas });
+    if (!result.ok) throw new Error(result.error || 'Error al guardar');
+
+    closeModal();
+    showToast('✅ ' + result.updated + ' línea(s) guardadas en Google Sheets');
+    await loadFromAPI();
+  } catch (err) {
+    showToast('❌ Error: ' + err.message, '#e74c3c');
+    btn.disabled = false;
+    btn.textContent = '✓ Registrar entregas';
   }
 }
 
-function markUnsaved() { if (wb) setSaveStatus('unsaved'); }
-
-function clearFilters() {
-  document.getElementById('f-emp').value = '';
-  document.getElementById('f-cli').value = '';
-  document.getElementById('f-est').value = '';
-  document.getElementById('f-txt').value = '';
-  renderTable();
-}
-
-// ── Guardar ───────────────────────────────────────────────────────────────────
-async function saveFile() {
-  if (!wb) return;
-
-  // Reconstruir hoja Pedidos con columnas de tracking
-  const rawP = XLSX.utils.sheet_to_json(wb.Sheets['Pedidos'], { header:1, defval:null });
-  let hdrs = [...rawP[0]];
-  TRACK.forEach(h => { if (!hdrs.includes(h)) hdrs.push(h); });
-
-  const newRows = [hdrs, ...pedidos.map(p =>
-    hdrs.map(h => { const v = p[h]; return (v===undefined||v===null) ? null : v; })
-  )];
-  wb.Sheets['Pedidos'] = XLSX.utils.aoa_to_sheet(newRows);
-
-  const buf  = XLSX.write(wb, { bookType:'xlsx', type:'array' });
-  const blob = new Blob([buf], { type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-
-  if (fileHandle) {
-    try {
-      const w = await fileHandle.createWritable();
-      await w.write(blob); await w.close();
-      setSaveStatus('clean', fileHandle.name);
-      showToast('✅ Guardado en el archivo original'); return;
-    } catch(e) { console.warn(e); }
-  }
-  if ('showSaveFilePicker' in window) {
-    try {
-      const h = await window.showSaveFilePicker({
-        suggestedName:'Pedidos_Consolidados.xlsx',
-        types:[{description:'Excel',accept:{'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet':['.xlsx']}}]
-      });
-      fileHandle = h;
-      const w = await h.createWritable();
-      await w.write(blob); await w.close();
-      setSaveStatus('clean', h.name);
-      showToast('✅ Archivo guardado'); return;
-    } catch(e) { if (e.name==='AbortError') return; }
-  }
-  Object.assign(document.createElement('a'),
-    { href: URL.createObjectURL(blob), download:'Pedidos_Consolidados.xlsx' }).click();
-  setSaveStatus('clean','Pedidos_Consolidados.xlsx');
-  showToast('📥 Descargado — reemplaza el original en la carpeta PEDIDOS');
-}
-
-// ── Editar pedido ─────────────────────────────────────────────────────────────
+// ── Edit Modal ──
 function openEdit(idx) {
   editIdx = idx;
-  const c = consecs[idx];
+  var c = consecs[idx];
   editKey = keyOf(c.Nombre_Empresa, c.Consecutivo);
-  editWorkingLines = getLinesFor(c).map(l => ({...l}));
+  editWorkingLines = getLinesFor(c).map(function(l) { return Object.assign({}, l); });
 
-  document.getElementById('ed-titulo').textContent =
-    `✏️ [${getSigla(c.Nombre_Empresa)}] Orden #${c.Consecutivo||''}`;
-  document.getElementById('ed-cliente').value      = c.Cliente || '';
-  document.getElementById('ed-nit').value          = c.NIT || '';
-  document.getElementById('ed-fecha').value        = toDateInput(c.Fecha_Pedido);
-  document.getElementById('ed-comercial').value    = c.Comercial || '';
-  document.getElementById('ed-municipio').value    = c.Municipio || '';
+  document.getElementById('ed-titulo').textContent = '✏️ [' + getSigla(c.Nombre_Empresa) + '] Orden #' + (c.Consecutivo||'');
+  document.getElementById('ed-cliente').value = c.Cliente || '';
+  document.getElementById('ed-nit').value = c.NIT || '';
+  document.getElementById('ed-fecha').value = toDateInput(c.Fecha_Pedido);
+  document.getElementById('ed-comercial').value = c.Comercial || '';
+  document.getElementById('ed-municipio').value = c.Municipio || '';
   document.getElementById('ed-departamento').value = c.Departamento || '';
-  document.getElementById('ed-telefono').value     = c.Telefono || '';
-  document.getElementById('ed-plazo').value        = c.Plazo_Pago || '';
-  document.getElementById('ed-precio').value       = c.Precio_Facturacion || '';
+  document.getElementById('ed-telefono').value = c.Telefono || '';
+  document.getElementById('ed-plazo').value = c.Plazo_Pago || '';
+  document.getElementById('ed-precio').value = c.Precio_Facturacion || '';
+  document.getElementById('btn-saveEdit').disabled = false;
+  document.getElementById('btn-saveEdit').textContent = '✓ Aplicar cambios';
 
   renderEditLines();
   document.getElementById('edit-overlay').classList.add('show');
@@ -1039,51 +928,48 @@ function closeEdit() {
   editIdx = null; editKey = null; editWorkingLines = [];
 }
 
-document.getElementById('edit-overlay').addEventListener('click', function(e) {
-  if (e.target === this) closeEdit();
-});
+document.getElementById('edit-overlay').addEventListener('click', function(e) { if (e.target === this) closeEdit(); });
 
 function renderEditLines() {
-  const tbody = document.getElementById('ed-lines');
-  tbody.innerHTML = editWorkingLines.map((l, i) => {
-    const locked = (Number(l.Cant_Entregada)||0) > 0;
-    const prod   = (l.Producto    ||'').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
-    const pres   = (l.Presentacion||'').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
-    return `<tr>
-      <td style="color:#a0aec0;font-size:0.74rem">${i+1}</td>
-      <td><input class="ef ed-prod" data-i="${i}" type="text" value="${prod}"${locked?' style="background:#f7fafc"':''}></td>
-      <td><input class="ef ed-pres" data-i="${i}" type="text" value="${pres}"${locked?' style="background:#f7fafc"':''}></td>
-      <td><input class="ef ed-cant" data-i="${i}" type="number" min="0" value="${l.Cantidad||0}" style="width:80px;text-align:right" oninput="updateLineTotal(${i})"></td>
-      <td><input class="ef ed-vuni" data-i="${i}" type="number" min="0" value="${l.Valor_Unitario||0}" style="width:100px;text-align:right" oninput="updateLineTotal(${i})"></td>
-      <td><input class="ef ed-vtot" data-i="${i}" type="number" value="${l.Valor_Total||0}" style="width:100px;text-align:right;background:#f7fafc" readonly></td>
-      <td style="text-align:center">
-        ${locked
-          ? '<span style="font-size:0.85rem;color:#a0aec0" title="Tiene entregas registradas — no se puede eliminar">🔒</span>'
-          : `<button onclick="removeEditLine(${i})" style="background:#e74c3c;color:white;border:none;padding:4px 10px;border-radius:5px;cursor:pointer;font-size:0.78rem;font-weight:700">✕</button>`}
-      </td>
-    </tr>`;
+  var tbody = document.getElementById('ed-lines');
+  tbody.innerHTML = editWorkingLines.map(function(l, i) {
+    var locked = (Number(l.Cant_Entregada)||0) > 0;
+    var prod = (l.Producto||'').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+    var pres = (l.Presentacion||'').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+    return '<tr>' +
+      '<td style="color:#a0aec0;font-size:0.74rem">' + (i+1) + '</td>' +
+      '<td><input class="ef ed-prod" data-i="' + i + '" type="text" value="' + prod + '"' + (locked ? ' style="background:#f7fafc"' : '') + '></td>' +
+      '<td><input class="ef ed-pres" data-i="' + i + '" type="text" value="' + pres + '"' + (locked ? ' style="background:#f7fafc"' : '') + '></td>' +
+      '<td><input class="ef ed-cant" data-i="' + i + '" type="number" min="0" value="' + (l.Cantidad||0) + '" style="width:80px;text-align:right" oninput="updateLineTotal(' + i + ')"></td>' +
+      '<td><input class="ef ed-vuni" data-i="' + i + '" type="number" min="0" value="' + (l.Valor_Unitario||0) + '" style="width:100px;text-align:right" oninput="updateLineTotal(' + i + ')"></td>' +
+      '<td><input class="ef ed-vtot" data-i="' + i + '" type="number" value="' + (l.Valor_Total||0) + '" style="width:100px;text-align:right;background:#f7fafc" readonly></td>' +
+      '<td style="text-align:center">' +
+        (locked
+          ? '<span style="font-size:0.85rem;color:#a0aec0" title="Tiene entregas registradas">🔒</span>'
+          : '<button onclick="removeEditLine(' + i + ')" style="background:#e74c3c;color:white;border:none;padding:4px 10px;border-radius:5px;cursor:pointer;font-size:0.78rem;font-weight:700">✕</button>') +
+      '</td></tr>';
   }).join('');
   updateEditTotal();
 }
 
 function updateLineTotal(i) {
-  const cants = document.querySelectorAll('.ed-cant');
-  const vunis = document.querySelectorAll('.ed-vuni');
-  const vtots = document.querySelectorAll('.ed-vtot');
-  const cant  = parseFloat(cants[i]?.value)||0;
-  const vuni  = parseFloat(vunis[i]?.value)||0;
-  const vtot  = cant * vuni;
+  var cants = document.querySelectorAll('.ed-cant');
+  var vunis = document.querySelectorAll('.ed-vuni');
+  var vtots = document.querySelectorAll('.ed-vtot');
+  var cant = parseFloat(cants[i] && cants[i].value) || 0;
+  var vuni = parseFloat(vunis[i] && vunis[i].value) || 0;
+  var vtot = cant * vuni;
   if (vtots[i]) vtots[i].value = vtot;
   if (editWorkingLines[i]) {
-    editWorkingLines[i].Cantidad       = cant;
+    editWorkingLines[i].Cantidad = cant;
     editWorkingLines[i].Valor_Unitario = vuni;
-    editWorkingLines[i].Valor_Total    = vtot;
+    editWorkingLines[i].Valor_Total = vtot;
   }
   updateEditTotal();
 }
 
 function updateEditTotal() {
-  const total = editWorkingLines.reduce((s,l) => s+(Number(l.Valor_Total)||0), 0);
+  var total = editWorkingLines.reduce(function(s, l) { return s + (Number(l.Valor_Total)||0); }, 0);
   document.getElementById('ed-total-calc').textContent = fmtMoney(total);
 }
 
@@ -1091,11 +977,10 @@ function addEditLine() {
   editWorkingLines.push({
     Producto:'', Presentacion:'', Cantidad:0, Valor_Unitario:0, Valor_Total:0,
     Cant_Entregada:0, Cant_Pendiente:0, Estado_Entrega:'Recibido',
-    Fecha_Ult_Entrega:null, Remisiones:'', __pi: null
+    Fecha_Ult_Entrega:null, Remisiones:'', __row: null
   });
   renderEditLines();
-  // scroll to bottom of product table
-  const wrap = document.querySelector('#edit-overlay .prod-wrap');
+  var wrap = document.querySelector('#edit-overlay .prod-wrap');
   if (wrap) wrap.scrollTop = wrap.scrollHeight;
 }
 
@@ -1104,81 +989,74 @@ function removeEditLine(i) {
   renderEditLines();
 }
 
-function saveEdit() {
+async function saveEdit() {
   if (editIdx === null) return;
 
-  // Collect DOM values into editWorkingLines
-  const prods = [...document.querySelectorAll('.ed-prod')];
-  const press = [...document.querySelectorAll('.ed-pres')];
-  const cants = [...document.querySelectorAll('.ed-cant')];
-  const vunis = [...document.querySelectorAll('.ed-vuni')];
-  const vtots = [...document.querySelectorAll('.ed-vtot')];
-  editWorkingLines.forEach((l, i) => {
-    l.Producto       = prods[i]?.value.trim() || '';
-    l.Presentacion   = press[i]?.value.trim() || '';
-    l.Cantidad       = Number(cants[i]?.value)||0;
-    l.Valor_Unitario = Number(vunis[i]?.value)||0;
-    l.Valor_Total    = Number(vtots[i]?.value)||0;
+  var prods = [].slice.call(document.querySelectorAll('.ed-prod'));
+  var press = [].slice.call(document.querySelectorAll('.ed-pres'));
+  var cants = [].slice.call(document.querySelectorAll('.ed-cant'));
+  var vunis = [].slice.call(document.querySelectorAll('.ed-vuni'));
+  var vtots = [].slice.call(document.querySelectorAll('.ed-vtot'));
+  editWorkingLines.forEach(function(l, i) {
+    l.Producto = prods[i] ? prods[i].value.trim() : '';
+    l.Presentacion = press[i] ? press[i].value.trim() : '';
+    l.Cantidad = Number(cants[i] && cants[i].value) || 0;
+    l.Valor_Unitario = Number(vunis[i] && vunis[i].value) || 0;
+    l.Valor_Total = Number(vtots[i] && vtots[i].value) || 0;
     l.Cant_Pendiente = Math.max(0, l.Cantidad - (Number(l.Cant_Entregada)||0));
   });
 
-  // Header values
-  const hdr = {
-    Cliente:            document.getElementById('ed-cliente').value.trim(),
-    NIT:                document.getElementById('ed-nit').value.trim(),
-    Fecha_Pedido:       document.getElementById('ed-fecha').value || null,
-    Comercial:          document.getElementById('ed-comercial').value.trim(),
-    Municipio:          document.getElementById('ed-municipio').value.trim(),
-    Departamento:       document.getElementById('ed-departamento').value.trim(),
-    Telefono:           document.getElementById('ed-telefono').value.trim(),
-    Plazo_Pago:         document.getElementById('ed-plazo').value.trim(),
+  var hdr = {
+    Cliente: document.getElementById('ed-cliente').value.trim(),
+    NIT: document.getElementById('ed-nit').value.trim(),
+    Fecha_Pedido: document.getElementById('ed-fecha').value || null,
+    Comercial: document.getElementById('ed-comercial').value.trim(),
+    Municipio: document.getElementById('ed-municipio').value.trim(),
+    Departamento: document.getElementById('ed-departamento').value.trim(),
+    Telefono: document.getElementById('ed-telefono').value.trim(),
+    Plazo_Pago: document.getElementById('ed-plazo').value.trim(),
     Precio_Facturacion: document.getElementById('ed-precio').value.trim(),
-    Total_Orden:        editWorkingLines.reduce((s,l)=>s+(Number(l.Valor_Total)||0),0),
+    Total_Orden: editWorkingLines.reduce(function(s, l) { return s + (Number(l.Valor_Total)||0); }, 0),
   };
 
-  const c = consecs[editIdx];
-  // PIs of original lines for this order
-  const oldPis  = new Set(getLinesFor(c).map(l => l.__pi));
-  const keepPis = new Set(editWorkingLines.filter(l => l.__pi !== null).map(l => l.__pi));
+  var c = consecs[editIdx];
+  var originalLines = getLinesFor(c);
+  var originalRows = originalLines.map(function(l) { return l.__row; });
+  var keepRows = editWorkingLines.filter(function(l) { return l.__row; }).map(function(l) { return l.__row; });
+  var deleteRows = originalRows.filter(function(r) { return keepRows.indexOf(r) < 0; });
 
-  // Remove deleted lines
-  pedidos = pedidos.filter(p => !oldPis.has(p.__pi) || keepPis.has(p.__pi));
+  var btn = document.getElementById('btn-saveEdit');
+  btn.disabled = true;
+  btn.textContent = '⏳ Guardando...';
 
-  // Max __pi for generating new ones
-  const maxPi = pedidos.reduce((m,p) => Math.max(m, p.__pi ?? -1), -1);
-  let nextPi  = maxPi + 1;
+  try {
+    var result = await apiPost({
+      action: 'editarPedido',
+      header: Object.assign({}, hdr, { Nombre_Empresa: c.Nombre_Empresa, Consecutivo: c.Consecutivo }),
+      lineas: editWorkingLines,
+      deleteRows: deleteRows
+    });
+    if (!result.ok) throw new Error(result.error || 'Error al guardar');
 
-  editWorkingLines.forEach(l => {
-    const applied = {
-      ...l, ...hdr,
-      Nombre_Empresa: c.Nombre_Empresa,
-      Consecutivo:    c.Consecutivo,
-      Estado:         l.Estado || 'recibido',
-      Archivo_Fuente: l.Archivo_Fuente || 'Manual',
-    };
-    if (l.__pi !== null) {
-      const pos = pedidos.findIndex(p => p.__pi === l.__pi);
-      if (pos >= 0) pedidos[pos] = { ...pedidos[pos], ...applied };
-    } else {
-      applied.__pi = nextPi++;
-      pedidos.push(applied);
-    }
-  });
-
-  rebuildConsecs();
-  populateFilters();
-  renderTable();
-  closeEdit();
-  markUnsaved();
-  showToast('✏️ Pedido actualizado — recuerda guardar los cambios');
+    closeEdit();
+    showToast('✅ Pedido actualizado en Google Sheets');
+    await loadFromAPI();
+  } catch (err) {
+    showToast('❌ Error: ' + err.message, '#e74c3c');
+    btn.disabled = false;
+    btn.textContent = '✓ Aplicar cambios';
+  }
 }
 
-// ── Toast ─────────────────────────────────────────────────────────────────────
+// ── Toast ──
 function showToast(msg, color) {
-  const t = document.getElementById('toast');
-  t.textContent = msg; t.style.background = color||'#1a5276';
-  t.classList.add('show'); setTimeout(()=>t.classList.remove('show'), 3500);
+  var t = document.getElementById('toast');
+  t.textContent = msg; t.style.background = color || '#1a5276';
+  t.classList.add('show'); setTimeout(function() { t.classList.remove('show'); }, 3500);
 }
+
+// ── Auto-load on page open ──
+loadFromAPI();
 </script>
 </body>
 </html>
