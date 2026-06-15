@@ -639,6 +639,38 @@ async function loadFromAPI() {
     var data = await apiGet('getPedidos');
     if (!data.ok) throw new Error(data.error || 'Error desconocido');
 
+    var EXPECTED = ['Fecha_Procesamiento','Nombre_Empresa','Consecutivo','Fecha_Pedido',
+      'Cliente','NIT','Telefono','Direccion_Envio','Municipio','Departamento',
+      'Comercial','Plazo_Pago','Precio_Facturacion','Producto','Presentacion',
+      'Cantidad','Valor_Unitario','Valor_Total','Total_Orden','Archivo_Fuente',
+      'Estado','ID_Cliente','ID_Comercial','ID_Producto',
+      'Cant_Entregada','Cant_Pendiente','Estado_Entrega','Fecha_Ult_Entrega','Remisiones'];
+
+    if (data.headers && data.headers[0] !== 'Fecha_Procesamiento') {
+      var oldHeaders = data.headers;
+      var fixedFirst = {};
+      for (var hi = 0; hi < EXPECTED.length && hi < oldHeaders.length; hi++) {
+        fixedFirst[EXPECTED[hi]] = oldHeaders[hi];
+      }
+      fixedFirst.__row = 1;
+      var fixedPedidos = [fixedFirst];
+      for (var ri = 0; ri < data.pedidos.length; ri++) {
+        var oldRow = data.pedidos[ri];
+        var newRow = {};
+        for (var ci = 0; ci < EXPECTED.length && ci < oldHeaders.length; ci++) {
+          newRow[EXPECTED[ci]] = oldRow[oldHeaders[ci]];
+        }
+        newRow.__row = oldRow.__row || (ri + 2);
+        fixedPedidos.push(newRow);
+      }
+      data.pedidos = fixedPedidos;
+      data.headers = EXPECTED;
+    }
+
+    data.pedidos = data.pedidos.filter(function(p) {
+      return p.Nombre_Empresa !== 'Nombre_Empresa' && p.Cliente !== 'Cliente';
+    });
+
     pedidos = data.pedidos.map(function(p) {
       if (p.Consecutivo !== null && p.Consecutivo !== undefined) {
         var n = Number(p.Consecutivo);
