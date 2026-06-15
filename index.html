@@ -7,6 +7,7 @@
 <meta name="theme-color" content="#1a5276">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📋</text></svg>">
 <title>Panel de Pedidos – PARCELAR</title>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: 'Segoe UI', sans-serif; background: #f0f4f8; color: #2d3748; }
@@ -338,6 +339,8 @@ thead th:not(.sort-asc):not(.sort-desc) .sort-icon::after { content: ' \2195'; c
       <h3>Órdenes registradas <span id="row-ct" style="font-weight:400;color:#718096"></span></h3>
       <div style="display:flex;gap:8px;align-items:center">
         <button id="btn-clear-sort" onclick="clearSort()" title="Quitar todos los ordenamientos">✕ Limpiar orden</button>
+        <button class="btn-dl" onclick="document.getElementById('file-upload').click()" style="background:#27ae60">📥 Cargar Pedido</button>
+        <input type="file" id="file-upload" accept=".xlsx,.xls" style="display:none" onchange="handleFileUpload(this)">
         <button class="btn-dl" onclick="loadFromAPI()">🔄 Actualizar datos</button>
       </div>
     </div>
@@ -457,6 +460,58 @@ thead th:not(.sort-asc):not(.sort-desc) .sort-icon::after { content: ' \2195'; c
       <div class="mftr-btns">
         <button class="btn-cancel" onclick="closeEdit()">Cancelar</button>
         <button class="btn-confirm" id="btn-saveEdit" onclick="saveEdit()">✓ Aplicar cambios</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- UPLOAD PREVIEW MODAL -->
+<div class="overlay" id="upload-overlay">
+  <div class="modal-box" style="max-width:900px">
+    <div class="mhdr" style="background:linear-gradient(135deg,#27ae60,#2ecc71)">
+      <div style="flex:1">
+        <h2 id="up-titulo">📥 Cargar Pedido</h2>
+        <div id="up-archivo" style="font-size:0.78rem;opacity:0.85;margin-top:4px"></div>
+      </div>
+      <button class="btn-close" onclick="closeUpload()">✕</button>
+    </div>
+    <div class="mbody">
+      <div id="up-dup-warn" style="display:none;background:#fef3cd;border:1px solid #f9ca24;border-radius:8px;padding:10px 16px;margin-bottom:14px;font-size:0.85rem;color:#856404">
+        ⚠️ Este pedido ya existe en la base de datos. Si continúas, se creará un duplicado.
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:18px;font-size:0.84rem">
+        <div><span style="font-weight:700;color:#4a5568;font-size:0.76rem;text-transform:uppercase">Empresa</span><br><span id="up-empresa">—</span></div>
+        <div><span style="font-weight:700;color:#4a5568;font-size:0.76rem;text-transform:uppercase">Consecutivo</span><br><span id="up-consecutivo">—</span></div>
+        <div><span style="font-weight:700;color:#4a5568;font-size:0.76rem;text-transform:uppercase">Fecha Pedido</span><br><span id="up-fecha">—</span></div>
+        <div><span style="font-weight:700;color:#4a5568;font-size:0.76rem;text-transform:uppercase">Cliente</span><br><span id="up-cliente">—</span></div>
+        <div><span style="font-weight:700;color:#4a5568;font-size:0.76rem;text-transform:uppercase">NIT</span><br><span id="up-nit">—</span></div>
+        <div><span style="font-weight:700;color:#4a5568;font-size:0.76rem;text-transform:uppercase">Comercial</span><br><span id="up-comercial">—</span></div>
+        <div><span style="font-weight:700;color:#4a5568;font-size:0.76rem;text-transform:uppercase">Municipio</span><br><span id="up-municipio">—</span></div>
+        <div><span style="font-weight:700;color:#4a5568;font-size:0.76rem;text-transform:uppercase">Departamento</span><br><span id="up-departamento">—</span></div>
+        <div><span style="font-weight:700;color:#4a5568;font-size:0.76rem;text-transform:uppercase">Plazo de Pago</span><br><span id="up-plazo">—</span></div>
+      </div>
+      <div style="font-size:0.85rem;font-weight:700;color:#27ae60;margin-bottom:8px">Productos</div>
+      <div class="prod-wrap">
+        <table class="prod-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Producto</th>
+              <th>Presentación</th>
+              <th class="money">Cantidad</th>
+              <th class="money">Val. Unitario</th>
+              <th class="money">Val. Total</th>
+            </tr>
+          </thead>
+          <tbody id="up-lines"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="mftr">
+      <div class="total-tag">Total orden: <strong id="up-total">$0</strong></div>
+      <div class="mftr-btns">
+        <button class="btn-cancel" onclick="closeUpload()">Cancelar</button>
+        <button class="btn-confirm" id="btn-upload" onclick="confirmUpload()" style="background:#27ae60">📥 Cargar a Google Sheets</button>
       </div>
     </div>
   </div>
@@ -1053,6 +1108,190 @@ function showToast(msg, color) {
   var t = document.getElementById('toast');
   t.textContent = msg; t.style.background = color || '#1a5276';
   t.classList.add('show'); setTimeout(function() { t.classList.remove('show'); }, 3500);
+}
+
+// ── Upload Order from Excel ──
+var uploadData = null;
+
+function handleFileUpload(input) {
+  var file = input.files[0];
+  if (!file) return;
+  input.value = '';
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      var data = new Uint8Array(e.target.result);
+      var parsed = parseOrderExcel(data, file.name);
+      uploadData = parsed;
+      showUploadPreview(parsed);
+    } catch (err) {
+      showToast('Error al leer el archivo: ' + err.message, '#e74c3c');
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function parseOrderExcel(data, filename) {
+  var wb = XLSX.read(data, {type: 'array', cellDates: true});
+  var ws = wb.Sheets[wb.SheetNames[0]];
+  var rows = XLSX.utils.sheet_to_json(ws, {header: 1, defval: null, raw: true});
+
+  function get(r, c) {
+    if (r >= rows.length) return null;
+    var row = rows[r] || [];
+    return c < row.length ? row[c] : null;
+  }
+
+  function dateFmt(v) {
+    if (!v) return null;
+    if (v instanceof Date) return v.getFullYear() + '-' + String(v.getMonth()+1).padStart(2,'0') + '-' + String(v.getDate()).padStart(2,'0');
+    return String(v);
+  }
+
+  function findSelectedOption(row, skipCol) {
+    if (!row) return null;
+    skipCol = skipCol || 0;
+    var labeled = [];
+    for (var i = 0; i < row.length; i++) {
+      if (row[i] != null && i > skipCol) labeled.push({i: i, v: row[i]});
+    }
+    var xItems = labeled.filter(function(item) { return String(item.v).trim().toLowerCase() === 'x'; });
+    if (!xItems.length) return null;
+    var xp = xItems[0].i;
+    var before = labeled.filter(function(item) { return String(item.v).trim().toLowerCase() !== 'x' && item.i < xp; });
+    if (!before.length) return null;
+    before.sort(function(a, b) { return b.i - a.i; });
+    return String(before[0].v).trim();
+  }
+
+  var prodHeader = null, obsRow = null, totalRow = null;
+  for (var i = 0; i < rows.length; i++) {
+    if (rows[i] && rows[i][0] === 'PRODUCTOS') prodHeader = i;
+    if (rows[i] && rows[i][0] === 'OBSERVACIONES') obsRow = i;
+    if (rows[i] && rows[i].length > 8 && typeof rows[i][8] === 'string' && rows[i][8].indexOf('TOTAL A PAGAR') >= 0) totalRow = i;
+  }
+
+  var productos = [];
+  if (prodHeader !== null && obsRow !== null) {
+    for (var r = prodHeader + 1; r < obsRow; r++) {
+      var nombre = get(r, 0);
+      if (nombre == null) continue;
+      productos.push({
+        producto: nombre,
+        presentacion: get(r, 1),
+        cantidad: get(r, 5),
+        valor_unitario: get(r, 10),
+        valor_total: get(r, 15),
+      });
+    }
+  }
+
+  return {
+    nombre_empresa: get(3, 1) ? String(get(3, 1)).trim() : null,
+    consecutivo: get(5, 14),
+    fecha_pedido: dateFmt(get(6, 1)),
+    cliente: get(7, 1) ? String(get(7, 1)).trim() : null,
+    nit: get(7, 14),
+    telefono: get(8, 14),
+    direccion_envio: get(8, 1) ? String(get(8, 1)).trim() : null,
+    municipio: get(9, 1) ? String(get(9, 1)).trim() : null,
+    departamento: get(9, 14) ? String(get(9, 14)).trim() : null,
+    comercial: get(6, 14) ? String(get(6, 14)).trim() : null,
+    plazo_pago: findSelectedOption(rows[11]),
+    precio_facturacion: findSelectedOption(rows[12]),
+    total_orden: totalRow !== null ? get(totalRow, 15) : null,
+    productos: productos,
+    archivo_fuente: filename,
+  };
+}
+
+async function showUploadPreview(data) {
+  document.getElementById('up-archivo').textContent = 'Archivo: ' + data.archivo_fuente;
+  document.getElementById('up-empresa').textContent = data.nombre_empresa || '—';
+  document.getElementById('up-consecutivo').textContent = data.consecutivo || '—';
+  document.getElementById('up-fecha').textContent = data.fecha_pedido || '—';
+  document.getElementById('up-cliente').textContent = data.cliente || '—';
+  document.getElementById('up-nit').textContent = data.nit || '—';
+  document.getElementById('up-comercial').textContent = data.comercial || '—';
+  document.getElementById('up-municipio').textContent = data.municipio || '—';
+  document.getElementById('up-departamento').textContent = data.departamento || '—';
+  document.getElementById('up-plazo').textContent = data.plazo_pago || '—';
+  document.getElementById('up-total').textContent = fmtMoney(data.total_orden);
+
+  var tbody = document.getElementById('up-lines');
+  if (!data.productos.length) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#a0aec0;padding:16px">Sin productos</td></tr>';
+  } else {
+    tbody.innerHTML = data.productos.map(function(p, i) {
+      return '<tr>' +
+        '<td style="color:#a0aec0;font-size:0.74rem">' + (i+1) + '</td>' +
+        '<td style="font-weight:700">' + (p.producto||'—') + '</td>' +
+        '<td>' + (p.presentacion||'') + '</td>' +
+        '<td class="money">' + (p.cantidad||0) + '</td>' +
+        '<td class="money">' + fmtMoney(p.valor_unitario) + '</td>' +
+        '<td class="money">' + fmtMoney(p.valor_total) + '</td>' +
+        '</tr>';
+    }).join('');
+  }
+
+  var dupWarn = document.getElementById('up-dup-warn');
+  dupWarn.style.display = 'none';
+  try {
+    var dupResult = await apiPost({
+      action: 'checkDuplicado',
+      consecutivo: data.consecutivo,
+      cliente: data.cliente,
+      fecha_pedido: data.fecha_pedido
+    });
+    if (dupResult.ok && dupResult.duplicado) dupWarn.style.display = 'block';
+  } catch(e) {}
+
+  document.getElementById('btn-upload').disabled = false;
+  document.getElementById('btn-upload').textContent = '📥 Cargar a Google Sheets';
+  document.getElementById('upload-overlay').classList.add('show');
+}
+
+function closeUpload() {
+  document.getElementById('upload-overlay').classList.remove('show');
+  uploadData = null;
+}
+
+document.getElementById('upload-overlay').addEventListener('click', function(e) { if (e.target === this) closeUpload(); });
+
+async function confirmUpload() {
+  if (!uploadData) return;
+  var btn = document.getElementById('btn-upload');
+  btn.disabled = true;
+  btn.textContent = '⏳ Cargando...';
+
+  try {
+    var result = await apiPost({
+      action: 'agregarPedido',
+      nombre_empresa: uploadData.nombre_empresa,
+      consecutivo: uploadData.consecutivo,
+      fecha_pedido: uploadData.fecha_pedido,
+      cliente: uploadData.cliente,
+      nit: uploadData.nit,
+      telefono: uploadData.telefono,
+      direccion_envio: uploadData.direccion_envio,
+      municipio: uploadData.municipio,
+      departamento: uploadData.departamento,
+      comercial: uploadData.comercial,
+      plazo_pago: uploadData.plazo_pago,
+      precio_facturacion: uploadData.precio_facturacion,
+      total_orden: uploadData.total_orden,
+      productos: uploadData.productos,
+      archivo_fuente: uploadData.archivo_fuente,
+    });
+    if (!result.ok) throw new Error(result.error || 'Error al cargar');
+    closeUpload();
+    showToast('Pedido cargado: ' + (result.added||0) + ' linea(s) agregadas a Google Sheets');
+    await loadFromAPI();
+  } catch (err) {
+    showToast('Error: ' + err.message, '#e74c3c');
+    btn.disabled = false;
+    btn.textContent = '📥 Cargar a Google Sheets';
+  }
 }
 
 // ── Auto-load on page open ──
