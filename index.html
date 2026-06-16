@@ -648,6 +648,12 @@ async function loadFromAPI() {
 
     if (data.headers && data.headers[0] !== 'Fecha_Procesamiento') {
       var oldHeaders = data.headers;
+      var posMap = {};
+      for (var pi = 0; pi < oldHeaders.length; pi++) {
+        var hKey = String(oldHeaders[pi]);
+        if (!(hKey in posMap)) posMap[hKey] = [];
+        posMap[hKey].push(pi);
+      }
       var fixedFirst = {};
       for (var hi = 0; hi < EXPECTED.length && hi < oldHeaders.length; hi++) {
         fixedFirst[EXPECTED[hi]] = oldHeaders[hi];
@@ -656,9 +662,23 @@ async function loadFromAPI() {
       var fixedPedidos = [fixedFirst];
       for (var ri = 0; ri < data.pedidos.length; ri++) {
         var oldRow = data.pedidos[ri];
+        var vals = [];
+        for (var vi = 0; vi < oldHeaders.length; vi++) vals.push(undefined);
+        for (var hk in posMap) {
+          if (!posMap.hasOwnProperty(hk)) continue;
+          var positions = posMap[hk];
+          var rawVal = oldRow[hk];
+          if (positions.length === 1) {
+            vals[positions[0]] = rawVal;
+          } else {
+            for (var pp = 0; pp < positions.length; pp++) {
+              vals[positions[pp]] = rawVal;
+            }
+          }
+        }
         var newRow = {};
-        for (var ci = 0; ci < EXPECTED.length && ci < oldHeaders.length; ci++) {
-          newRow[EXPECTED[ci]] = oldRow[oldHeaders[ci]];
+        for (var ci = 0; ci < EXPECTED.length && ci < vals.length; ci++) {
+          newRow[EXPECTED[ci]] = vals[ci] !== undefined ? vals[ci] : '';
         }
         newRow.__row = oldRow.__row || (ri + 2);
         fixedPedidos.push(newRow);
@@ -682,6 +702,14 @@ async function loadFromAPI() {
         p.Estado_Entrega = 'Recibido';
         p.Fecha_Ult_Entrega = null;
         p.Remisiones = '';
+      }
+      var cantE = Number(p.Cant_Entregada) || 0;
+      var cantP = Number(p.Cant_Pendiente) || 0;
+      var cantQ = Number(p.Cantidad) || 0;
+      if (cantQ === 0 && (cantE + cantP) > 0) {
+        p.Cantidad = cantE + cantP;
+      } else if (cantQ > 0 && cantQ < cantE) {
+        p.Cantidad = cantE + cantP;
       }
       return p;
     });
