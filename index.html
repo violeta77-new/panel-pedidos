@@ -136,6 +136,12 @@ tbody td { padding: 9px 12px; vertical-align: middle; }
   font-weight: 700; transition: background 0.2s;
 }
 .btn-edit:hover { background: #e2e8f0; }
+.btn-del {
+  background: #f0f4f8; color: #e74c3c; border: 1px solid #e74c3c;
+  padding: 5px 10px; border-radius: 6px; cursor: pointer; font-size: 0.78rem;
+  font-weight: 700; transition: background 0.2s;
+}
+.btn-del:hover { background: #fde8e8; }
 
 /* ── EDIT FIELDS ── */
 .ef {
@@ -517,10 +523,32 @@ thead th:not(.sort-asc):not(.sort-desc) .sort-icon::after { content: ' \2195'; c
   </div>
 </div>
 
+<!-- DELETE CONFIRM MODAL -->
+<div class="overlay" id="delete-overlay">
+  <div class="modal-box" style="max-width:480px">
+    <div class="mhdr" style="background:linear-gradient(135deg,#c0392b,#e74c3c)">
+      <div style="flex:1">
+        <h2>🗑️ Eliminar Pedido</h2>
+        <div style="font-size:0.78rem;opacity:0.85;margin-top:4px">Esta acción no se puede deshacer</div>
+      </div>
+      <button class="btn-close" onclick="closeDelete()">✕</button>
+    </div>
+    <div class="mbody" style="text-align:center;padding:28px 24px">
+      <div style="font-size:2.5rem;margin-bottom:12px">⚠️</div>
+      <div style="font-size:0.95rem;font-weight:700;color:#2d3748;margin-bottom:8px" id="del-msg">¿Eliminar este pedido?</div>
+      <div style="font-size:0.82rem;color:#718096" id="del-detail"></div>
+    </div>
+    <div class="mftr" style="justify-content:center;gap:12px">
+      <button class="btn-cancel" onclick="closeDelete()">Cancelar</button>
+      <button class="btn-confirm" id="btn-del-confirm" onclick="confirmDelete()" style="background:#e74c3c">🗑️ Sí, eliminar</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
-const API_URL = 'https://script.google.com/macros/s/AKfycbwvHvKokrsTQv9Ot-LKC4Qmm4j2HSCS-aKQPmNT2XBjqSYWnkooIzS-LtWejJP7K3wHVQ/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycby56eHdQIjfgQ9BRUbzoq238xSVD56Bl19popJmN4K2jl1eeHO0WRlp2h6GtFYPox9diA/exec';
 
 // ── Sorting ──
 let sortLevels = [];
@@ -901,6 +929,7 @@ function renderTable() {
           (lines.length === 0 ? '👁 Ver' : done ? '✓ Entregado' : '📦 Ver pedido') +
         '</button>' +
         '<button class="btn-edit" onclick="openEdit(' + idx + ')" title="Editar pedido">✏️</button>' +
+        '<button class="btn-del" onclick="openDelete(' + idx + ')" title="Eliminar pedido">🗑️</button>' +
       '</div></td>' +
     '</tr>';
   }).join('');
@@ -1351,6 +1380,56 @@ async function confirmUpload() {
     showToast('Error: ' + err.message, '#e74c3c');
     btn.disabled = false;
     btn.textContent = '📥 Cargar a Google Sheets';
+  }
+}
+
+// ── Delete Order ──
+var deleteIdx = null;
+
+function openDelete(idx) {
+  deleteIdx = idx;
+  var c = consecs[idx];
+  var lines = getLinesFor(c);
+  var est = derivedStatus(lines);
+  document.getElementById('del-msg').textContent = '¿Eliminar el pedido #' + (c.Consecutivo||'') + ' de ' + getSigla(c.Nombre_Empresa) + '?';
+  document.getElementById('del-detail').innerHTML =
+    'Cliente: <strong>' + (c.Cliente||'—') + '</strong><br>' +
+    'Productos: ' + lines.length + ' línea(s) · Estado: ' + est + '<br>' +
+    'Total: ' + fmtMoney(c.Total_Orden) + '<br><br>' +
+    '<span style="color:#e74c3c;font-weight:700">Se eliminarán todas las líneas de este pedido de Google Sheets.</span>';
+  document.getElementById('btn-del-confirm').disabled = false;
+  document.getElementById('btn-del-confirm').textContent = '🗑️ Sí, eliminar';
+  document.getElementById('delete-overlay').classList.add('show');
+}
+
+function closeDelete() {
+  document.getElementById('delete-overlay').classList.remove('show');
+  deleteIdx = null;
+}
+
+document.getElementById('delete-overlay').addEventListener('click', function(e) { if (e.target === this) closeDelete(); });
+
+async function confirmDelete() {
+  if (deleteIdx === null) return;
+  var c = consecs[deleteIdx];
+  var btn = document.getElementById('btn-del-confirm');
+  btn.disabled = true;
+  btn.textContent = '⏳ Eliminando...';
+
+  try {
+    var result = await apiPost({
+      action: 'eliminarPedido',
+      empresa: c.Nombre_Empresa,
+      consecutivo: String(c.Consecutivo)
+    });
+    if (!result.ok) throw new Error(result.error || 'Error al eliminar');
+    closeDelete();
+    showToast('🗑️ Pedido eliminado: ' + (result.deleted||0) + ' línea(s) removidas');
+    await loadFromAPI();
+  } catch (err) {
+    showToast('❌ Error: ' + err.message, '#e74c3c');
+    btn.disabled = false;
+    btn.textContent = '🗑️ Sí, eliminar';
   }
 }
 
