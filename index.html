@@ -974,7 +974,10 @@ function openDetail(idx) {
         '<td class="money">' + pedida + '</td>' +
         '<td class="money" style="color:#27ae60;font-weight:700">' + entregada + '</td>' +
         '<td class="money"><span class="pend-tag ' + (pendiente > 0 ? 'pend' : 'ok') + '">' + pendiente + '</span></td>' +
-        '<td><span class="badge ' + badgeL + '">' + estL + '</span></td>' +
+        '<td><span class="badge ' + badgeL + '">' + estL + '</span>' +
+          (l.Remisiones ? '<div style="font-size:0.7rem;color:#4a5568;margin-top:3px">📄 ' + l.Remisiones + '</div>' : '') +
+          (l.Fecha_Ult_Entrega ? '<div style="font-size:0.68rem;color:#718096">📅 ' + fmtDate(l.Fecha_Ult_Entrega) + '</div>' : '') +
+        '</td>' +
         '<td class="money" style="font-size:0.78rem">' + fmtMoney(l.Valor_Unitario) + '</td>' +
         '<td class="money" style="font-size:0.78rem">' + fmtMoney(l.Valor_Total) + '</td>' +
         '<td><input type="number" class="qty-input" data-row="' + l.__row + '" data-max="' + pendiente + '" min="0" max="' + pendiente + '" value="0" placeholder="0"' +
