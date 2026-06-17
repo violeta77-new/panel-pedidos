@@ -1011,7 +1011,8 @@ function closeModal() {
   activeIdx = null;
 }
 
-document.getElementById('overlay').addEventListener('click', function(e) { if (e.target === this) closeModal(); });
+function isBackdropClick(e) { return e.target === e.currentTarget && e.offsetX <= e.currentTarget.clientWidth && e.offsetY <= e.currentTarget.clientHeight; }
+document.getElementById('overlay').addEventListener('click', function(e) { if (isBackdropClick(e)) closeModal(); });
 
 // ── Confirm deliveries (POST to API) ──
 async function confirmarEntregas() {
@@ -1092,7 +1093,7 @@ function closeEdit() {
   editIdx = null; editKey = null; editWorkingLines = [];
 }
 
-document.getElementById('edit-overlay').addEventListener('click', function(e) { if (e.target === this) closeEdit(); });
+document.getElementById('edit-overlay').addEventListener('click', function(e) { if (isBackdropClick(e)) closeEdit(); });
 
 function renderEditLines() {
   var tbody = document.getElementById('ed-lines');
@@ -1386,7 +1387,7 @@ function closeUpload() {
   uploadData = null;
 }
 
-document.getElementById('upload-overlay').addEventListener('click', function(e) { if (e.target === this) closeUpload(); });
+document.getElementById('upload-overlay').addEventListener('click', function(e) { if (isBackdropClick(e)) closeUpload(); });
 
 async function confirmUpload() {
   if (!uploadData) return;
@@ -1449,7 +1450,7 @@ function closeDelete() {
   deleteIdx = null;
 }
 
-document.getElementById('delete-overlay').addEventListener('click', function(e) { if (e.target === this) closeDelete(); });
+document.getElementById('delete-overlay').addEventListener('click', function(e) { if (isBackdropClick(e)) closeDelete(); });
 
 async function confirmDelete() {
   if (deleteIdx === null) return;
