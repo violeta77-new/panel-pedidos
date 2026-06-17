@@ -453,6 +453,7 @@ thead th:not(.sort-asc):not(.sort-desc) .sort-icon::after { content: ' \2195'; c
               <th class="money">Cantidad</th>
               <th class="money">Val. Unitario</th>
               <th class="money">Val. Total</th>
+              <th>Remisiones</th>
               <th></th>
             </tr>
           </thead>
@@ -1106,6 +1107,7 @@ function renderEditLines() {
       '<td><input class="ef ed-cant" data-i="' + i + '" type="number" min="0" value="' + (l.Cantidad||0) + '" style="width:80px;text-align:right" oninput="updateLineTotal(' + i + ')"></td>' +
       '<td><input class="ef ed-vuni" data-i="' + i + '" type="number" min="0" value="' + (l.Valor_Unitario||0) + '" style="width:100px;text-align:right" oninput="updateLineTotal(' + i + ')"></td>' +
       '<td><input class="ef ed-vtot" data-i="' + i + '" type="number" value="' + (l.Valor_Total||0) + '" style="width:100px;text-align:right;background:#f7fafc" readonly></td>' +
+      '<td><input class="ef ed-rem" data-i="' + i + '" type="text" value="' + (l.Remisiones||'').replace(/"/g,'&quot;') + '" placeholder="' + (locked ? 'Ej: REM-001' : '') + '" style="width:120px;font-size:0.78rem"></td>' +
       '<td style="text-align:center">' +
         (locked
           ? '<span style="font-size:0.85rem;color:#a0aec0" title="Tiene entregas registradas">🔒</span>'
@@ -1160,12 +1162,14 @@ async function saveEdit() {
   var cants = [].slice.call(document.querySelectorAll('.ed-cant'));
   var vunis = [].slice.call(document.querySelectorAll('.ed-vuni'));
   var vtots = [].slice.call(document.querySelectorAll('.ed-vtot'));
+  var rems = [].slice.call(document.querySelectorAll('.ed-rem'));
   editWorkingLines.forEach(function(l, i) {
     l.Producto = prods[i] ? prods[i].value.trim() : '';
     l.Presentacion = press[i] ? press[i].value.trim() : '';
     l.Cantidad = Number(cants[i] && cants[i].value) || 0;
     l.Valor_Unitario = Number(vunis[i] && vunis[i].value) || 0;
     l.Valor_Total = Number(vtots[i] && vtots[i].value) || 0;
+    l.Remisiones = rems[i] ? rems[i].value.trim() : '';
     l.Cant_Pendiente = Math.max(0, l.Cantidad - (Number(l.Cant_Entregada)||0));
   });
 
