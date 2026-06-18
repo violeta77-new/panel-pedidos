@@ -3,10 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="description" content="Ingresos de Producto — Sistema de Gestión Logística">
+<meta name="description" content="Devoluciones de Producto — Sistema de Gestión Logística">
 <meta name="theme-color" content="#1a5276">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📥</text></svg>">
-<title>Ingresos – Sistema de Gestión Logística</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔄</text></svg>">
+<title>Devoluciones – Sistema de Gestión Logística</title>
 <link rel="stylesheet" href="css/panel.css">
 </head>
 <body>
@@ -23,8 +23,8 @@
   <nav class="navbar">
     <a href="index.html">🏠 Inicio</a>
     <a href="pedidos.html">📋 Pedidos</a>
-    <a href="ingresos.html" class="active">📥 Ingresos</a>
-    <a href="devoluciones.html">🔄 Devoluciones</a>
+    <a href="ingresos.html">📥 Ingresos</a>
+    <a href="devoluciones.html" class="active">🔄 Devoluciones</a>
   </nav>
 </div>
 
@@ -32,9 +32,9 @@
 <div id="load-zone">
   <div class="spinner" id="load-spinner"></div>
   <h2>Conectando con Google Sheets...</h2>
-  <p>Cargando datos de ingresos desde la nube</p>
+  <p>Cargando datos de devoluciones desde la nube</p>
   <div id="load-error"></div>
-  <button class="btn-retry" id="btn-retry" style="display:none" onclick="loadIngresos()">Reintentar</button>
+  <button class="btn-retry" id="btn-retry" style="display:none" onclick="loadDevoluciones()">Reintentar</button>
 </div>
 
 <!-- MAIN -->
@@ -46,19 +46,22 @@
   </div>
 
   <div class="stats">
-    <div class="sc total"><div class="num" id="s-total">0</div><div class="lbl">Total registros</div></div>
-    <div class="sc entregado"><div class="num" id="s-unidades">0</div><div class="lbl">Unidades ingresadas</div></div>
-    <div class="sc parcial"><div class="num" id="s-mosquera">0</div><div class="lbl">Planta Mosquera</div></div>
-    <div class="sc recibido"><div class="num" id="s-cachipay">0</div><div class="lbl">Planta Cachipay</div></div>
+    <div class="sc total"><div class="num" id="s-total">0</div><div class="lbl">Total devoluciones</div></div>
+    <div class="sc entregado"><div class="num" id="s-unidades">0</div><div class="lbl">Unidades devueltas</div></div>
+    <div class="sc parcial"><div class="num" id="s-mes">0</div><div class="lbl">Este mes</div></div>
+    <div class="sc recibido"><div class="num" id="s-empresas">0</div><div class="lbl">Empresas involucradas</div></div>
   </div>
 
   <div class="filters">
     <div class="fg">
-      <label>Origen</label>
-      <select id="f-origen">
+      <label>Motivo</label>
+      <select id="f-motivo">
         <option value="">Todos</option>
-        <option value="Planta Mosquera">Planta Mosquera</option>
-        <option value="Planta Cachipay">Planta Cachipay</option>
+        <option value="Producto defectuoso">Producto defectuoso</option>
+        <option value="Sobrante">Sobrante</option>
+        <option value="Error de envío">Error de envío</option>
+        <option value="Producto vencido">Producto vencido</option>
+        <option value="Otro">Otro</option>
       </select>
     </div>
     <div class="fg">
@@ -84,59 +87,60 @@
       </select>
     </div>
     <div class="fg"><label>Producto</label><select id="f-prod"><option value="">Todos</option></select></div>
-    <div class="fg"><label>Responsable</label><select id="f-resp"><option value="">Todos</option></select></div>
     <div class="fg"><label>Buscar</label><input type="text" id="f-txt" placeholder="producto, remisión…" style="width:160px"></div>
-    <button onclick="clearIngFilters()" style="margin-left:auto;background:none;border:1px solid #cbd5e0;color:#4a5568;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:0.82rem;font-weight:600;transition:background 0.2s" onmouseover="this.style.background='#f7fafc'" onmouseout="this.style.background='none'">✕ Limpiar filtros</button>
+    <button onclick="clearDevFilters()" style="margin-left:auto;background:none;border:1px solid #cbd5e0;color:#4a5568;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:0.82rem;font-weight:600;transition:background 0.2s" onmouseover="this.style.background='#f7fafc'" onmouseout="this.style.background='none'">✕ Limpiar filtros</button>
   </div>
 
   <div class="card">
     <div class="card-head">
-      <h3>Ingresos registrados <span id="row-ct-ing" style="font-weight:400;color:#718096"></span></h3>
+      <h3>Devoluciones registradas <span id="row-ct-dev" style="font-weight:400;color:#718096"></span></h3>
       <div style="display:flex;gap:8px;align-items:center">
-        <button id="btn-clear-sort-ing" onclick="clearSortIng()" title="Quitar ordenamientos" style="display:none;background:none;border:1px solid #cbd5e0;color:#4a5568;padding:5px 11px;border-radius:6px;cursor:pointer;font-size:0.78rem;font-weight:600">✕ Limpiar orden</button>
-        <button class="btn-dl" onclick="openNewIngreso()" style="background:#27ae60">📥 Nuevo Ingreso</button>
-        <button class="btn-dl" onclick="loadIngresos()">🔄 Actualizar datos</button>
+        <button id="btn-clear-sort-dev" onclick="clearSortDev()" title="Quitar ordenamientos" style="display:none;background:none;border:1px solid #cbd5e0;color:#4a5568;padding:5px 11px;border-radius:6px;cursor:pointer;font-size:0.78rem;font-weight:600">✕ Limpiar orden</button>
+        <button class="btn-dl" onclick="openNewDev()" style="background:#e67e22">🔄 Nueva Devolución</button>
+        <button class="btn-dl" onclick="loadDevoluciones()">🔄 Actualizar datos</button>
       </div>
     </div>
     <div style="overflow-x:auto">
       <table>
         <thead>
-          <tr id="t-head-ing"></tr>
+          <tr id="t-head-dev"></tr>
         </thead>
-        <tbody id="t-body-ing"></tbody>
+        <tbody id="t-body-dev"></tbody>
       </table>
     </div>
   </div>
 </div>
 
-<!-- INGRESO FORM MODAL -->
-<div class="overlay" id="ing-overlay">
+<!-- DEVOLUCION FORM MODAL -->
+<div class="overlay" id="dev-overlay">
   <div class="modal-box" style="max-width:720px">
-    <div class="mhdr" style="background:linear-gradient(135deg,#27ae60,#2ecc71)">
+    <div class="mhdr" style="background:linear-gradient(135deg,#e67e22,#f39c12)">
       <div style="flex:1">
-        <h2 id="ing-modal-title">📥 Registrar Ingreso</h2>
-        <div style="font-size:0.78rem;opacity:0.85;margin-top:4px">Completa los datos del ingreso de producto</div>
+        <h2 id="dev-modal-title">🔄 Registrar Devolución</h2>
+        <div style="font-size:0.78rem;opacity:0.85;margin-top:4px">Completa los datos de la devolución de producto</div>
       </div>
-      <button class="btn-close" onclick="closeIngModal()">✕</button>
+      <button class="btn-close" onclick="closeDevModal()">✕</button>
     </div>
     <div class="mbody">
-      <!-- Shared header fields -->
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
         <div>
           <label class="ef-label">Fecha</label>
-          <input class="ef" id="ing-fecha" type="date">
+          <input class="ef" id="dev-fecha" type="date">
         </div>
         <div>
-          <label class="ef-label">Origen</label>
-          <select class="ef" id="ing-origen">
+          <label class="ef-label">Motivo</label>
+          <select class="ef" id="dev-motivo">
             <option value="">— Seleccionar —</option>
-            <option value="Planta Mosquera">Planta Mosquera</option>
-            <option value="Planta Cachipay">Planta Cachipay</option>
+            <option value="Producto defectuoso">Producto defectuoso</option>
+            <option value="Sobrante">Sobrante</option>
+            <option value="Error de envío">Error de envío</option>
+            <option value="Producto vencido">Producto vencido</option>
+            <option value="Otro">Otro</option>
           </select>
         </div>
         <div>
           <label class="ef-label">Empresa Origen</label>
-          <select class="ef" id="ing-empresa-origen">
+          <select class="ef" id="dev-empresa-origen">
             <option value="">— Seleccionar —</option>
             <option value="PARCELAR DE COLOMBIA SAS">PARCELAR</option>
             <option value="GREEN AGROSOLUCIONES DE COLOMBIA SAS">GREEN</option>
@@ -147,7 +151,7 @@
         </div>
         <div>
           <label class="ef-label">Empresa Destino</label>
-          <select class="ef" id="ing-empresa-destino">
+          <select class="ef" id="dev-empresa-destino">
             <option value="">— Seleccionar —</option>
             <option value="PARCELAR DE COLOMBIA SAS">PARCELAR</option>
             <option value="GREEN AGROSOLUCIONES DE COLOMBIA SAS">GREEN</option>
@@ -157,28 +161,24 @@
           </select>
         </div>
         <div>
-          <label class="ef-label">Responsable (quien recibió)</label>
-          <input class="ef" id="ing-responsable" type="text" placeholder="Nombre de quien recibió">
+          <label class="ef-label">Responsable</label>
+          <input class="ef" id="dev-responsable" type="text" placeholder="Nombre del responsable">
         </div>
         <div>
-          <label class="ef-label">Remisión Origen</label>
-          <input class="ef" id="ing-remision-origen" type="text" placeholder="N° remisión origen">
-        </div>
-        <div>
-          <label class="ef-label">Remisión Destino</label>
-          <input class="ef" id="ing-remision-destino" type="text" placeholder="N° remisión destino">
+          <label class="ef-label">Remisión</label>
+          <input class="ef" id="dev-remision" type="text" placeholder="N° de remisión">
         </div>
         <div style="grid-column:1/-1">
           <label class="ef-label">Observaciones (opcional)</label>
-          <textarea class="ef" id="ing-observaciones" rows="2" placeholder="Notas adicionales" style="resize:vertical"></textarea>
+          <textarea class="ef" id="dev-observaciones" rows="2" placeholder="Notas adicionales" style="resize:vertical"></textarea>
         </div>
       </div>
 
       <!-- Multi-line product entry (new mode) -->
-      <div id="ing-multi-lines">
+      <div id="dev-multi-lines">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;border-top:1px solid #e2e8f0;padding-top:14px">
           <div style="font-weight:700;font-size:0.88rem;color:#2d3748">📦 Líneas de producto</div>
-          <button onclick="addIngLine()" style="background:#27ae60;color:white;border:none;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:0.8rem;font-weight:700">+ Agregar línea</button>
+          <button onclick="addDevLine()" style="background:#e67e22;color:white;border:none;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:0.8rem;font-weight:700">+ Agregar línea</button>
         </div>
         <div style="overflow-x:auto">
           <table style="font-size:0.82rem;margin-bottom:0">
@@ -191,26 +191,26 @@
                 <th style="width:50px"></th>
               </tr>
             </thead>
-            <tbody id="ing-lines"></tbody>
+            <tbody id="dev-lines"></tbody>
           </table>
         </div>
       </div>
 
       <!-- Single product edit (edit mode) -->
-      <div id="ing-edit-single" style="display:none">
+      <div id="dev-edit-single" style="display:none">
         <div style="border-top:1px solid #e2e8f0;padding-top:14px;margin-bottom:10px;font-weight:700;font-size:0.88rem;color:#2d3748">📦 Producto</div>
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
           <div>
             <label class="ef-label">Producto</label>
-            <input class="ef" id="ing-edit-producto" type="text" placeholder="Nombre del producto">
+            <input class="ef" id="dev-edit-producto" type="text" placeholder="Nombre del producto">
           </div>
           <div>
             <label class="ef-label">Presentación</label>
-            <input class="ef" id="ing-edit-presentacion" type="text" placeholder="Ej: 1L, 20KG">
+            <input class="ef" id="dev-edit-presentacion" type="text" placeholder="Ej: 1L, 20KG">
           </div>
           <div>
             <label class="ef-label">Cantidad</label>
-            <input class="ef" id="ing-edit-cantidad" type="number" min="1" placeholder="0">
+            <input class="ef" id="dev-edit-cantidad" type="number" min="1" placeholder="0">
           </div>
         </div>
       </div>
@@ -218,31 +218,31 @@
     <div class="mftr">
       <div style="font-size:0.8rem;color:#718096">Los datos se guardan directamente en Google Sheets</div>
       <div class="mftr-btns">
-        <button class="btn-cancel" onclick="closeIngModal()">Cancelar</button>
-        <button class="btn-confirm" id="btn-save-ing" onclick="saveIngreso()" style="background:#27ae60">✓ Registrar ingreso</button>
+        <button class="btn-cancel" onclick="closeDevModal()">Cancelar</button>
+        <button class="btn-confirm" id="btn-save-dev" onclick="saveDevolucion()" style="background:#e67e22">✓ Registrar devolución</button>
       </div>
     </div>
   </div>
 </div>
 
 <!-- DELETE CONFIRM MODAL -->
-<div class="overlay" id="delete-ing-overlay">
+<div class="overlay" id="delete-dev-overlay">
   <div class="modal-box" style="max-width:480px">
     <div class="mhdr" style="background:linear-gradient(135deg,#c0392b,#e74c3c)">
       <div style="flex:1">
-        <h2>🗑️ Eliminar Ingreso</h2>
+        <h2>🗑️ Eliminar Devolución</h2>
         <div style="font-size:0.78rem;opacity:0.85;margin-top:4px">Esta acción no se puede deshacer</div>
       </div>
-      <button class="btn-close" onclick="closeDeleteIng()">✕</button>
+      <button class="btn-close" onclick="closeDeleteDev()">✕</button>
     </div>
     <div class="mbody" style="text-align:center;padding:28px 24px">
       <div style="font-size:2.5rem;margin-bottom:12px">⚠️</div>
-      <div style="font-size:0.95rem;font-weight:700;color:#2d3748;margin-bottom:8px" id="del-ing-msg">¿Eliminar este ingreso?</div>
-      <div style="font-size:0.82rem;color:#718096" id="del-ing-detail"></div>
+      <div style="font-size:0.95rem;font-weight:700;color:#2d3748;margin-bottom:8px" id="del-dev-msg">¿Eliminar esta devolución?</div>
+      <div style="font-size:0.82rem;color:#718096" id="del-dev-detail"></div>
     </div>
     <div class="mftr" style="justify-content:center;gap:12px">
-      <button class="btn-cancel" onclick="closeDeleteIng()">Cancelar</button>
-      <button class="btn-confirm" id="btn-del-ing-confirm" onclick="confirmDeleteIng()" style="background:#e74c3c">🗑️ Sí, eliminar</button>
+      <button class="btn-cancel" onclick="closeDeleteDev()">Cancelar</button>
+      <button class="btn-confirm" id="btn-del-dev-confirm" onclick="confirmDeleteDev()" style="background:#e74c3c">🗑️ Sí, eliminar</button>
     </div>
   </div>
 </div>
@@ -250,6 +250,6 @@
 <div class="toast" id="toast"></div>
 
 <script src="js/shared.js"></script>
-<script src="js/ingresos.js"></script>
+<script src="js/devoluciones.js"></script>
 </body>
 </html>
