@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Panel de gestión de pedidos y entregas — PARCELAR de Colombia">
+<meta name="theme-color" content="#1a5276">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📋</text></svg>">
+<title>Pedidos – Sistema de Gestión Logística</title>
+<link rel="stylesheet" href="css/panel.css">
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+
+<!-- HEADER + NAVBAR -->
+<div class="header">
+  <div class="header-top">
+    <div>
+      <h1>📦 Sistema de Gestión Logística</h1>
+      <div class="sub">Holding de empresas</div>
+    </div>
+    <div id="hdr-status"></div>
+  </div>
+  <nav class="navbar">
+    <a href="index.html">🏠 Inicio</a>
+    <a href="pedidos.html" class="active">📋 Pedidos</a>
+    <a href="ingresos.html">📥 Ingresos</a>
+  </nav>
+</div>
+
+<!-- LOAD ZONE (loading) -->
+<div id="load-zone">
+  <div class="spinner" id="load-spinner"></div>
+  <h2>Conectando con Google Sheets...</h2>
+  <p>Cargando datos de pedidos desde la nube</p>
+  <div id="load-error"></div>
+  <button class="btn-retry" id="btn-retry" style="display:none" onclick="loadFromAPI()">Reintentar</button>
+</div>
+
+<!-- MAIN -->
+<div id="main">
+
+  <div id="sync-status">
+    <span id="sync-icon">☁️</span>
+    <span id="sync-msg">Conectado a Google Sheets. Los cambios se guardan directamente en la nube.</span>
+  </div>
+
+  <div class="stats">
+    <div class="sc recibido"><div class="num" id="s-rec">0</div><div class="lbl">Recibidos</div></div>
+    <div class="sc parcial"> <div class="num" id="s-par">0</div><div class="lbl">Parciales</div></div>
+    <div class="sc entregado"><div class="num" id="s-ent">0</div><div class="lbl">Entregados</div></div>
+    <div class="sc total">   <div class="num" id="s-tot">0</div><div class="lbl">Total órdenes</div></div>
+  </div>
+
+  <div class="filters">
+    <div class="fg"><label>Empresa</label><select id="f-emp"><option value="">Todas</option></select></div>
+    <div class="fg"><label>Cliente</label><select id="f-cli"><option value="">Todos</option></select></div>
+    <div class="fg">
+      <label>Estado</label>
+      <select id="f-est">
+        <option value="">Todos</option>
+        <option value="Recibido" selected>Recibido</option>
+        <option value="Parcial">Parcial</option>
+        <option value="Entregado">Entregado</option>
+      </select>
+    </div>
+    <div class="fg"><label>Buscar</label><input type="text" id="f-txt" placeholder="cliente, consecutivo…" style="width:175px"></div>
+    <button onclick="clearFilters()" style="margin-left:auto;background:none;border:1px solid #cbd5e0;color:#4a5568;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:0.82rem;font-weight:600;transition:background 0.2s" onmouseover="this.style.background='#f7fafc'" onmouseout="this.style.background='none'">✕ Limpiar filtros</button>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <h3>Órdenes registradas <span id="row-ct" style="font-weight:400;color:#718096"></span></h3>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button id="btn-clear-sort" onclick="clearSort()" title="Quitar todos los ordenamientos">✕ Limpiar orden</button>
+        <button class="btn-dl" onclick="document.getElementById('file-upload').click()" style="background:#27ae60">📥 Cargar Pedido</button>
+        <input type="file" id="file-upload" accept=".xlsx,.xls" style="display:none" onchange="handleFileUpload(this)">
+        <button class="btn-dl" onclick="loadFromAPI()">🔄 Actualizar datos</button>
+      </div>
+    </div>
+    <div style="overflow-x:auto">
+      <table>
+        <thead>
+          <tr id="t-head"></tr>
+        </thead>
+        <tbody id="t-body"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- DETAIL MODAL -->
+<div class="overlay" id="overlay">
+  <div class="modal-box">
+    <div class="mhdr">
+      <div style="flex:1">
+        <h2 id="m-titulo">—</h2>
+        <div class="meta" id="m-meta"></div>
+      </div>
+      <button class="btn-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="mbody">
+      <div id="m-obs-wrap" style="display:none;background:#fef9e7;border:1px solid #f9e79f;border-radius:8px;padding:10px 16px;margin-bottom:12px;font-size:0.84rem">
+        <span style="font-weight:700;color:#7d6608;font-size:0.76rem;text-transform:uppercase">Observaciones</span><br>
+        <span id="m-observaciones" style="color:#4a5568"></span>
+      </div>
+      <div class="delivery-bar">
+        <div style="display:flex;align-items:center;gap:8px">
+          <label>📅 Fecha de entrega</label>
+          <input type="date" id="m-fecha">
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <label>📄 N° Remisión</label>
+          <input type="text" id="m-remision" placeholder="REM-2026-XXX" style="width:160px">
+        </div>
+        <div class="hint">Completa las cantidades a entregar. Deja en 0 los productos que no se entregan ahora.</div>
+      </div>
+      <div class="prod-wrap">
+        <table class="prod-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Producto</th>
+              <th>Present.</th>
+              <th class="money">Cant. Pedida</th>
+              <th class="money">Entregada</th>
+              <th class="money">Pendiente</th>
+              <th>Estado línea</th>
+              <th class="money">Val. Unitario</th>
+              <th class="money">Val. Total</th>
+              <th class="money">Cant. a Entregar</th>
+            </tr>
+          </thead>
+          <tbody id="m-lines"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="mftr">
+      <div class="total-tag">Total orden: <strong id="m-total">$0</strong></div>
+      <div class="mftr-btns">
+        <button class="btn-cancel" onclick="closeModal()">Cancelar</button>
+        <button class="btn-confirm" id="btn-confirmar" onclick="confirmarEntregas()">✓ Registrar entregas</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- EDIT MODAL -->
+<div class="overlay" id="edit-overlay">
+  <div class="modal-box" style="max-width:900px">
+    <div class="mhdr">
+      <div style="flex:1">
+        <h2 id="ed-titulo">✏️ Editar Pedido</h2>
+        <div style="font-size:0.78rem;opacity:0.85;margin-top:4px">Modifica los datos del encabezado y las líneas de producto</div>
+      </div>
+      <button class="btn-close" onclick="closeEdit()">✕</button>
+    </div>
+    <div class="mbody">
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px">
+        <div><label class="ef-label">Cliente</label><input class="ef" id="ed-cliente" type="text"></div>
+        <div><label class="ef-label">NIT</label><input class="ef" id="ed-nit" type="text"></div>
+        <div><label class="ef-label">Fecha Pedido</label><input class="ef" id="ed-fecha" type="date"></div>
+        <div><label class="ef-label">Comercial</label><input class="ef" id="ed-comercial" type="text"></div>
+        <div><label class="ef-label">Municipio</label><input class="ef" id="ed-municipio" type="text"></div>
+        <div><label class="ef-label">Departamento</label><input class="ef" id="ed-departamento" type="text"></div>
+        <div><label class="ef-label">Teléfono</label><input class="ef" id="ed-telefono" type="text"></div>
+        <div><label class="ef-label">Plazo de Pago</label><input class="ef" id="ed-plazo" type="text"></div>
+        <div><label class="ef-label">Precio Facturación</label><input class="ef" id="ed-precio" type="text"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <div style="font-size:0.85rem;font-weight:700;color:#1a5276">Líneas de producto</div>
+        <button onclick="addEditLine()" style="background:#1a5276;color:white;border:none;padding:5px 14px;border-radius:6px;cursor:pointer;font-size:0.8rem;font-weight:600">+ Agregar línea</button>
+      </div>
+      <div class="prod-wrap">
+        <table class="prod-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Producto</th>
+              <th>Presentación</th>
+              <th class="money">Cantidad</th>
+              <th class="money">Val. Unitario</th>
+              <th class="money">Val. Total</th>
+              <th>Remisiones</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="ed-lines"></tbody>
+        </table>
+      </div>
+      <div style="margin-top:12px;display:flex;justify-content:flex-end">
+        <div style="background:#ebf5fb;border:1px solid #aed6f1;border-radius:7px;padding:8px 16px;font-size:0.84rem">
+          Total calculado: <strong id="ed-total-calc">$0</strong>
+        </div>
+      </div>
+    </div>
+    <div class="mftr">
+      <div style="font-size:0.8rem;color:#718096">Los cambios se guardan directamente en Google Sheets</div>
+      <div class="mftr-btns">
+        <button class="btn-cancel" onclick="closeEdit()">Cancelar</button>
+        <button class="btn-confirm" id="btn-saveEdit" onclick="saveEdit()">✓ Aplicar cambios</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- UPLOAD PREVIEW MODAL -->
+<div class="overlay" id="upload-overlay">
+  <div class="modal-box" style="max-width:900px">
+    <div class="mhdr" style="background:linear-gradient(135deg,#27ae60,#2ecc71)">
+      <div style="flex:1">
+        <h2 id="up-titulo">📥 Cargar Pedido</h2>
+        <div id="up-archivo" style="font-size:0.78rem;opacity:0.85;margin-top:4px"></div>
+      </div>
+      <button class="btn-close" onclick="closeUpload()">✕</button>
+    </div>
+    <div class="mbody">
+      <div id="up-dup-warn" style="display:none;background:#fef3cd;border:1px solid #f9ca24;border-radius:8px;padding:10px 16px;margin-bottom:14px;font-size:0.85rem;color:#856404">
+        ⚠️ Este pedido ya existe en la base de datos. Si continúas, se creará un duplicado.
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:18px;font-size:0.84rem">
+        <div><span style="font-weight:700;color:#4a5568;font-size:0.76rem;text-transform:uppercase">Empresa</span><br><span id="up-empresa">—</span></div>
+        <div><span style="font-weight:700;color:#4a5568;font-size:0.76rem;text-transform:uppercase">Consecutivo</span><br><span id="up-consecutivo">—</span></div>
+        <div><span style="font-weight:700;color:#4a5568;font-size:0.76rem;text-transform:uppercase">Fecha Pedido</span><br><span id="up-fecha">—</span></div>
+        <div><span style="font-weight:700;color:#4a5568;font-size:0.76rem;text-transform:uppercase">Cliente</span><br><span id="up-cliente">—</span></div>
+        <div><span style="font-weight:700;color:#4a5568;font-size:0.76rem;text-transform:uppercase">NIT</span><br><span id="up-nit">—</span></div>
+        <div><span style="font-weight:700;color:#4a5568;font-size:0.76rem;text-transform:uppercase">Comercial</span><br><span id="up-comercial">—</span></div>
+        <div><span style="font-weight:700;color:#4a5568;font-size:0.76rem;text-transform:uppercase">Municipio</span><br><span id="up-municipio">—</span></div>
+        <div><span style="font-weight:700;color:#4a5568;font-size:0.76rem;text-transform:uppercase">Departamento</span><br><span id="up-departamento">—</span></div>
+        <div><span style="font-weight:700;color:#4a5568;font-size:0.76rem;text-transform:uppercase">Plazo de Pago</span><br><span id="up-plazo">—</span></div>
+      </div>
+      <div id="up-obs-wrap" style="display:none;background:#fef9e7;border:1px solid #f9e79f;border-radius:8px;padding:10px 16px;margin-bottom:14px;font-size:0.84rem">
+        <span style="font-weight:700;color:#7d6608;font-size:0.76rem;text-transform:uppercase">Observaciones</span><br>
+        <span id="up-observaciones" style="color:#4a5568"></span>
+      </div>
+      <div style="font-size:0.85rem;font-weight:700;color:#27ae60;margin-bottom:8px">Productos</div>
+      <div class="prod-wrap">
+        <table class="prod-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Producto</th>
+              <th>Presentación</th>
+              <th class="money">Cantidad</th>
+              <th class="money">Val. Unitario</th>
+              <th class="money">Val. Total</th>
+            </tr>
+          </thead>
+          <tbody id="up-lines"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="mftr">
+      <div class="total-tag">Total orden: <strong id="up-total">$0</strong></div>
+      <div class="mftr-btns">
+        <button class="btn-cancel" onclick="closeUpload()">Cancelar</button>
+        <button class="btn-confirm" id="btn-upload" onclick="confirmUpload()" style="background:#27ae60">📥 Cargar a Google Sheets</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- DELETE CONFIRM MODAL -->
+<div class="overlay" id="delete-overlay">
+  <div class="modal-box" style="max-width:480px">
+    <div class="mhdr" style="background:linear-gradient(135deg,#c0392b,#e74c3c)">
+      <div style="flex:1">
+        <h2>🗑️ Eliminar Pedido</h2>
+        <div style="font-size:0.78rem;opacity:0.85;margin-top:4px">Esta acción no se puede deshacer</div>
+      </div>
+      <button class="btn-close" onclick="closeDelete()">✕</button>
+    </div>
+    <div class="mbody" style="text-align:center;padding:28px 24px">
+      <div style="font-size:2.5rem;margin-bottom:12px">⚠️</div>
+      <div style="font-size:0.95rem;font-weight:700;color:#2d3748;margin-bottom:8px" id="del-msg">¿Eliminar este pedido?</div>
+      <div style="font-size:0.82rem;color:#718096" id="del-detail"></div>
+    </div>
+    <div class="mftr" style="justify-content:center;gap:12px">
+      <button class="btn-cancel" onclick="closeDelete()">Cancelar</button>
+      <button class="btn-confirm" id="btn-del-confirm" onclick="confirmDelete()" style="background:#e74c3c">🗑️ Sí, eliminar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="js/shared.js"></script>
+<script src="js/pedidos.js"></script>
+</body>
+</html>

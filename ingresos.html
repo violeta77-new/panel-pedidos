@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Ingresos de Producto — Sistema de Gestión Logística">
+<meta name="theme-color" content="#1a5276">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📥</text></svg>">
+<title>Ingresos – Sistema de Gestión Logística</title>
+<link rel="stylesheet" href="css/panel.css">
+</head>
+<body>
+
+<!-- HEADER + NAVBAR -->
+<div class="header">
+  <div class="header-top">
+    <div>
+      <h1>📦 Sistema de Gestión Logística</h1>
+      <div class="sub">Holding de empresas</div>
+    </div>
+    <div id="hdr-status"></div>
+  </div>
+  <nav class="navbar">
+    <a href="index.html">🏠 Inicio</a>
+    <a href="pedidos.html">📋 Pedidos</a>
+    <a href="ingresos.html" class="active">📥 Ingresos</a>
+  </nav>
+</div>
+
+<!-- LOAD ZONE -->
+<div id="load-zone">
+  <div class="spinner" id="load-spinner"></div>
+  <h2>Conectando con Google Sheets...</h2>
+  <p>Cargando datos de ingresos desde la nube</p>
+  <div id="load-error"></div>
+  <button class="btn-retry" id="btn-retry" style="display:none" onclick="loadIngresos()">Reintentar</button>
+</div>
+
+<!-- MAIN -->
+<div id="main">
+
+  <div id="sync-status">
+    <span id="sync-icon">☁️</span>
+    <span id="sync-msg">Conectado a Google Sheets. Los cambios se guardan directamente en la nube.</span>
+  </div>
+
+  <div class="stats">
+    <div class="sc total"><div class="num" id="s-total">0</div><div class="lbl">Total registros</div></div>
+    <div class="sc entregado"><div class="num" id="s-unidades">0</div><div class="lbl">Unidades ingresadas</div></div>
+    <div class="sc parcial"><div class="num" id="s-plantas">0</div><div class="lbl">Desde plantas</div></div>
+    <div class="sc recibido"><div class="num" id="s-devs">0</div><div class="lbl">Devoluciones</div></div>
+  </div>
+
+  <div class="filters">
+    <div class="fg">
+      <label>Origen</label>
+      <select id="f-origen">
+        <option value="">Todos</option>
+        <option value="Planta Mosquera">Planta Mosquera</option>
+        <option value="Planta Cachipay">Planta Cachipay</option>
+        <option value="Devolución">Devolución</option>
+      </select>
+    </div>
+    <div class="fg">
+      <label>Empresa</label>
+      <select id="f-emp">
+        <option value="">Todas</option>
+        <option value="PARCELAR DE COLOMBIA SAS">PARCELAR</option>
+        <option value="GREEN AGROSOLUCIONES DE COLOMBIA SAS">GREEN</option>
+        <option value="SOLUCIONES INTEGRALES RESO SAS">RESO</option>
+        <option value="INSUMOS AGROPECUARIOS SOSTENIBLES SAS">IASO</option>
+        <option value="INSUMOS AGROPECUARIOS DE LA SABANA SAS">IAS</option>
+      </select>
+    </div>
+    <div class="fg"><label>Producto</label><select id="f-prod"><option value="">Todos</option></select></div>
+    <div class="fg"><label>Responsable</label><select id="f-resp"><option value="">Todos</option></select></div>
+    <div class="fg"><label>Buscar</label><input type="text" id="f-txt" placeholder="producto, remisión…" style="width:160px"></div>
+    <button onclick="clearIngFilters()" style="margin-left:auto;background:none;border:1px solid #cbd5e0;color:#4a5568;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:0.82rem;font-weight:600;transition:background 0.2s" onmouseover="this.style.background='#f7fafc'" onmouseout="this.style.background='none'">✕ Limpiar filtros</button>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <h3>Ingresos registrados <span id="row-ct-ing" style="font-weight:400;color:#718096"></span></h3>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button id="btn-clear-sort-ing" onclick="clearSortIng()" title="Quitar ordenamientos" style="display:none;background:none;border:1px solid #cbd5e0;color:#4a5568;padding:5px 11px;border-radius:6px;cursor:pointer;font-size:0.78rem;font-weight:600">✕ Limpiar orden</button>
+        <button class="btn-dl" onclick="openNewIngreso()" style="background:#27ae60">📥 Nuevo Ingreso</button>
+        <button class="btn-dl" onclick="loadIngresos()">🔄 Actualizar datos</button>
+      </div>
+    </div>
+    <div style="overflow-x:auto">
+      <table>
+        <thead>
+          <tr id="t-head-ing"></tr>
+        </thead>
+        <tbody id="t-body-ing"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- INGRESO FORM MODAL -->
+<div class="overlay" id="ing-overlay">
+  <div class="modal-box" style="max-width:720px">
+    <div class="mhdr" style="background:linear-gradient(135deg,#27ae60,#2ecc71)">
+      <div style="flex:1">
+        <h2 id="ing-modal-title">📥 Registrar Ingreso</h2>
+        <div style="font-size:0.78rem;opacity:0.85;margin-top:4px">Completa los datos del ingreso de producto</div>
+      </div>
+      <button class="btn-close" onclick="closeIngModal()">✕</button>
+    </div>
+    <div class="mbody">
+      <!-- Shared header fields -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+        <div>
+          <label class="ef-label">Fecha</label>
+          <input class="ef" id="ing-fecha" type="date">
+        </div>
+        <div>
+          <label class="ef-label">Origen</label>
+          <select class="ef" id="ing-origen">
+            <option value="">— Seleccionar —</option>
+            <option value="Planta Mosquera">Planta Mosquera</option>
+            <option value="Planta Cachipay">Planta Cachipay</option>
+            <option value="Devolución">Devolución</option>
+          </select>
+        </div>
+        <div style="grid-column:1/-1">
+          <label class="ef-label">Empresa</label>
+          <select class="ef" id="ing-empresa">
+            <option value="">— Seleccionar —</option>
+            <option value="PARCELAR DE COLOMBIA SAS">PARCELAR DE COLOMBIA SAS</option>
+            <option value="GREEN AGROSOLUCIONES DE COLOMBIA SAS">GREEN AGROSOLUCIONES DE COLOMBIA SAS</option>
+            <option value="SOLUCIONES INTEGRALES RESO SAS">SOLUCIONES INTEGRALES RESO SAS</option>
+            <option value="INSUMOS AGROPECUARIOS SOSTENIBLES SAS">INSUMOS AGROPECUARIOS SOSTENIBLES SAS</option>
+            <option value="INSUMOS AGROPECUARIOS DE LA SABANA SAS">INSUMOS AGROPECUARIOS DE LA SABANA SAS</option>
+          </select>
+        </div>
+        <div>
+          <label class="ef-label">Responsable (quien recibió)</label>
+          <input class="ef" id="ing-responsable" type="text" placeholder="Nombre de quien recibió">
+        </div>
+        <div>
+          <label class="ef-label">Remisión</label>
+          <input class="ef" id="ing-remision" type="text" placeholder="N° de remisión">
+        </div>
+        <div style="grid-column:1/-1">
+          <label class="ef-label">Observaciones (opcional)</label>
+          <textarea class="ef" id="ing-observaciones" rows="2" placeholder="Notas adicionales" style="resize:vertical"></textarea>
+        </div>
+      </div>
+
+      <!-- Multi-line product entry (new mode) -->
+      <div id="ing-multi-lines">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;border-top:1px solid #e2e8f0;padding-top:14px">
+          <div style="font-weight:700;font-size:0.88rem;color:#2d3748">📦 Líneas de producto</div>
+          <button onclick="addIngLine()" style="background:#27ae60;color:white;border:none;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:0.8rem;font-weight:700">+ Agregar línea</button>
+        </div>
+        <div style="overflow-x:auto">
+          <table style="font-size:0.82rem;margin-bottom:0">
+            <thead>
+              <tr style="background:#f7fafc">
+                <th style="width:30px">#</th>
+                <th>Producto (buscar)</th>
+                <th style="width:130px">Presentación</th>
+                <th style="width:90px">Cantidad</th>
+                <th style="width:50px"></th>
+              </tr>
+            </thead>
+            <tbody id="ing-lines"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Single product edit (edit mode) -->
+      <div id="ing-edit-single" style="display:none">
+        <div style="border-top:1px solid #e2e8f0;padding-top:14px;margin-bottom:10px;font-weight:700;font-size:0.88rem;color:#2d3748">📦 Producto</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
+          <div>
+            <label class="ef-label">Producto</label>
+            <input class="ef" id="ing-edit-producto" type="text" placeholder="Nombre del producto">
+          </div>
+          <div>
+            <label class="ef-label">Presentación</label>
+            <input class="ef" id="ing-edit-presentacion" type="text" placeholder="Ej: 1L, 20KG">
+          </div>
+          <div>
+            <label class="ef-label">Cantidad</label>
+            <input class="ef" id="ing-edit-cantidad" type="number" min="1" placeholder="0">
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="mftr">
+      <div style="font-size:0.8rem;color:#718096">Los datos se guardan directamente en Google Sheets</div>
+      <div class="mftr-btns">
+        <button class="btn-cancel" onclick="closeIngModal()">Cancelar</button>
+        <button class="btn-confirm" id="btn-save-ing" onclick="saveIngreso()" style="background:#27ae60">✓ Registrar ingreso</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- DELETE CONFIRM MODAL -->
+<div class="overlay" id="delete-ing-overlay">
+  <div class="modal-box" style="max-width:480px">
+    <div class="mhdr" style="background:linear-gradient(135deg,#c0392b,#e74c3c)">
+      <div style="flex:1">
+        <h2>🗑️ Eliminar Ingreso</h2>
+        <div style="font-size:0.78rem;opacity:0.85;margin-top:4px">Esta acción no se puede deshacer</div>
+      </div>
+      <button class="btn-close" onclick="closeDeleteIng()">✕</button>
+    </div>
+    <div class="mbody" style="text-align:center;padding:28px 24px">
+      <div style="font-size:2.5rem;margin-bottom:12px">⚠️</div>
+      <div style="font-size:0.95rem;font-weight:700;color:#2d3748;margin-bottom:8px" id="del-ing-msg">¿Eliminar este ingreso?</div>
+      <div style="font-size:0.82rem;color:#718096" id="del-ing-detail"></div>
+    </div>
+    <div class="mftr" style="justify-content:center;gap:12px">
+      <button class="btn-cancel" onclick="closeDeleteIng()">Cancelar</button>
+      <button class="btn-confirm" id="btn-del-ing-confirm" onclick="confirmDeleteIng()" style="background:#e74c3c">🗑️ Sí, eliminar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="js/shared.js"></script>
+<script src="js/ingresos.js"></script>
+</body>
+</html>
