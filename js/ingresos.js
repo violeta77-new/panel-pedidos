@@ -109,7 +109,7 @@ async function loadIngresos() {
 
 async function loadCatalogo() {
   try {
-    var data = await apiGet('getProductos');
+    var data = await apiGet('getMaestroProductos');
     if (data.ok) catalogoProductos = data.productos || [];
   } catch(e) {}
 }
