@@ -154,7 +154,7 @@ function filteredIng() {
     if (fp && r.Producto !== fp) return false;
     if (fr && r.Responsable !== fr) return false;
     if (ft) {
-      var hay = [r.Producto, r.Presentacion, r.Remision, r.Responsable, r.Observaciones].join(' ').toLowerCase();
+      var hay = [r.Producto, r.Presentacion, r.Remision_Origen, r.Remision_Destino, r.Responsable, r.Observaciones].join(' ').toLowerCase();
       if (hay.indexOf(ft) < 0) return false;
     }
     return true;
@@ -183,7 +183,8 @@ function renderIngHeader() {
     { label:'Presentación', id:null },
     { label:'Cantidad', id:'cantidad' },
     { label:'Responsable', id:'responsable' },
-    { label:'Remisión', id:null },
+    { label:'Rem. Origen', id:null },
+    { label:'Rem. Destino', id:null },
     { label:'Acción', id:null },
   ];
   document.getElementById('t-head-ing').innerHTML = cols.map(function(col) {
@@ -217,7 +218,7 @@ function renderIngTable() {
 
   var tbody = document.getElementById('t-body-ing');
   if (!rows.length) {
-    tbody.innerHTML = '<tr><td colspan="11"><div class="empty">No hay ingresos con los filtros seleccionados.</div></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="12"><div class="empty">No hay ingresos con los filtros seleccionados.</div></td></tr>';
     return;
   }
 
@@ -235,7 +236,8 @@ function renderIngTable() {
       '<td>' + (r.Presentacion||'—') + '</td>' +
       '<td style="text-align:center;font-weight:700">' + (r.Cantidad||0) + '</td>' +
       '<td style="font-size:0.78rem">' + (r.Responsable||'—') + '</td>' +
-      '<td style="font-size:0.78rem">' + (r.Remision||'—') + '</td>' +
+      '<td style="font-size:0.78rem">' + (r.Remision_Origen||'—') + '</td>' +
+      '<td style="font-size:0.78rem">' + (r.Remision_Destino||'—') + '</td>' +
       '<td><div style="display:flex;gap:6px;align-items:center">' +
         '<button class="btn-edit" onclick="openEditIng(' + r.__row + ')" title="Editar">✏️</button>' +
         '<button class="btn-del" onclick="openDeleteIng(' + i + ',' + (r.__row||0) + ')" title="Eliminar">🗑️</button>' +
@@ -366,7 +368,8 @@ function openNewIngreso() {
   document.getElementById('ing-empresa-origen').value = '';
   document.getElementById('ing-empresa-destino').value = '';
   document.getElementById('ing-responsable').value = '';
-  document.getElementById('ing-remision').value = '';
+  document.getElementById('ing-remision-origen').value = '';
+  document.getElementById('ing-remision-destino').value = '';
   document.getElementById('ing-observaciones').value = '';
   document.getElementById('btn-save-ing').disabled = false;
   document.getElementById('btn-save-ing').textContent = '✓ Registrar ingreso';
@@ -400,7 +403,8 @@ function openEditIng(row) {
   document.getElementById('ing-empresa-origen').value = r.Empresa_Origen || '';
   document.getElementById('ing-empresa-destino').value = r.Empresa_Destino || '';
   document.getElementById('ing-responsable').value = r.Responsable || '';
-  document.getElementById('ing-remision').value = r.Remision || '';
+  document.getElementById('ing-remision-origen').value = r.Remision_Origen || '';
+  document.getElementById('ing-remision-destino').value = r.Remision_Destino || '';
   document.getElementById('ing-observaciones').value = r.Observaciones || '';
   document.getElementById('btn-save-ing').disabled = false;
   document.getElementById('btn-save-ing').textContent = '✓ Guardar cambios';
@@ -421,7 +425,8 @@ async function saveIngreso() {
   var empresa_origen = document.getElementById('ing-empresa-origen').value;
   var empresa_destino = document.getElementById('ing-empresa-destino').value;
   var responsable = document.getElementById('ing-responsable').value.trim();
-  var remision = document.getElementById('ing-remision').value.trim();
+  var remision_origen = document.getElementById('ing-remision-origen').value.trim();
+  var remision_destino = document.getElementById('ing-remision-destino').value.trim();
   var observaciones = document.getElementById('ing-observaciones').value.trim();
 
   if (!fecha) { showToast('Selecciona la fecha', '#e74c3c'); return; }
@@ -448,7 +453,7 @@ async function saveIngreso() {
         row: editIngreso.__row,
         Fecha: fecha, Origen: origen, Empresa_Origen: empresa_origen, Empresa_Destino: empresa_destino,
         Producto: prod, Presentacion: pres, Cantidad: cant,
-        Responsable: responsable, Remision: remision, Observaciones: observaciones,
+        Responsable: responsable, Remision_Origen: remision_origen, Remision_Destino: remision_destino, Observaciones: observaciones,
       });
       if (!result.ok) throw new Error(result.error || 'Error al guardar');
       closeIngModal();
@@ -473,7 +478,7 @@ async function saveIngreso() {
     var result = await apiPost({
       action: 'agregarIngreso',
       Fecha: fecha, Origen: origen, Empresa_Origen: empresa_origen, Empresa_Destino: empresa_destino,
-      Responsable: responsable, Remision: remision, Observaciones: observaciones,
+      Responsable: responsable, Remision_Origen: remision_origen, Remision_Destino: remision_destino, Observaciones: observaciones,
       lineas: validLines,
     });
     if (!result.ok) throw new Error(result.error || 'Error al guardar');
@@ -497,7 +502,7 @@ function openDeleteIng(idx, row) {
   document.getElementById('del-ing-msg').textContent = '¿Eliminar este ingreso?';
   document.getElementById('del-ing-detail').innerHTML =
     'Producto: <strong>' + (r.Producto||'—') + '</strong> · ' + (r.Cantidad||0) + ' uds<br>' +
-    'Origen: ' + (r.Origen||'—') + ' · ' + fmtDate(r.Fecha) + '<br><br>' +
+    'Origen: ' + (r.Origen||'—') + ' · Rem: ' + (r.Remision_Origen||'—') + '/' + (r.Remision_Destino||'—') + ' · ' + fmtDate(r.Fecha) + '<br><br>' +
     '<span style="color:#e74c3c;font-weight:700">Se eliminará este registro de Google Sheets.</span>';
   document.getElementById('btn-del-ing-confirm').disabled = false;
   document.getElementById('btn-del-ing-confirm').textContent = '🗑️ Sí, eliminar';
