@@ -62,8 +62,19 @@
       </select>
     </div>
     <div class="fg">
-      <label>Empresa</label>
-      <select id="f-emp">
+      <label>Emp. Origen</label>
+      <select id="f-emp-orig">
+        <option value="">Todas</option>
+        <option value="PARCELAR DE COLOMBIA SAS">PARCELAR</option>
+        <option value="GREEN AGROSOLUCIONES DE COLOMBIA SAS">GREEN</option>
+        <option value="SOLUCIONES INTEGRALES RESO SAS">RESO</option>
+        <option value="INSUMOS AGROPECUARIOS SOSTENIBLES SAS">IASO</option>
+        <option value="INSUMOS AGROPECUARIOS DE LA SABANA SAS">IAS</option>
+      </select>
+    </div>
+    <div class="fg">
+      <label>Emp. Destino</label>
+      <select id="f-emp-dest">
         <option value="">Todas</option>
         <option value="PARCELAR DE COLOMBIA SAS">PARCELAR</option>
         <option value="GREEN AGROSOLUCIONES DE COLOMBIA SAS">GREEN</option>
@@ -124,9 +135,20 @@
             <option value="Devolución">Devolución</option>
           </select>
         </div>
-        <div style="grid-column:1/-1">
-          <label class="ef-label">Empresa</label>
-          <select class="ef" id="ing-empresa">
+        <div>
+          <label class="ef-label">Empresa Origen</label>
+          <select class="ef" id="ing-empresa-origen">
+            <option value="">— Seleccionar —</option>
+            <option value="PARCELAR DE COLOMBIA SAS">PARCELAR</option>
+            <option value="GREEN AGROSOLUCIONES DE COLOMBIA SAS">GREEN</option>
+            <option value="SOLUCIONES INTEGRALES RESO SAS">RESO</option>
+            <option value="INSUMOS AGROPECUARIOS SOSTENIBLES SAS">IASO</option>
+            <option value="INSUMOS AGROPECUARIOS DE LA SABANA SAS">IAS</option>
+          </select>
+        </div>
+        <div>
+          <label class="ef-label">Empresa Destino</label>
+          <select class="ef" id="ing-empresa-destino">
             <option value="">— Seleccionar —</option>
             <option value="PARCELAR DE COLOMBIA SAS">PARCELAR</option>
             <option value="GREEN AGROSOLUCIONES DE COLOMBIA SAS">GREEN</option>

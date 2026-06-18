@@ -29,7 +29,8 @@ var sortLevelsIng = [];
 var SORT_COLS_ING = [
   { id:'fecha',     label:'Fecha',        fn: function(r) { return +new Date(r.Fecha||0); } },
   { id:'origen',    label:'Origen',       fn: function(r) { return (r.Origen||'').toLowerCase(); } },
-  { id:'empresa',   label:'Empresa',      fn: function(r) { return getSiglaIng(r.Empresa); } },
+  { id:'emp_orig',   label:'Emp. Origen',  fn: function(r) { return getSiglaIng(r.Empresa_Origen); } },
+  { id:'emp_dest',   label:'Emp. Destino', fn: function(r) { return getSiglaIng(r.Empresa_Destino); } },
   { id:'producto',  label:'Producto',     fn: function(r) { return (r.Producto||'').toLowerCase(); } },
   { id:'cantidad',  label:'Cantidad',     fn: function(r) { return Number(r.Cantidad)||0; } },
   { id:'responsable', label:'Responsable', fn: function(r) { return (r.Responsable||'').toLowerCase(); } },
@@ -131,7 +132,7 @@ function populateIngFilters() {
   fr.innerHTML = '<option value="">Todos</option>' + responsables.map(function(r) { return '<option value="' + r + '">' + r + '</option>'; }).join('');
 
   if (!ingFiltersAttached) {
-    ['f-origen','f-emp','f-prod','f-resp','f-txt'].forEach(function(id) {
+    ['f-origen','f-emp-orig','f-emp-dest','f-prod','f-resp','f-txt'].forEach(function(id) {
       document.getElementById(id).addEventListener('change', renderIngTable);
       document.getElementById(id).addEventListener('input', renderIngTable);
     });
@@ -141,13 +142,15 @@ function populateIngFilters() {
 
 function filteredIng() {
   var fo = document.getElementById('f-origen').value;
-  var fe = document.getElementById('f-emp').value;
+  var feo = document.getElementById('f-emp-orig').value;
+  var fed = document.getElementById('f-emp-dest').value;
   var fp = document.getElementById('f-prod').value;
   var fr = document.getElementById('f-resp').value;
   var ft = document.getElementById('f-txt').value.toLowerCase();
   return ingresos.filter(function(r) {
     if (fo && r.Origen !== fo) return false;
-    if (fe && r.Empresa !== fe) return false;
+    if (feo && r.Empresa_Origen !== feo) return false;
+    if (fed && r.Empresa_Destino !== fed) return false;
     if (fp && r.Producto !== fp) return false;
     if (fr && r.Responsable !== fr) return false;
     if (ft) {
@@ -160,7 +163,8 @@ function filteredIng() {
 
 function clearIngFilters() {
   document.getElementById('f-origen').value = '';
-  document.getElementById('f-emp').value = '';
+  document.getElementById('f-emp-orig').value = '';
+  document.getElementById('f-emp-dest').value = '';
   document.getElementById('f-prod').value = '';
   document.getElementById('f-resp').value = '';
   document.getElementById('f-txt').value = '';
@@ -173,7 +177,8 @@ function renderIngHeader() {
     { label:'#', id:null },
     { label:'Fecha', id:'fecha' },
     { label:'Origen', id:'origen' },
-    { label:'Empresa', id:'empresa' },
+    { label:'Emp. Origen', id:'emp_orig' },
+    { label:'Emp. Destino', id:'emp_dest' },
     { label:'Producto', id:'producto' },
     { label:'Presentación', id:null },
     { label:'Cantidad', id:'cantidad' },
@@ -212,7 +217,7 @@ function renderIngTable() {
 
   var tbody = document.getElementById('t-body-ing');
   if (!rows.length) {
-    tbody.innerHTML = '<tr><td colspan="10"><div class="empty">No hay ingresos con los filtros seleccionados.</div></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="11"><div class="empty">No hay ingresos con los filtros seleccionados.</div></td></tr>';
     return;
   }
 
@@ -224,7 +229,8 @@ function renderIngTable() {
       '<td style="color:#718096;font-size:0.78rem">' + (i+1) + '</td>' +
       '<td style="white-space:nowrap;font-size:0.78rem">' + fmtDate(r.Fecha) + '</td>' +
       '<td>' + origenBadge + '</td>' +
-      '<td title="' + (r.Empresa||'') + '"><span class="sigla-badge ' + getSiglaClassIng(r.Empresa) + '">' + getSiglaIng(r.Empresa) + '</span></td>' +
+      '<td title="' + (r.Empresa_Origen||'') + '"><span class="sigla-badge ' + getSiglaClassIng(r.Empresa_Origen) + '">' + getSiglaIng(r.Empresa_Origen) + '</span></td>' +
+      '<td title="' + (r.Empresa_Destino||'') + '"><span class="sigla-badge ' + getSiglaClassIng(r.Empresa_Destino) + '">' + getSiglaIng(r.Empresa_Destino) + '</span></td>' +
       '<td style="font-weight:700">' + (r.Producto||'—') + '</td>' +
       '<td>' + (r.Presentacion||'—') + '</td>' +
       '<td style="text-align:center;font-weight:700">' + (r.Cantidad||0) + '</td>' +
@@ -247,7 +253,7 @@ function buildProductSearch(lineIdx) {
 
   inp.addEventListener('input', function() {
     var q = this.value.toLowerCase().trim();
-    var empSel = document.getElementById('ing-empresa').value;
+    var empSel = document.getElementById('ing-empresa-origen').value;
     closeAllAutocomplete();
     if (q.length < 1) return;
 
@@ -357,7 +363,8 @@ function openNewIngreso() {
   document.getElementById('ing-modal-title').textContent = '📥 Registrar Ingreso';
   document.getElementById('ing-fecha').value = today();
   document.getElementById('ing-origen').value = 'Planta Mosquera';
-  document.getElementById('ing-empresa').value = '';
+  document.getElementById('ing-empresa-origen').value = '';
+  document.getElementById('ing-empresa-destino').value = '';
   document.getElementById('ing-responsable').value = '';
   document.getElementById('ing-remision').value = '';
   document.getElementById('ing-observaciones').value = '';
@@ -390,7 +397,8 @@ function openEditIng(row) {
   document.getElementById('ing-modal-title').textContent = '✏️ Editar Ingreso';
   document.getElementById('ing-fecha').value = toDateInput(r.Fecha);
   document.getElementById('ing-origen').value = r.Origen || '';
-  document.getElementById('ing-empresa').value = r.Empresa || '';
+  document.getElementById('ing-empresa-origen').value = r.Empresa_Origen || '';
+  document.getElementById('ing-empresa-destino').value = r.Empresa_Destino || '';
   document.getElementById('ing-responsable').value = r.Responsable || '';
   document.getElementById('ing-remision').value = r.Remision || '';
   document.getElementById('ing-observaciones').value = r.Observaciones || '';
@@ -410,14 +418,16 @@ function openEditIng(row) {
 async function saveIngreso() {
   var fecha = document.getElementById('ing-fecha').value;
   var origen = document.getElementById('ing-origen').value;
-  var empresa = document.getElementById('ing-empresa').value;
+  var empresa_origen = document.getElementById('ing-empresa-origen').value;
+  var empresa_destino = document.getElementById('ing-empresa-destino').value;
   var responsable = document.getElementById('ing-responsable').value.trim();
   var remision = document.getElementById('ing-remision').value.trim();
   var observaciones = document.getElementById('ing-observaciones').value.trim();
 
   if (!fecha) { showToast('Selecciona la fecha', '#e74c3c'); return; }
   if (!origen) { showToast('Selecciona el origen', '#e74c3c'); return; }
-  if (!empresa) { showToast('Selecciona la empresa', '#e74c3c'); return; }
+  if (!empresa_origen) { showToast('Selecciona la empresa origen', '#e74c3c'); return; }
+  if (!empresa_destino) { showToast('Selecciona la empresa destino', '#e74c3c'); return; }
   if (!responsable) { showToast('Ingresa el responsable', '#e74c3c'); return; }
 
   var btn = document.getElementById('btn-save-ing');
@@ -436,7 +446,7 @@ async function saveIngreso() {
       var result = await apiPost({
         action: 'editarIngreso',
         row: editIngreso.__row,
-        Fecha: fecha, Origen: origen, Empresa: empresa,
+        Fecha: fecha, Origen: origen, Empresa_Origen: empresa_origen, Empresa_Destino: empresa_destino,
         Producto: prod, Presentacion: pres, Cantidad: cant,
         Responsable: responsable, Remision: remision, Observaciones: observaciones,
       });
@@ -462,7 +472,7 @@ async function saveIngreso() {
   try {
     var result = await apiPost({
       action: 'agregarIngreso',
-      Fecha: fecha, Origen: origen, Empresa: empresa,
+      Fecha: fecha, Origen: origen, Empresa_Origen: empresa_origen, Empresa_Destino: empresa_destino,
       Responsable: responsable, Remision: remision, Observaciones: observaciones,
       lineas: validLines,
     });
