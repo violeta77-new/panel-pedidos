@@ -5,7 +5,7 @@ var catalogoProductos = [];
 var ingLineas = [];
 
 // ── Constants ──
-var ORIGENES = ['Planta Mosquera', 'Planta Cachipay', 'Devolución'];
+var ORIGENES = ['Planta Mosquera', 'Planta Cachipay'];
 var EMPRESAS_HOLDING = [
   { value: 'PARCELAR DE COLOMBIA SAS', sigla: 'PARCELAR' },
   { value: 'GREEN AGROSOLUCIONES DE COLOMBIA SAS', sigla: 'GREEN' },
@@ -205,13 +205,13 @@ function renderIngTable() {
 
   var totalRegs = ingresos.length;
   var totalUnidades = ingresos.reduce(function(s, r) { return s + (Number(r.Cantidad)||0); }, 0);
-  var plantas = ingresos.filter(function(r) { return r.Origen && r.Origen.indexOf('Planta') >= 0; }).length;
-  var devs = ingresos.filter(function(r) { return r.Origen === 'Devolución'; }).length;
+  var mosquera = ingresos.filter(function(r) { return r.Origen === 'Planta Mosquera'; }).length;
+  var cachipay = ingresos.filter(function(r) { return r.Origen === 'Planta Cachipay'; }).length;
 
   document.getElementById('s-total').textContent = totalRegs;
   document.getElementById('s-unidades').textContent = totalUnidades.toLocaleString('es-CO');
-  document.getElementById('s-plantas').textContent = plantas;
-  document.getElementById('s-devs').textContent = devs;
+  document.getElementById('s-mosquera').textContent = mosquera;
+  document.getElementById('s-cachipay').textContent = cachipay;
   document.getElementById('row-ct-ing').textContent = '(' + rows.length + ' mostrados)';
 
   renderIngHeader();
