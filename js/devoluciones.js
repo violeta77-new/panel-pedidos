@@ -5,7 +5,6 @@ var catalogoProductosDev = [];
 var devLineas = [];
 
 // ── Constants ──
-var MOTIVOS_DEV = ['Producto defectuoso', 'Sobrante', 'Error de envío', 'Producto vencido', 'Otro'];
 var EMPRESAS_HOLDING_DEV = [
   { value: 'PARCELAR DE COLOMBIA SAS', sigla: 'PARCELAR' },
   { value: 'GREEN AGROSOLUCIONES DE COLOMBIA SAS', sigla: 'GREEN' },
@@ -23,17 +22,23 @@ function getSiglaDev(n) {
 var SIGLA_CLS_DEV = ['PARCELAR','GREEN','RESO','IASO','IAS'];
 function getSiglaClassDev(n) { var s = getSiglaDev(n); return SIGLA_CLS_DEV.indexOf(s) >= 0 ? 'sigla-'+s : 'sigla-DEFAULT'; }
 
+function fmtMoney(v) {
+  var n = Number(v) || 0;
+  return '$' + n.toLocaleString('es-CO');
+}
+
 // ── Sorting ──
 var sortLevelsDev = [];
 
 var SORT_COLS_DEV = [
-  { id:'fecha',     label:'Fecha',        fn: function(r) { return +new Date(r.Fecha||0); } },
-  { id:'motivo',    label:'Motivo',       fn: function(r) { return (r.Motivo||'').toLowerCase(); } },
-  { id:'emp_orig',  label:'Emp. Origen',  fn: function(r) { return getSiglaDev(r.Empresa_Origen); } },
-  { id:'emp_dest',  label:'Emp. Destino', fn: function(r) { return getSiglaDev(r.Empresa_Destino); } },
-  { id:'producto',  label:'Producto',     fn: function(r) { return (r.Producto||'').toLowerCase(); } },
-  { id:'cantidad',  label:'Cantidad',     fn: function(r) { return Number(r.Cantidad)||0; } },
-  { id:'responsable', label:'Responsable', fn: function(r) { return (r.Responsable||'').toLowerCase(); } },
+  { id:'fecha',      label:'Fecha',       fn: function(r) { return +new Date(r.Fecha||0); } },
+  { id:'empresa',    label:'Empresa',     fn: function(r) { return getSiglaDev(r.Empresa); } },
+  { id:'consecutivo',label:'Consec.',     fn: function(r) { return Number(r.Consecutivo)||0; } },
+  { id:'cliente',    label:'Cliente',     fn: function(r) { return (r.Cliente||'').toLowerCase(); } },
+  { id:'producto',   label:'Producto',    fn: function(r) { return (r.Producto||'').toLowerCase(); } },
+  { id:'cantidad',   label:'Cantidad',    fn: function(r) { return Number(r.Cantidad)||0; } },
+  { id:'valor_total',label:'Valor Total', fn: function(r) { return Number(r.Valor_Total)||0; } },
+  { id:'vendedor',   label:'Vendedor',    fn: function(r) { return (r.Vendedor||'').toLowerCase(); } },
 ];
 
 function toggleSortDev(id, e) {
@@ -118,17 +123,27 @@ async function loadCatalogoDev() {
 // ── Filters ──
 var devFiltersAttached = false;
 function populateDevFilters() {
-  var productos = [];
+  var productos = [], clientes = [], motivos = [];
   devoluciones.forEach(function(r) {
     if (r.Producto && productos.indexOf(r.Producto) < 0) productos.push(r.Producto);
+    if (r.Cliente && clientes.indexOf(r.Cliente) < 0) clientes.push(r.Cliente);
+    if (r.Motivo && motivos.indexOf(r.Motivo) < 0) motivos.push(r.Motivo);
   });
   productos.sort();
+  clientes.sort();
+  motivos.sort();
 
   var fp = document.getElementById('f-prod');
   fp.innerHTML = '<option value="">Todos</option>' + productos.map(function(p) { return '<option value="' + p + '">' + p + '</option>'; }).join('');
 
+  var fc = document.getElementById('f-cliente');
+  fc.innerHTML = '<option value="">Todos</option>' + clientes.map(function(c) { return '<option value="' + c + '">' + c + '</option>'; }).join('');
+
+  var fm = document.getElementById('f-motivo');
+  fm.innerHTML = '<option value="">Todos</option>' + motivos.map(function(m) { return '<option value="' + m + '">' + m + '</option>'; }).join('');
+
   if (!devFiltersAttached) {
-    ['f-motivo','f-emp-orig','f-emp-dest','f-prod','f-txt'].forEach(function(id) {
+    ['f-empresa','f-cliente','f-motivo','f-prod','f-txt'].forEach(function(id) {
       document.getElementById(id).addEventListener('change', renderDevTable);
       document.getElementById(id).addEventListener('input', renderDevTable);
     });
@@ -137,18 +152,18 @@ function populateDevFilters() {
 }
 
 function filteredDev() {
+  var fe = document.getElementById('f-empresa').value;
+  var fc = document.getElementById('f-cliente').value;
   var fm = document.getElementById('f-motivo').value;
-  var feo = document.getElementById('f-emp-orig').value;
-  var fed = document.getElementById('f-emp-dest').value;
   var fp = document.getElementById('f-prod').value;
   var ft = document.getElementById('f-txt').value.toLowerCase();
   return devoluciones.filter(function(r) {
+    if (fe && r.Empresa !== fe) return false;
+    if (fc && r.Cliente !== fc) return false;
     if (fm && r.Motivo !== fm) return false;
-    if (feo && r.Empresa_Origen !== feo) return false;
-    if (fed && r.Empresa_Destino !== fed) return false;
     if (fp && r.Producto !== fp) return false;
     if (ft) {
-      var hay = [r.Producto, r.Presentacion, r.Remision, r.Responsable, r.Motivo, r.Observaciones].join(' ').toLowerCase();
+      var hay = [r.Cliente, r.Vendedor, r.Producto, r.Presentacion, r.Num_Factura, r.Motivo, r.Observaciones, r.Consecutivo, r.NIT].join(' ').toLowerCase();
       if (hay.indexOf(ft) < 0) return false;
     }
     return true;
@@ -156,9 +171,9 @@ function filteredDev() {
 }
 
 function clearDevFilters() {
+  document.getElementById('f-empresa').value = '';
+  document.getElementById('f-cliente').value = '';
   document.getElementById('f-motivo').value = '';
-  document.getElementById('f-emp-orig').value = '';
-  document.getElementById('f-emp-dest').value = '';
   document.getElementById('f-prod').value = '';
   document.getElementById('f-txt').value = '';
   renderDevTable();
@@ -169,14 +184,18 @@ function renderDevHeader() {
   var cols = [
     { label:'#', id:null },
     { label:'Fecha', id:'fecha' },
-    { label:'Motivo', id:'motivo' },
-    { label:'Emp. Origen', id:'emp_orig' },
-    { label:'Emp. Destino', id:'emp_dest' },
+    { label:'Empresa', id:'empresa' },
+    { label:'Consec.', id:'consecutivo' },
+    { label:'Factura', id:null },
+    { label:'Cliente', id:'cliente' },
+    { label:'Vendedor', id:'vendedor' },
     { label:'Producto', id:'producto' },
-    { label:'Presentación', id:null },
-    { label:'Cantidad', id:'cantidad' },
-    { label:'Responsable', id:'responsable' },
-    { label:'Remisión', id:null },
+    { label:'Pres.', id:null },
+    { label:'Cant.', id:'cantidad' },
+    { label:'Cant. Ent.', id:null },
+    { label:'V. Unit.', id:null },
+    { label:'V. Total', id:'valor_total' },
+    { label:'Motivo', id:null },
     { label:'Acción', id:null },
   ];
   document.getElementById('t-head-dev').innerHTML = cols.map(function(col) {
@@ -196,46 +215,46 @@ function renderDevTable() {
   var rows = applySortDev(filteredDev());
 
   var totalRegs = devoluciones.length;
-  var totalUnidades = devoluciones.reduce(function(s, r) { return s + (Number(r.Cantidad)||0); }, 0);
+  var totalValor = devoluciones.reduce(function(s, r) { return s + (Number(r.Valor_Total)||0); }, 0);
   var now = new Date();
   var mesActual = devoluciones.filter(function(r) {
     var d = new Date(r.Fecha);
     return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
   }).length;
-  var empresasSet = {};
-  devoluciones.forEach(function(r) {
-    if (r.Empresa_Origen) empresasSet[r.Empresa_Origen] = true;
-    if (r.Empresa_Destino) empresasSet[r.Empresa_Destino] = true;
-  });
-  var empresasCount = Object.keys(empresasSet).length;
+  var clientesSet = {};
+  devoluciones.forEach(function(r) { if (r.Cliente) clientesSet[r.Cliente] = true; });
+  var clientesCount = Object.keys(clientesSet).length;
 
   document.getElementById('s-total').textContent = totalRegs;
-  document.getElementById('s-unidades').textContent = totalUnidades.toLocaleString('es-CO');
+  document.getElementById('s-valor').textContent = fmtMoney(totalValor);
   document.getElementById('s-mes').textContent = mesActual;
-  document.getElementById('s-empresas').textContent = empresasCount;
+  document.getElementById('s-clientes').textContent = clientesCount;
   document.getElementById('row-ct-dev').textContent = '(' + rows.length + ' mostrados)';
 
   renderDevHeader();
 
   var tbody = document.getElementById('t-body-dev');
   if (!rows.length) {
-    tbody.innerHTML = '<tr><td colspan="11"><div class="empty">No hay devoluciones con los filtros seleccionados.</div></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="15"><div class="empty">No hay devoluciones con los filtros seleccionados.</div></td></tr>';
     return;
   }
 
   tbody.innerHTML = rows.map(function(r, i) {
-    var motivoBadge = '<span class="badge b-rec">' + (r.Motivo||'—') + '</span>';
     return '<tr>' +
       '<td style="color:#718096;font-size:0.78rem">' + (i+1) + '</td>' +
       '<td style="white-space:nowrap;font-size:0.78rem">' + fmtDate(r.Fecha) + '</td>' +
-      '<td>' + motivoBadge + '</td>' +
-      '<td title="' + (r.Empresa_Origen||'') + '"><span class="sigla-badge ' + getSiglaClassDev(r.Empresa_Origen) + '">' + getSiglaDev(r.Empresa_Origen) + '</span></td>' +
-      '<td title="' + (r.Empresa_Destino||'') + '"><span class="sigla-badge ' + getSiglaClassDev(r.Empresa_Destino) + '">' + getSiglaDev(r.Empresa_Destino) + '</span></td>' +
+      '<td title="' + (r.Empresa||'') + '"><span class="sigla-badge ' + getSiglaClassDev(r.Empresa) + '">' + getSiglaDev(r.Empresa) + '</span></td>' +
+      '<td style="text-align:center;font-weight:600">' + (r.Consecutivo||'—') + '</td>' +
+      '<td style="font-size:0.78rem">' + (r.Num_Factura||'—') + '</td>' +
+      '<td style="font-weight:600;font-size:0.82rem">' + (r.Cliente||'—') + '</td>' +
+      '<td style="font-size:0.78rem">' + (r.Vendedor||'—') + '</td>' +
       '<td style="font-weight:700">' + (r.Producto||'—') + '</td>' +
-      '<td>' + (r.Presentacion||'—') + '</td>' +
-      '<td style="text-align:center;font-weight:700">' + (r.Cantidad||0) + '</td>' +
-      '<td style="font-size:0.78rem">' + (r.Responsable||'—') + '</td>' +
-      '<td style="font-size:0.78rem">' + (r.Remision||'—') + '</td>' +
+      '<td style="font-size:0.78rem">' + (r.Presentacion||'—') + '</td>' +
+      '<td style="text-align:center">' + (r.Cantidad||0) + '</td>' +
+      '<td style="text-align:center">' + (r.Cant_Entregada||'—') + '</td>' +
+      '<td style="text-align:right;font-size:0.78rem">' + fmtMoney(r.Valor_Unitario) + '</td>' +
+      '<td style="text-align:right;font-weight:700;font-size:0.82rem">' + fmtMoney(r.Valor_Total) + '</td>' +
+      '<td style="font-size:0.76rem;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + (r.Motivo||'') + '">' + (r.Motivo||'—') + '</td>' +
       '<td><div style="display:flex;gap:6px;align-items:center">' +
         '<button class="btn-edit" onclick="openEditDev(' + r.__row + ')" title="Editar">✏️</button>' +
         '<button class="btn-del" onclick="openDeleteDev(' + i + ',' + (r.__row||0) + ')" title="Eliminar">🗑️</button>' +
@@ -253,7 +272,7 @@ function buildProductSearchDev(lineIdx) {
 
   inp.addEventListener('input', function() {
     var q = this.value.toLowerCase().trim();
-    var empSel = document.getElementById('dev-empresa-origen').value;
+    var empSel = document.getElementById('dev-empresa').value;
     closeAllAutocompleteDev();
     if (q.length < 1) return;
 
@@ -312,25 +331,59 @@ function closeAllAutocompleteDev() {
 }
 
 // ── Render line rows in modal ──
+function updateDevTotal() {
+  var total = 0;
+  devLineas.forEach(function(l) { total += (Number(l.Valor_Total)||0); });
+  var el = document.getElementById('dev-total-display');
+  if (el) el.textContent = fmtMoney(total);
+}
+
+function calcLineTotal(i) {
+  var cant = Number(devLineas[i].Cantidad) || 0;
+  var vunit = Number(devLineas[i].Valor_Unitario) || 0;
+  devLineas[i].Valor_Total = cant * vunit;
+  var vtEl = document.querySelector('.dev-vtotal[data-line="' + i + '"]');
+  if (vtEl) vtEl.textContent = fmtMoney(devLineas[i].Valor_Total);
+  updateDevTotal();
+}
+
 function renderDevLines() {
   var tbody = document.getElementById('dev-lines');
   tbody.innerHTML = devLineas.map(function(l, i) {
     return '<tr>' +
       '<td style="color:#a0aec0;font-size:0.74rem">' + (i+1) + '</td>' +
       '<td style="position:relative"><div style="position:relative"><input class="ef dev-prod-search" data-line="' + i + '" type="text" value="' + ((l.Producto||'').replace(/"/g,'&quot;')) + '" placeholder="Buscar producto..." autocomplete="off"></div></td>' +
-      '<td><input class="ef dev-pres" data-line="' + i + '" type="text" value="' + ((l.Presentacion||'').replace(/"/g,'&quot;')) + '" placeholder="Presentación" style="width:120px"></td>' +
-      '<td><input class="ef dev-cant" data-line="' + i + '" type="number" min="1" value="' + (l.Cantidad||'') + '" placeholder="0" style="width:80px;text-align:right"></td>' +
+      '<td><input class="ef dev-pres" data-line="' + i + '" type="text" value="' + ((l.Presentacion||'').replace(/"/g,'&quot;')) + '" placeholder="Pres." style="width:100px"></td>' +
+      '<td><input class="ef dev-cant" data-line="' + i + '" type="number" min="0" value="' + (l.Cantidad||'') + '" placeholder="0" style="width:65px;text-align:right"></td>' +
+      '<td><input class="ef dev-cant-ent" data-line="' + i + '" type="number" min="0" value="' + (l.Cant_Entregada||'') + '" placeholder="0" style="width:75px;text-align:right"></td>' +
+      '<td><input class="ef dev-vunit" data-line="' + i + '" type="number" min="0" value="' + (l.Valor_Unitario||'') + '" placeholder="$0" style="width:90px;text-align:right"></td>' +
+      '<td style="text-align:right;font-weight:700;font-size:0.82rem"><span class="dev-vtotal" data-line="' + i + '">' + fmtMoney(l.Valor_Total||0) + '</span></td>' +
       '<td style="text-align:center">' +
         '<button onclick="removeDevLine(' + i + ')" style="background:#e74c3c;color:white;border:none;padding:4px 10px;border-radius:5px;cursor:pointer;font-size:0.78rem;font-weight:700">✕</button>' +
       '</td>' +
     '</tr>';
   }).join('');
 
-  devLineas.forEach(function(l, i) { buildProductSearchDev(i); });
+  devLineas.forEach(function(l, i) {
+    buildProductSearchDev(i);
+
+    var cantInp = document.querySelector('.dev-cant[data-line="' + i + '"]');
+    var vunitInp = document.querySelector('.dev-vunit[data-line="' + i + '"]');
+    if (cantInp) cantInp.addEventListener('input', function() {
+      devLineas[i].Cantidad = Number(this.value) || 0;
+      calcLineTotal(i);
+    });
+    if (vunitInp) vunitInp.addEventListener('input', function() {
+      devLineas[i].Valor_Unitario = Number(this.value) || 0;
+      calcLineTotal(i);
+    });
+  });
+
+  updateDevTotal();
 }
 
 function addDevLine() {
-  devLineas.push({ Producto: '', Presentacion: '', Cantidad: '' });
+  devLineas.push({ Producto: '', Presentacion: '', Cantidad: '', Cant_Entregada: '', Valor_Unitario: '', Valor_Total: 0 });
   renderDevLines();
   var lastInput = document.querySelector('.dev-prod-search[data-line="' + (devLineas.length - 1) + '"]');
   if (lastInput) lastInput.focus();
@@ -355,25 +408,42 @@ function readDevLines() {
     var i = Number(inp.dataset.line);
     if (devLineas[i]) devLineas[i].Cantidad = Number(inp.value) || 0;
   });
+  document.querySelectorAll('.dev-cant-ent').forEach(function(inp) {
+    var i = Number(inp.dataset.line);
+    if (devLineas[i]) devLineas[i].Cant_Entregada = Number(inp.value) || 0;
+  });
+  document.querySelectorAll('.dev-vunit').forEach(function(inp) {
+    var i = Number(inp.dataset.line);
+    if (devLineas[i]) {
+      devLineas[i].Valor_Unitario = Number(inp.value) || 0;
+      devLineas[i].Valor_Total = (devLineas[i].Cantidad || 0) * devLineas[i].Valor_Unitario;
+    }
+  });
 }
 
 // ── New Devolucion Modal ──
 function openNewDev() {
   editDev = null;
   document.getElementById('dev-modal-title').textContent = '🔄 Registrar Devolución';
+  document.getElementById('dev-empresa').value = '';
   document.getElementById('dev-fecha').value = today();
+  document.getElementById('dev-consecutivo').value = '';
+  document.getElementById('dev-vendedor').value = '';
+  document.getElementById('dev-num-factura').value = '';
+  document.getElementById('dev-cliente').value = '';
+  document.getElementById('dev-nit').value = '';
+  document.getElementById('dev-direccion').value = '';
+  document.getElementById('dev-municipio').value = '';
+  document.getElementById('dev-departamento').value = '';
+  document.getElementById('dev-telefono').value = '';
   document.getElementById('dev-motivo').value = '';
-  document.getElementById('dev-empresa-origen').value = '';
-  document.getElementById('dev-empresa-destino').value = '';
-  document.getElementById('dev-responsable').value = '';
-  document.getElementById('dev-remision').value = '';
   document.getElementById('dev-observaciones').value = '';
   document.getElementById('btn-save-dev').disabled = false;
   document.getElementById('btn-save-dev').textContent = '✓ Registrar devolución';
   document.getElementById('dev-edit-single').style.display = 'none';
   document.getElementById('dev-multi-lines').style.display = 'block';
 
-  devLineas = [{ Producto: '', Presentacion: '', Cantidad: '' }];
+  devLineas = [{ Producto: '', Presentacion: '', Cantidad: '', Cant_Entregada: '', Valor_Unitario: '', Valor_Total: 0 }];
   renderDevLines();
   document.getElementById('dev-overlay').classList.add('show');
 }
@@ -395,12 +465,18 @@ function openEditDev(row) {
   if (!r) return;
   editDev = r;
   document.getElementById('dev-modal-title').textContent = '✏️ Editar Devolución';
+  document.getElementById('dev-empresa').value = r.Empresa || '';
   document.getElementById('dev-fecha').value = toDateInput(r.Fecha);
+  document.getElementById('dev-consecutivo').value = r.Consecutivo || '';
+  document.getElementById('dev-vendedor').value = r.Vendedor || '';
+  document.getElementById('dev-num-factura').value = r.Num_Factura || '';
+  document.getElementById('dev-cliente').value = r.Cliente || '';
+  document.getElementById('dev-nit').value = r.NIT || '';
+  document.getElementById('dev-direccion').value = r.Direccion || '';
+  document.getElementById('dev-municipio').value = r.Municipio || '';
+  document.getElementById('dev-departamento').value = r.Departamento || '';
+  document.getElementById('dev-telefono').value = r.Telefono || '';
   document.getElementById('dev-motivo').value = r.Motivo || '';
-  document.getElementById('dev-empresa-origen').value = r.Empresa_Origen || '';
-  document.getElementById('dev-empresa-destino').value = r.Empresa_Destino || '';
-  document.getElementById('dev-responsable').value = r.Responsable || '';
-  document.getElementById('dev-remision').value = r.Remision || '';
   document.getElementById('dev-observaciones').value = r.Observaciones || '';
   document.getElementById('btn-save-dev').disabled = false;
   document.getElementById('btn-save-dev').textContent = '✓ Guardar cambios';
@@ -410,24 +486,41 @@ function openEditDev(row) {
   document.getElementById('dev-edit-producto').value = r.Producto || '';
   document.getElementById('dev-edit-presentacion').value = r.Presentacion || '';
   document.getElementById('dev-edit-cantidad').value = r.Cantidad || '';
+  document.getElementById('dev-edit-cant-entregada').value = r.Cant_Entregada || '';
+  document.getElementById('dev-edit-valor-unit').value = r.Valor_Unitario || '';
+  document.getElementById('dev-edit-valor-total').value = r.Valor_Total || '';
+
+  // Auto-calculate on edit
+  var calcEdit = function() {
+    var c = Number(document.getElementById('dev-edit-cantidad').value) || 0;
+    var v = Number(document.getElementById('dev-edit-valor-unit').value) || 0;
+    document.getElementById('dev-edit-valor-total').value = c * v;
+  };
+  document.getElementById('dev-edit-cantidad').oninput = calcEdit;
+  document.getElementById('dev-edit-valor-unit').oninput = calcEdit;
 
   document.getElementById('dev-overlay').classList.add('show');
 }
 
 // ── Save ──
 async function saveDevolucion() {
+  var empresa = document.getElementById('dev-empresa').value;
   var fecha = document.getElementById('dev-fecha').value;
-  var motivo = document.getElementById('dev-motivo').value;
-  var empresa_origen = document.getElementById('dev-empresa-origen').value;
-  var empresa_destino = document.getElementById('dev-empresa-destino').value;
-  var responsable = document.getElementById('dev-responsable').value.trim();
-  var remision = document.getElementById('dev-remision').value.trim();
+  var consecutivo = document.getElementById('dev-consecutivo').value.trim();
+  var vendedor = document.getElementById('dev-vendedor').value.trim();
+  var num_factura = document.getElementById('dev-num-factura').value.trim();
+  var cliente = document.getElementById('dev-cliente').value.trim();
+  var nit = document.getElementById('dev-nit').value.trim();
+  var direccion = document.getElementById('dev-direccion').value.trim();
+  var municipio = document.getElementById('dev-municipio').value.trim();
+  var departamento = document.getElementById('dev-departamento').value.trim();
+  var telefono = document.getElementById('dev-telefono').value.trim();
+  var motivo = document.getElementById('dev-motivo').value.trim();
   var observaciones = document.getElementById('dev-observaciones').value.trim();
 
+  if (!empresa) { showToast('Selecciona la empresa', '#e74c3c'); return; }
   if (!fecha) { showToast('Selecciona la fecha', '#e74c3c'); return; }
-  if (!motivo) { showToast('Selecciona el motivo', '#e74c3c'); return; }
-  if (!empresa_origen) { showToast('Selecciona la empresa origen', '#e74c3c'); return; }
-  if (!empresa_destino) { showToast('Selecciona la empresa destino', '#e74c3c'); return; }
+  if (!cliente) { showToast('Ingresa el nombre del cliente', '#e74c3c'); return; }
 
   var btn = document.getElementById('btn-save-dev');
 
@@ -435,8 +528,10 @@ async function saveDevolucion() {
     var prod = document.getElementById('dev-edit-producto').value.trim();
     var pres = document.getElementById('dev-edit-presentacion').value.trim();
     var cant = Number(document.getElementById('dev-edit-cantidad').value) || 0;
+    var cantEnt = Number(document.getElementById('dev-edit-cant-entregada').value) || 0;
+    var vUnit = Number(document.getElementById('dev-edit-valor-unit').value) || 0;
+    var vTotal = Number(document.getElementById('dev-edit-valor-total').value) || 0;
     if (!prod) { showToast('Ingresa el producto', '#e74c3c'); return; }
-    if (cant <= 0) { showToast('Ingresa una cantidad válida', '#e74c3c'); return; }
 
     btn.disabled = true;
     btn.textContent = '⏳ Guardando...';
@@ -445,9 +540,12 @@ async function saveDevolucion() {
       var result = await apiPost({
         action: 'editarDevolucion',
         row: editDev.__row,
-        Fecha: fecha, Motivo: motivo, Empresa_Origen: empresa_origen, Empresa_Destino: empresa_destino,
-        Producto: prod, Presentacion: pres, Cantidad: cant,
-        Responsable: responsable, Remision: remision, Observaciones: observaciones,
+        Fecha: fecha, Empresa: empresa, Consecutivo: consecutivo, Vendedor: vendedor,
+        Cliente: cliente, NIT: nit, Direccion: direccion, Municipio: municipio,
+        Departamento: departamento, Telefono: telefono, Num_Factura: num_factura,
+        Producto: prod, Presentacion: pres, Cantidad: cant, Cant_Entregada: cantEnt,
+        Valor_Unitario: vUnit, Valor_Total: vTotal,
+        Motivo: motivo, Observaciones: observaciones,
       });
       if (!result.ok) throw new Error(result.error || 'Error al guardar');
       closeDevModal();
@@ -462,8 +560,8 @@ async function saveDevolucion() {
   }
 
   readDevLines();
-  var validLines = devLineas.filter(function(l) { return l.Producto && l.Cantidad > 0; });
-  if (!validLines.length) { showToast('Agrega al menos un producto con cantidad', '#e74c3c'); return; }
+  var validLines = devLineas.filter(function(l) { return l.Producto; });
+  if (!validLines.length) { showToast('Agrega al menos un producto', '#e74c3c'); return; }
 
   btn.disabled = true;
   btn.textContent = '⏳ Guardando...';
@@ -471,8 +569,10 @@ async function saveDevolucion() {
   try {
     var result = await apiPost({
       action: 'agregarDevolucion',
-      Fecha: fecha, Motivo: motivo, Empresa_Origen: empresa_origen, Empresa_Destino: empresa_destino,
-      Responsable: responsable, Remision: remision, Observaciones: observaciones,
+      Fecha: fecha, Empresa: empresa, Consecutivo: consecutivo, Vendedor: vendedor,
+      Cliente: cliente, NIT: nit, Direccion: direccion, Municipio: municipio,
+      Departamento: departamento, Telefono: telefono, Num_Factura: num_factura,
+      Motivo: motivo, Observaciones: observaciones,
       lineas: validLines,
     });
     if (!result.ok) throw new Error(result.error || 'Error al guardar');
@@ -495,8 +595,8 @@ function openDeleteDev(idx, row) {
   var r = rows[idx] || {};
   document.getElementById('del-dev-msg').textContent = '¿Eliminar esta devolución?';
   document.getElementById('del-dev-detail').innerHTML =
-    'Producto: <strong>' + (r.Producto||'—') + '</strong> · ' + (r.Cantidad||0) + ' uds<br>' +
-    'Motivo: ' + (r.Motivo||'—') + ' · ' + fmtDate(r.Fecha) + '<br><br>' +
+    'Cliente: <strong>' + (r.Cliente||'—') + '</strong> · Producto: <strong>' + (r.Producto||'—') + '</strong><br>' +
+    'Valor: ' + fmtMoney(r.Valor_Total) + ' · ' + fmtDate(r.Fecha) + '<br><br>' +
     '<span style="color:#e74c3c;font-weight:700">Se eliminará este registro de Google Sheets.</span>';
   document.getElementById('btn-del-dev-confirm').disabled = false;
   document.getElementById('btn-del-dev-confirm').textContent = '🗑️ Sí, eliminar';

@@ -621,7 +621,7 @@ function eliminarIngreso(body) {
 // MÓDULO: DEVOLUCIONES DE PRODUCTO
 // ══════════════════════════════════════════════════════════════
 
-var DEVOLUCIONES_HEADERS = ['Fecha','Motivo','Empresa_Origen','Empresa_Destino','Producto','Presentacion','Cantidad','Responsable','Remision','Observaciones','Fecha_Registro'];
+var DEVOLUCIONES_HEADERS = ['Fecha','Empresa','Consecutivo','Vendedor','Cliente','NIT','Direccion','Municipio','Departamento','Telefono','Num_Factura','Producto','Presentacion','Cantidad','Cant_Entregada','Valor_Unitario','Valor_Total','Motivo','Observaciones','Fecha_Registro'];
 
 function _getOrCreateDevolucionesSheet() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -667,21 +667,33 @@ function agregarDevolucion(body) {
   var now = Utilities.formatDate(new Date(), SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone(), 'yyyy-MM-dd HH:mm:ss');
   var lineas = body.lineas || [];
   if (!lineas.length && body.Producto) {
-    lineas = [{ Producto: body.Producto, Presentacion: body.Presentacion, Cantidad: body.Cantidad }];
+    lineas = [{ Producto: body.Producto, Presentacion: body.Presentacion, Cantidad: body.Cantidad, Cant_Entregada: body.Cant_Entregada, Valor_Unitario: body.Valor_Unitario, Valor_Total: body.Valor_Total }];
   }
   var added = 0;
   for (var i = 0; i < lineas.length; i++) {
     var lin = lineas[i];
+    var cant = Number(lin.Cantidad) || 0;
+    var vUnit = Number(lin.Valor_Unitario) || 0;
+    var vTotal = Number(lin.Valor_Total) || (cant * vUnit);
     ws.appendRow([
       body.Fecha || '',
-      body.Motivo || '',
-      body.Empresa_Origen || '',
-      body.Empresa_Destino || '',
+      body.Empresa || '',
+      body.Consecutivo || '',
+      body.Vendedor || '',
+      body.Cliente || '',
+      body.NIT || '',
+      body.Direccion || '',
+      body.Municipio || '',
+      body.Departamento || '',
+      body.Telefono || '',
+      body.Num_Factura || '',
       lin.Producto || '',
       lin.Presentacion || '',
-      Number(lin.Cantidad) || 0,
-      body.Responsable || '',
-      body.Remision || '',
+      cant,
+      Number(lin.Cant_Entregada) || 0,
+      vUnit,
+      vTotal,
+      body.Motivo || '',
       body.Observaciones || '',
       now
     ]);
@@ -695,16 +707,28 @@ function editarDevolucion(body) {
   var row = Number(body.row);
   if (!row || row < 2) return { ok: false, error: 'Fila inválida' };
 
+  var cant = Number(body.Cantidad) || 0;
+  var vUnit = Number(body.Valor_Unitario) || 0;
+  var vTotal = Number(body.Valor_Total) || (cant * vUnit);
   var vals = [
     body.Fecha || '',
-    body.Motivo || '',
-    body.Empresa_Origen || '',
-    body.Empresa_Destino || '',
+    body.Empresa || '',
+    body.Consecutivo || '',
+    body.Vendedor || '',
+    body.Cliente || '',
+    body.NIT || '',
+    body.Direccion || '',
+    body.Municipio || '',
+    body.Departamento || '',
+    body.Telefono || '',
+    body.Num_Factura || '',
     body.Producto || '',
     body.Presentacion || '',
-    Number(body.Cantidad) || 0,
-    body.Responsable || '',
-    body.Remision || '',
+    cant,
+    Number(body.Cant_Entregada) || 0,
+    vUnit,
+    vTotal,
+    body.Motivo || '',
     body.Observaciones || ''
   ];
   for (var i = 0; i < vals.length; i++) {
