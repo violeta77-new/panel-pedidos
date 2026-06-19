@@ -2,6 +2,7 @@
 var devoluciones = [];
 var editDev = null;
 var catalogoProductosDev = [];
+var catalogoClientesDev = [];
 var devLineas = [];
 
 // ── Constants ──
@@ -118,6 +119,78 @@ async function loadCatalogoDev() {
     var data = await apiGet('getMaestroProductos');
     if (data.ok) catalogoProductosDev = data.productos || [];
   } catch(e) {}
+}
+
+async function loadClientesDev() {
+  try {
+    var data = await apiGet('getClientesUnicos');
+    if (data.ok) catalogoClientesDev = data.clientes || [];
+  } catch(e) {}
+}
+
+// ── Client search/autocomplete ──
+var activeClientAutocompleteDev = null;
+
+function buildClientSearchDev() {
+  var inp = document.getElementById('dev-cliente');
+  if (!inp || inp._clientSearchBound) return;
+  inp._clientSearchBound = true;
+
+  inp.addEventListener('input', function() {
+    var q = this.value.toLowerCase().trim();
+    closeClientAutocompleteDev();
+    if (q.length < 1 || !catalogoClientesDev.length) return;
+
+    var matches = catalogoClientesDev.filter(function(c) {
+      return (c.cliente || '').toLowerCase().indexOf(q) >= 0 ||
+             (c.nit || '').toLowerCase().indexOf(q) >= 0;
+    });
+
+    if (!matches.length) return;
+
+    var list = document.createElement('div');
+    list.className = 'autocomplete-list client-autocomplete';
+    list.style.cssText = 'position:absolute;z-index:100;background:white;border:1px solid #cbd5e0;border-radius:6px;box-shadow:0 4px 16px rgba(0,0,0,0.12);max-height:220px;overflow-y:auto;width:100%;left:0;top:100%';
+
+    matches.slice(0, 20).forEach(function(c) {
+      var item = document.createElement('div');
+      item.style.cssText = 'padding:8px 12px;cursor:pointer;font-size:0.82rem;border-bottom:1px solid #f0f4f8';
+      var nitLabel = c.nit ? ' <span style="color:#718096;font-size:0.75rem">NIT: ' + c.nit + '</span>' : '';
+      var muniLabel = c.municipio ? ' <span style="color:#a0aec0;font-size:0.72rem">· ' + c.municipio + '</span>' : '';
+      item.innerHTML = '<span style="font-weight:600">' + c.cliente + '</span>' + nitLabel + muniLabel;
+      item.addEventListener('mousedown', function(ev) {
+        ev.preventDefault();
+        fillClientFields(c);
+        closeClientAutocompleteDev();
+      });
+      item.addEventListener('mouseover', function() { this.style.background = '#f0f8ff'; });
+      item.addEventListener('mouseout', function() { this.style.background = 'white'; });
+      list.appendChild(item);
+    });
+
+    var wrapper = inp.parentElement;
+    wrapper.style.position = 'relative';
+    wrapper.appendChild(list);
+    activeClientAutocompleteDev = list;
+  });
+
+  inp.addEventListener('blur', function() {
+    setTimeout(closeClientAutocompleteDev, 150);
+  });
+}
+
+function fillClientFields(c) {
+  document.getElementById('dev-cliente').value = c.cliente || '';
+  document.getElementById('dev-nit').value = c.nit || '';
+  document.getElementById('dev-direccion').value = c.direccion || '';
+  document.getElementById('dev-municipio').value = c.municipio || '';
+  document.getElementById('dev-departamento').value = c.departamento || '';
+  document.getElementById('dev-telefono').value = c.telefono || '';
+}
+
+function closeClientAutocompleteDev() {
+  document.querySelectorAll('.client-autocomplete').forEach(function(el) { el.remove(); });
+  activeClientAutocompleteDev = null;
 }
 
 // ── Filters ──
@@ -445,6 +518,7 @@ function openNewDev() {
 
   devLineas = [{ Producto: '', Presentacion: '', Cantidad: '', Cant_Entregada: '', Valor_Unitario: '', Valor_Total: 0 }];
   renderDevLines();
+  buildClientSearchDev();
   document.getElementById('dev-overlay').classList.add('show');
 }
 
@@ -452,6 +526,7 @@ function closeDevModal() {
   document.getElementById('dev-overlay').classList.remove('show');
   editDev = null;
   closeAllAutocompleteDev();
+  closeClientAutocompleteDev();
 }
 
 document.getElementById('dev-overlay').addEventListener('click', function(e) { if (isBackdropClick(e)) closeDevModal(); });
@@ -499,6 +574,7 @@ function openEditDev(row) {
   document.getElementById('dev-edit-cantidad').oninput = calcEdit;
   document.getElementById('dev-edit-valor-unit').oninput = calcEdit;
 
+  buildClientSearchDev();
   document.getElementById('dev-overlay').classList.add('show');
 }
 
@@ -632,3 +708,4 @@ async function confirmDeleteDev() {
 // ── Auto-load ──
 loadDevoluciones();
 loadCatalogoDev();
+loadClientesDev();

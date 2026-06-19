@@ -146,11 +146,14 @@
       </div>
 
       <!-- Datos del cliente -->
-      <div style="border-top:1px solid #e2e8f0;padding-top:14px;margin-bottom:10px;font-weight:700;font-size:0.88rem;color:#2d3748">👤 Datos del cliente</div>
+      <div style="border-top:1px solid #e2e8f0;padding-top:14px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between">
+        <div style="font-weight:700;font-size:0.88rem;color:#2d3748">👤 Datos del cliente</div>
+        <div style="font-size:0.72rem;color:#718096;font-style:italic">Busca por nombre o NIT — si no existe, escribe manualmente</div>
+      </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:6px">
-        <div>
+        <div style="position:relative">
           <label class="ef-label">Cliente</label>
-          <input class="ef" id="dev-cliente" type="text" placeholder="Nombre del cliente">
+          <input class="ef" id="dev-cliente" type="text" placeholder="Buscar cliente o escribir nuevo..." autocomplete="off">
         </div>
         <div>
           <label class="ef-label">NIT</label>

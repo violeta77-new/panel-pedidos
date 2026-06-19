@@ -10,6 +10,7 @@ function doGet(e) {
   if (action === 'getDevoluciones') return respond(getDevoluciones());
   if (action === 'getProductos') return respond(getProductos());
   if (action === 'getMaestroProductos') return respond(getMaestroProductos());
+  if (action === 'getClientesUnicos') return respond(getClientesUnicos());
   if (action === 'repararEncabezados') return respond(repararEncabezados());
   return respond({ error: 'Accion no reconocida' });
 }
@@ -511,6 +512,46 @@ function getMaestroProductos() {
     });
   }
   return { ok: true, productos: rows, source: 'maestro_productos', headers: headers };
+}
+
+// GET: Leer clientes únicos desde hoja ClientesUnicos (búsqueda dinámica de columnas)
+function getClientesUnicos() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var ws = ss.getSheetByName('ClientesUnicos');
+  if (!ws) return { ok: true, clientes: [], source: 'not_found' };
+
+  var data = ws.getDataRange().getValues();
+  if (data.length < 2) return { ok: true, clientes: [], source: 'ClientesUnicos' };
+
+  var headers = data[0].map(function(h) { return String(h).trim(); });
+  var headersUpper = headers.map(function(h) { return h.toUpperCase().replace(/[^A-Z0-9]/g, ''); });
+
+  var colCliente = -1, colNit = -1, colTelefono = -1, colDireccion = -1, colMunicipio = -1, colDepartamento = -1;
+  for (var i = 0; i < headersUpper.length; i++) {
+    var h = headersUpper[i];
+    if (colCliente < 0 && (h === 'CLIENTE' || h === 'NOMBRE' || h === 'NOMBRECLIENTE' || h === 'RAZONSOCIAL')) colCliente = i;
+    if (colNit < 0 && (h === 'NIT' || h === 'IDENTIFICACION' || h === 'CEDULA' || h === 'DOCUMENTO')) colNit = i;
+    if (colTelefono < 0 && (h === 'TELEFONO' || h === 'TEL' || h === 'CELULAR' || h === 'TELEFONOCONTACTO')) colTelefono = i;
+    if (colDireccion < 0 && (h === 'DIRECCION' || h === 'DIRECCIÓN' || h === 'DIR' || h === 'DIRECCIONENVIO')) colDireccion = i;
+    if (colMunicipio < 0 && (h === 'MUNICIPIO' || h === 'CIUDAD')) colMunicipio = i;
+    if (colDepartamento < 0 && (h === 'DEPARTAMENTO' || h === 'DEPTO' || h === 'DPTO')) colDepartamento = i;
+  }
+  if (colCliente < 0) colCliente = 0;
+
+  var rows = [];
+  for (var i = 1; i < data.length; i++) {
+    var nombre = String(data[i][colCliente] || '').trim();
+    if (!nombre) continue;
+    rows.push({
+      cliente: nombre,
+      nit: colNit >= 0 ? String(data[i][colNit] || '').trim() : '',
+      telefono: colTelefono >= 0 ? String(data[i][colTelefono] || '').trim() : '',
+      direccion: colDireccion >= 0 ? String(data[i][colDireccion] || '').trim() : '',
+      municipio: colMunicipio >= 0 ? String(data[i][colMunicipio] || '').trim() : '',
+      departamento: colDepartamento >= 0 ? String(data[i][colDepartamento] || '').trim() : ''
+    });
+  }
+  return { ok: true, clientes: rows, source: 'ClientesUnicos', headers: headers };
 }
 
 function _getOrCreateIngresosSheet() {
