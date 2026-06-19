@@ -55,7 +55,7 @@ function getPedidos() {
     'Comercial','Plazo_Pago','Precio_Facturacion','Producto','Presentacion',
     'Cantidad','Valor_Unitario','Valor_Total','Total_Orden','Archivo_Fuente',
     'Estado','ID_Cliente','ID_Comercial','ID_Producto',
-    'Cant_Entregada','Cant_Pendiente','Estado_Entrega','Fecha_Ult_Entrega','Remisiones','Observaciones'];
+    'Cant_Entregada','Cant_Pendiente','Estado_Entrega','Fecha_Ult_Entrega','Remisiones','Observaciones','Estado_2'];
 
   var data = ws.getDataRange().getValues();
   var firstCell = String(data[0][0]).trim();
@@ -120,7 +120,7 @@ function registrarEntrega(body) {
   var colIdx = {};
   for (var i = 0; i < headers.length; i++) colIdx[headers[i]] = i + 1;
 
-  var needed = ['Cant_Entregada','Cant_Pendiente','Estado_Entrega','Fecha_Ult_Entrega','Remisiones'];
+  var needed = ['Cant_Entregada','Cant_Pendiente','Estado_Entrega','Fecha_Ult_Entrega','Remisiones','Estado_2'];
   for (var n = 0; n < needed.length; n++) {
     if (!colIdx[needed[n]]) {
       ws.getRange(1, ws.getLastColumn() + 1).setValue(needed[n]);
@@ -146,6 +146,9 @@ function registrarEntrega(body) {
     ws.getRange(row, colIdx['Estado_Entrega']).setValue(estado);
     ws.getRange(row, colIdx['Fecha_Ult_Entrega']).setValue(ent.fecha);
     ws.getRange(row, colIdx['Remisiones']).setValue(newRem);
+    if (pendiente <= 0) {
+      ws.getRange(row, colIdx['Estado_2']).setValue('Cerrado');
+    }
     updated++;
   }
   return { ok: true, updated: updated };
@@ -312,7 +315,8 @@ function agregarPedido(body) {
       idCm || '',
       idPr || '',
       '', '', '', '', '',
-      body.observaciones || ''
+      body.observaciones || '',
+      'Abierto'
     ]);
     added++;
   }

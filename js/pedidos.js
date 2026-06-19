@@ -11,6 +11,7 @@ var SORT_COLS = [
   { id:'productos',   label:'Productos',    fn: function(c) { return getLinesFor(c).length; } },
   { id:'avance',      label:'Avance',       fn: function(c) { return derivedPct(getLinesFor(c)); } },
   { id:'estado',      label:'Estado',       fn: function(c) { return derivedStatus(getLinesFor(c)); } },
+  { id:'estado2',     label:'Estado 2',     fn: function(c) { return derivedEstado2(getLinesFor(c)); } },
 ];
 
 function toggleSort(id, e) {
@@ -45,7 +46,7 @@ function renderHeader() {
     { label:'#', id:null }, { label:'Empresa', id:'empresa' }, { label:'Consecutivo', id:'consecutivo' },
     { label:'Cliente', id:'cliente' }, { label:'Fecha Pedido', id:'fecha' }, { label:'Comercial', id:'comercial' },
     { label:'Total Orden', id:'total' }, { label:'Productos', id:'productos' }, { label:'Avance', id:'avance' },
-    { label:'Estado', id:'estado' }, { label:'Acción', id:null },
+    { label:'Estado', id:'estado' }, { label:'Estado 2', id:'estado2' }, { label:'Acción', id:null },
   ];
   document.getElementById('t-head').innerHTML = cols.map(function(col) {
     if (!col.id) return '<th>' + col.label + '</th>';
@@ -107,7 +108,7 @@ async function loadFromAPI() {
       'Comercial','Plazo_Pago','Precio_Facturacion','Producto','Presentacion',
       'Cantidad','Valor_Unitario','Valor_Total','Total_Orden','Archivo_Fuente',
       'Estado','ID_Cliente','ID_Comercial','ID_Producto',
-      'Cant_Entregada','Cant_Pendiente','Estado_Entrega','Fecha_Ult_Entrega','Remisiones'];
+      'Cant_Entregada','Cant_Pendiente','Estado_Entrega','Fecha_Ult_Entrega','Remisiones','Observaciones','Estado_2'];
 
     if (data.headers && data.headers[0] !== 'Fecha_Procesamiento') {
       var oldHeaders = data.headers;
@@ -166,6 +167,7 @@ async function loadFromAPI() {
         p.Fecha_Ult_Entrega = null;
         p.Remisiones = '';
       }
+      if (!p.Estado_2) p.Estado_2 = 'Abierto';
       var cantE = Number(p.Cant_Entregada) || 0;
       var cantP = Number(p.Cant_Pendiente) || 0;
       var cantQ = Number(p.Cantidad) || 0;
@@ -233,6 +235,14 @@ function derivedStatus(lines) {
   return 'Recibido';
 }
 
+function derivedEstado2(lines) {
+  if (!lines.length) return 'Abierto';
+  var vals = lines.map(function(l) { return (l.Estado_2 || 'Abierto').trim(); });
+  if (vals.indexOf('Anulado') >= 0) return 'Anulado';
+  var allCerrado = vals.every(function(v) { return v === 'Cerrado'; });
+  return allCerrado ? 'Cerrado' : 'Abierto';
+}
+
 function derivedPct(lines) {
   var totPed = lines.reduce(function(s, l) { return s + (Number(l.Cantidad)||0); }, 0);
   var totEnt = lines.reduce(function(s, l) { return s + (Number(l.Cant_Entregada)||0); }, 0);
@@ -253,7 +263,7 @@ function populateFilters() {
   fe.innerHTML = '<option value="">Todas</option>' + emps.map(function(e) { return '<option value="' + e + '">' + getSigla(e) + ' — ' + e + '</option>'; }).join('');
   fc.innerHTML = '<option value="">Todos</option>' + clis.map(function(c) { return '<option value="' + c + '">' + c + '</option>'; }).join('');
   if (!filtersAttached) {
-    ['f-emp','f-cli','f-est','f-txt'].forEach(function(id) {
+    ['f-emp','f-cli','f-est','f-est2','f-txt'].forEach(function(id) {
       document.getElementById(id).addEventListener('change', renderTable);
       document.getElementById(id).addEventListener('input', renderTable);
     });
@@ -265,12 +275,15 @@ function filtered() {
   var fe = document.getElementById('f-emp').value;
   var fc = document.getElementById('f-cli').value;
   var fs = document.getElementById('f-est').value;
+  var fs2 = document.getElementById('f-est2').value;
   var ft = document.getElementById('f-txt').value.toLowerCase();
   return consecs.filter(function(c) {
     if (fe && c.Nombre_Empresa !== fe) return false;
     if (fc && c.Cliente !== fc) return false;
-    var est = derivedStatus(getLinesFor(c));
+    var lines = getLinesFor(c);
+    var est = derivedStatus(lines);
     if (fs && norm(est) !== norm(fs)) return false;
+    if (fs2) { var e2 = derivedEstado2(lines); if (e2 !== fs2) return false; }
     if (ft) {
       var hay = [c.Cliente, String(c.Consecutivo), getSigla(c.Nombre_Empresa), c.Comercial].join(' ').toLowerCase();
       if (hay.indexOf(ft) < 0) return false;
@@ -283,6 +296,7 @@ function clearFilters() {
   document.getElementById('f-emp').value = '';
   document.getElementById('f-cli').value = '';
   document.getElementById('f-est').value = '';
+  document.getElementById('f-est2').value = '';
   document.getElementById('f-txt').value = '';
   renderTable();
 }
@@ -301,15 +315,17 @@ function renderTable() {
 
   var tbody = document.getElementById('t-body');
   if (!rows.length) {
-    tbody.innerHTML = '<tr><td colspan="11"><div class="empty">No hay órdenes con los filtros seleccionados.</div></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="12"><div class="empty">No hay órdenes con los filtros seleccionados.</div></td></tr>';
     return;
   }
 
   tbody.innerHTML = rows.map(function(c) {
     var lines = getLinesFor(c);
     var est = derivedStatus(lines);
+    var est2 = derivedEstado2(lines);
     var pct = derivedPct(lines);
     var badge = est === 'Recibido' ? 'b-rec' : est === 'Parcial' ? 'b-par' : 'b-ent';
+    var badge2 = est2 === 'Abierto' ? 'b-abierto' : est2 === 'Cerrado' ? 'b-cerrado' : 'b-anulado';
     var done = est === 'Entregado';
     var idx = consecs.indexOf(c);
     return '<tr>' +
@@ -325,6 +341,7 @@ function renderTable() {
       '</td>' +
       '<td><div class="prog"><div class="prog-bar"><div class="prog-fill" style="width:' + pct + '%"></div></div><div class="prog-pct">' + pct + '%</div></div></td>' +
       '<td><span class="badge ' + badge + '">' + est + '</span></td>' +
+      '<td><span class="badge ' + badge2 + '">' + est2 + '</span></td>' +
       '<td><div style="display:flex;gap:6px;align-items:center">' +
         '<button class="btn-ver ' + (done?'done':'') + '" onclick="openDetail(' + idx + ')">' +
           (lines.length === 0 ? '👁 Ver' : done ? '✓ Entregado' : '📦 Ver pedido') +
