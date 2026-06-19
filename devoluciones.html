@@ -8,6 +8,7 @@
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔄</text></svg>">
 <title>Devoluciones – Sistema de Gestión Logística</title>
 <link rel="stylesheet" href="css/panel.css">
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 </head>
 <body>
 
@@ -84,6 +85,8 @@
       <h3>Devoluciones registradas <span id="row-ct-dev" style="font-weight:400;color:#718096"></span></h3>
       <div style="display:flex;gap:8px;align-items:center">
         <button id="btn-clear-sort-dev" onclick="clearSortDev()" title="Quitar ordenamientos" style="display:none;background:none;border:1px solid #cbd5e0;color:#4a5568;padding:5px 11px;border-radius:6px;cursor:pointer;font-size:0.78rem;font-weight:600">✕ Limpiar orden</button>
+        <button class="btn-dl" onclick="document.getElementById('dev-file-upload').click()" style="background:#2c3e50">📂 Importar Excel</button>
+        <input type="file" id="dev-file-upload" accept=".xlsx,.xls" style="display:none" onchange="handleDevExcelUpload(this)">
         <button class="btn-dl" onclick="openNewDev()" style="background:#e67e22">🔄 Nueva Devolución</button>
         <button class="btn-dl" onclick="loadDevoluciones()">🔄 Actualizar datos</button>
       </div>

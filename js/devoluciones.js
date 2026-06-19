@@ -744,6 +744,218 @@ async function confirmDeleteDev() {
   }
 }
 
+// ── Excel import ──
+function handleDevExcelUpload(input) {
+  var file = input.files[0];
+  if (!file) return;
+  input.value = '';
+
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      var wb = XLSX.read(e.target.result, { type: 'array' });
+      var ws = wb.Sheets[wb.SheetNames[0]];
+      var parsed = parseDevExcel(ws);
+      if (!parsed) { showToast('No se pudo leer el formato de devolución', '#e74c3c'); return; }
+      prefillDevForm(parsed);
+      showToast('📂 Datos cargados desde Excel — revisa y guarda');
+    } catch (err) {
+      showToast('❌ Error al leer el archivo: ' + err.message, '#e74c3c');
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function findCellByLabel(ws, label) {
+  var range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
+  var labelUp = label.toUpperCase().replace(/[^A-Z0-9]/g, '');
+  for (var r = range.s.r; r <= range.e.r; r++) {
+    for (var c = range.s.c; c <= range.e.c; c++) {
+      var addr = XLSX.utils.encode_cell({ r: r, c: c });
+      var cell = ws[addr];
+      if (!cell) continue;
+      var val = String(cell.v || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+      if (val.indexOf(labelUp) >= 0) return { r: r, c: c };
+    }
+  }
+  return null;
+}
+
+function getCellValue(ws, r, c) {
+  var addr = XLSX.utils.encode_cell({ r: r, c: c });
+  var cell = ws[addr];
+  if (!cell) return '';
+  if (cell.t === 'n') return cell.v;
+  return String(cell.v || '').trim();
+}
+
+function getValueNextTo(ws, label, colOffset) {
+  var pos = findCellByLabel(ws, label);
+  if (!pos) return '';
+  return getCellValue(ws, pos.r, pos.c + (colOffset || 1));
+}
+
+function parseDevExcel(ws) {
+  var empresa = getValueNextTo(ws, 'NOMBRE DE LA EMPRESA') || getValueNextTo(ws, 'NOMBRE EMPRESA');
+  var fecha = getValueNextTo(ws, 'FECHA');
+  var vendedor = getValueNextTo(ws, 'VENDEDOR');
+  var cliente = getValueNextTo(ws, 'CLIENTE');
+  var nit = getValueNextTo(ws, 'NIT');
+  var direccion = '';
+  var dirPos = findCellByLabel(ws, 'DIRECCION');
+  if (dirPos) {
+    var clientePos = findCellByLabel(ws, 'CLIENTE');
+    if (clientePos && dirPos.r > clientePos.r) {
+      direccion = getCellValue(ws, dirPos.r, dirPos.c + 1);
+    } else if (dirPos) {
+      var dirs = [];
+      var range = XLSX.utils.decode_range(ws['!ref']);
+      for (var r = range.s.r; r <= range.e.r; r++) {
+        for (var c = range.s.c; c <= range.e.c; c++) {
+          var v = String(getCellValue(ws, r, c)).toUpperCase().replace(/[^A-Z]/g, '');
+          if (v === 'DIRECCION' && r > (clientePos ? clientePos.r : 0)) {
+            direccion = getCellValue(ws, r, c + 1);
+            break;
+          }
+        }
+        if (direccion) break;
+      }
+      if (!direccion) direccion = getCellValue(ws, dirPos.r, dirPos.c + 1);
+    }
+  }
+  var municipio = getValueNextTo(ws, 'MUNICIPIO');
+  var departamento = getValueNextTo(ws, 'DEPARTAMENTO');
+  var telefono = getValueNextTo(ws, 'TELEFONO');
+  var numFactura = getValueNextTo(ws, 'FACTURA');
+  var consecutivo = '';
+  var consPos = findCellByLabel(ws, 'CONSECUTIVO');
+  if (consPos) consecutivo = getCellValue(ws, consPos.r, consPos.c + 1);
+
+  var observaciones = getValueNextTo(ws, 'OBSERVACIONES');
+  if (!observaciones) {
+    var obsPos = findCellByLabel(ws, 'OBSERVACIONES');
+    if (obsPos) {
+      var parts = [];
+      for (var oRow = obsPos.r + 1; oRow <= obsPos.r + 3; oRow++) {
+        var v = getCellValue(ws, oRow, obsPos.c + 1);
+        if (v) parts.push(v);
+        else break;
+      }
+      observaciones = parts.join('. ');
+    }
+  }
+
+  var motivo = getValueNextTo(ws, 'MOTIVO');
+  if (!motivo) {
+    var motPos = findCellByLabel(ws, 'MOTIVO');
+    if (motPos) {
+      var parts = [];
+      for (var mRow = motPos.r + 1; mRow <= motPos.r + 2; mRow++) {
+        var v = getCellValue(ws, mRow, motPos.c + 1);
+        if (v) parts.push(v);
+        else break;
+      }
+      motivo = parts.join('. ');
+    }
+  }
+
+  var prodPos = findCellByLabel(ws, 'PRODUCTOS');
+  if (!prodPos) prodPos = findCellByLabel(ws, 'PRODUCTO');
+  var lineas = [];
+  if (prodPos) {
+    var startRow = prodPos.r + 1;
+    var range = XLSX.utils.decode_range(ws['!ref']);
+    var colProd = prodPos.c;
+    for (var r = startRow; r <= range.e.r; r++) {
+      var prod = String(getCellValue(ws, r, colProd)).trim();
+      if (!prod) continue;
+      var prodUp = prod.toUpperCase().replace(/[^A-Z]/g, '');
+      if (prodUp === 'OBSERVACIONES' || prodUp === 'MOTIVO' || prodUp === 'FACTURA') break;
+      lineas.push({
+        Producto: prod,
+        Presentacion: String(getCellValue(ws, r, colProd + 1)).trim(),
+        Cantidad: Number(getCellValue(ws, r, colProd + 2)) || 0,
+        Cant_Entregada: Number(getCellValue(ws, r, colProd + 3)) || 0,
+        Valor_Unitario: Number(getCellValue(ws, r, colProd + 4)) || 0,
+        Valor_Total: Number(getCellValue(ws, r, colProd + 5)) || 0,
+      });
+    }
+  }
+
+  if (!cliente && !lineas.length) return null;
+
+  if (fecha) {
+    if (typeof fecha === 'number') {
+      var d = XLSX.SSF.parse_date_code(fecha);
+      if (d) fecha = d.y + '-' + String(d.m).padStart(2,'0') + '-' + String(d.d).padStart(2,'0');
+    } else {
+      var dp = new Date(fecha);
+      if (!isNaN(dp)) fecha = dp.getFullYear() + '-' + String(dp.getMonth()+1).padStart(2,'0') + '-' + String(dp.getDate()).padStart(2,'0');
+    }
+  }
+
+  return {
+    empresa: empresa, fecha: fecha, vendedor: vendedor, cliente: cliente,
+    nit: String(nit), direccion: direccion, municipio: municipio,
+    departamento: departamento, telefono: String(telefono),
+    numFactura: String(numFactura), consecutivo: String(consecutivo),
+    observaciones: observaciones, motivo: motivo, lineas: lineas,
+  };
+}
+
+function prefillDevForm(data) {
+  openNewDev();
+
+  var empSelect = document.getElementById('dev-empresa');
+  var empVal = (data.empresa || '').toUpperCase();
+  var matched = false;
+  for (var i = 0; i < empSelect.options.length; i++) {
+    if (empVal.indexOf(empSelect.options[i].value.split(' ')[0].toUpperCase()) >= 0 && empSelect.options[i].value) {
+      empSelect.value = empSelect.options[i].value;
+      matched = true;
+      break;
+    }
+  }
+  if (!matched) {
+    for (var i = 0; i < EMPRESAS_HOLDING_DEV.length; i++) {
+      if (empVal.indexOf(EMPRESAS_HOLDING_DEV[i].sigla) >= 0) {
+        empSelect.value = EMPRESAS_HOLDING_DEV[i].value;
+        break;
+      }
+    }
+  }
+
+  if (data.fecha) document.getElementById('dev-fecha').value = data.fecha;
+  document.getElementById('dev-consecutivo').value = data.consecutivo || '';
+  document.getElementById('dev-vendedor').value = data.vendedor || '';
+  document.getElementById('dev-num-factura').value = data.numFactura || '';
+  document.getElementById('dev-cliente').value = data.cliente || '';
+  document.getElementById('dev-nit').value = data.nit || '';
+  document.getElementById('dev-direccion').value = data.direccion || '';
+  document.getElementById('dev-municipio').value = data.municipio || '';
+  document.getElementById('dev-departamento').value = data.departamento || '';
+  document.getElementById('dev-telefono').value = data.telefono || '';
+  document.getElementById('dev-observaciones').value = data.observaciones || '';
+
+  if (data.motivo) setDevMotivo(data.motivo);
+
+  if (data.lineas && data.lineas.length) {
+    devLineas = data.lineas.map(function(l) {
+      var cant = Number(l.Cantidad) || 0;
+      var vUnit = Number(l.Valor_Unitario) || 0;
+      return {
+        Producto: l.Producto || '',
+        Presentacion: l.Presentacion || '',
+        Cantidad: cant,
+        Cant_Entregada: Number(l.Cant_Entregada) || 0,
+        Valor_Unitario: vUnit,
+        Valor_Total: Number(l.Valor_Total) || (cant * vUnit),
+      };
+    });
+    renderDevLines();
+  }
+}
+
 // ── Auto-load ──
 loadDevoluciones();
 loadCatalogoDev();
