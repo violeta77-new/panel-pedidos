@@ -580,6 +580,7 @@ function openEdit(idx) {
   document.getElementById('ed-telefono').value = c.Telefono || '';
   document.getElementById('ed-plazo').value = c.Plazo_Pago || '';
   document.getElementById('ed-precio').value = c.Precio_Facturacion || '';
+  document.getElementById('ed-estado2').value = derivedEstado2(getLinesFor(c));
   document.getElementById('btn-saveEdit').disabled = false;
   document.getElementById('btn-saveEdit').textContent = '✓ Aplicar cambios';
 
@@ -684,6 +685,7 @@ async function saveEdit() {
     Plazo_Pago: document.getElementById('ed-plazo').value.trim(),
     Precio_Facturacion: document.getElementById('ed-precio').value.trim(),
     Total_Orden: editWorkingLines.reduce(function(s, l) { return s + (Number(l.Valor_Total)||0); }, 0),
+    Estado_2: document.getElementById('ed-estado2').value,
   };
 
   var c = consecs[editIdx];

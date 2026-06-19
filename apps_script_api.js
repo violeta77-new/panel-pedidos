@@ -173,7 +173,7 @@ function editarPedido(body) {
     var row = lin.__row;
     if (row && row >= 2) {
       var hdrFields = ['Cliente','NIT','Fecha_Pedido','Comercial','Municipio',
-                       'Departamento','Telefono','Plazo_Pago','Precio_Facturacion','Total_Orden'];
+                       'Departamento','Telefono','Plazo_Pago','Precio_Facturacion','Total_Orden','Estado_2'];
       for (var h = 0; h < hdrFields.length; h++) {
         var f = hdrFields[h];
         if (hdr[f] !== undefined && colIdx[f]) ws.getRange(row, colIdx[f]).setValue(hdr[f]);
