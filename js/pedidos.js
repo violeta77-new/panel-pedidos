@@ -412,6 +412,7 @@ function openDetail(idx) {
     }).join('');
   }
 
+  resetNewLineForm();
   document.getElementById('overlay').classList.add('show');
 }
 
@@ -469,6 +470,96 @@ async function confirmarEntregas() {
     showToast('❌ Error: ' + err.message, '#e74c3c');
     btn.disabled = false;
     btn.textContent = '✓ Registrar entregas';
+  }
+}
+
+// ── Add new line from detail modal ──
+function toggleNewLine() {
+  var form = document.getElementById('new-line-form');
+  var btn = document.getElementById('btn-toggle-newline');
+  if (form.style.display === 'none') {
+    form.style.display = 'block';
+    btn.textContent = 'Ocultar';
+  } else {
+    form.style.display = 'none';
+    btn.textContent = 'Mostrar';
+  }
+}
+
+function calcNewLineTotal() {
+  var cant = Number(document.getElementById('nl-cantidad').value) || 0;
+  var vuni = Number(document.getElementById('nl-vunitario').value) || 0;
+  document.getElementById('nl-vtotal').value = cant * vuni;
+}
+
+function resetNewLineForm() {
+  document.getElementById('nl-producto').value = '';
+  document.getElementById('nl-presentacion').value = '';
+  document.getElementById('nl-cantidad').value = '';
+  document.getElementById('nl-vunitario').value = '';
+  document.getElementById('nl-vtotal').value = '';
+  document.getElementById('new-line-form').style.display = 'none';
+  document.getElementById('btn-toggle-newline').textContent = 'Mostrar';
+}
+
+async function agregarNuevaLinea() {
+  if (activeIdx === null) return;
+  var producto = document.getElementById('nl-producto').value.trim();
+  var presentacion = document.getElementById('nl-presentacion').value.trim();
+  var cantidad = Number(document.getElementById('nl-cantidad').value) || 0;
+  var vunitario = Number(document.getElementById('nl-vunitario').value) || 0;
+  var vtotal = Number(document.getElementById('nl-vtotal').value) || 0;
+
+  if (!producto) { showToast('Ingresa el nombre del producto', '#e74c3c'); return; }
+  if (cantidad <= 0) { showToast('La cantidad debe ser mayor a 0', '#e74c3c'); return; }
+
+  var c = consecs[activeIdx];
+  var newLine = {
+    __row: null,
+    Nombre_Empresa: c.Nombre_Empresa,
+    Consecutivo: c.Consecutivo,
+    Fecha_Pedido: c.Fecha_Pedido,
+    Producto: producto,
+    Presentacion: presentacion,
+    Cantidad: cantidad,
+    Valor_Unitario: vunitario,
+    Valor_Total: vtotal,
+    Cant_Entregada: 0,
+    Cant_Pendiente: cantidad,
+    Estado_Entrega: 'Recibido',
+    Estado: 'recibido',
+    Estado_2: 'Abierto'
+  };
+
+  var hdr = {
+    Cliente: c.Cliente, NIT: c.NIT, Fecha_Pedido: c.Fecha_Pedido,
+    Comercial: c.Comercial, Municipio: c.Municipio, Departamento: c.Departamento,
+    Telefono: c.Telefono, Plazo_Pago: c.Plazo_Pago, Precio_Facturacion: c.Precio_Facturacion,
+    Nombre_Empresa: c.Nombre_Empresa, Consecutivo: c.Consecutivo,
+    Total_Orden: (Number(c.Total_Orden) || 0) + vtotal
+  };
+
+  var btn = document.getElementById('btn-add-newline');
+  btn.disabled = true;
+  btn.textContent = '⏳ Guardando...';
+
+  try {
+    var result = await apiPost({
+      action: 'editarPedido',
+      header: hdr,
+      lineas: [newLine],
+      deleteRows: []
+    });
+    if (!result.ok) throw new Error(result.error || 'Error al guardar');
+
+    resetNewLineForm();
+    closeModal();
+    showToast('✅ Línea de producto agregada al pedido');
+    await loadFromAPI();
+  } catch (err) {
+    showToast('❌ Error: ' + err.message, '#e74c3c');
+    btn.disabled = false;
+    btn.textContent = '✓ Agregar línea al pedido';
   }
 }
 

@@ -144,6 +144,41 @@
           <tbody id="m-lines"></tbody>
         </table>
       </div>
+
+      <!-- Add new product line -->
+      <div style="border-top:1px solid #e2e8f0;margin-top:14px;padding-top:12px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <div style="font-size:0.84rem;font-weight:700;color:#1a5276">➕ Agregar línea de producto</div>
+          <button type="button" id="btn-toggle-newline" onclick="toggleNewLine()" style="background:none;border:1px solid #cbd5e0;color:#4a5568;padding:4px 12px;border-radius:6px;cursor:pointer;font-size:0.78rem;font-weight:600">Mostrar</button>
+        </div>
+        <div id="new-line-form" style="display:none">
+          <div style="display:grid;grid-template-columns:2fr 1fr 80px 100px 100px;gap:8px;align-items:end">
+            <div>
+              <label class="ef-label" style="font-size:0.72rem">Producto</label>
+              <input class="ef" id="nl-producto" type="text" placeholder="Nombre del producto">
+            </div>
+            <div>
+              <label class="ef-label" style="font-size:0.72rem">Presentación</label>
+              <input class="ef" id="nl-presentacion" type="text" placeholder="Ej: 1L, 20KG">
+            </div>
+            <div>
+              <label class="ef-label" style="font-size:0.72rem">Cantidad</label>
+              <input class="ef" id="nl-cantidad" type="number" min="1" placeholder="0" oninput="calcNewLineTotal()">
+            </div>
+            <div>
+              <label class="ef-label" style="font-size:0.72rem">Val. Unitario</label>
+              <input class="ef" id="nl-vunitario" type="number" min="0" placeholder="0" oninput="calcNewLineTotal()">
+            </div>
+            <div>
+              <label class="ef-label" style="font-size:0.72rem">Val. Total</label>
+              <input class="ef" id="nl-vtotal" type="number" style="background:#f7fafc" readonly>
+            </div>
+          </div>
+          <div style="margin-top:8px;display:flex;justify-content:flex-end">
+            <button type="button" id="btn-add-newline" onclick="agregarNuevaLinea()" style="background:#27ae60;color:white;border:none;padding:6px 16px;border-radius:6px;cursor:pointer;font-size:0.8rem;font-weight:700">✓ Agregar línea al pedido</button>
+          </div>
+        </div>
+      </div>
     </div>
     <div class="mftr">
       <div class="total-tag">Total orden: <strong id="m-total">$0</strong></div>
