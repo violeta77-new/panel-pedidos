@@ -494,6 +494,43 @@ function readDevLines() {
   });
 }
 
+// ── Motivo dropdown helpers ──
+function toggleMotivoOtro() {
+  var sel = document.getElementById('dev-motivo');
+  var inp = document.getElementById('dev-motivo-otro');
+  if (sel.value === '__otro__') {
+    inp.style.display = 'block';
+    inp.focus();
+  } else {
+    inp.style.display = 'none';
+    inp.value = '';
+  }
+}
+
+function getDevMotivo() {
+  var sel = document.getElementById('dev-motivo');
+  if (sel.value === '__otro__') return document.getElementById('dev-motivo-otro').value.trim();
+  return sel.value;
+}
+
+function setDevMotivo(motivo) {
+  var sel = document.getElementById('dev-motivo');
+  var inp = document.getElementById('dev-motivo-otro');
+  var found = false;
+  for (var i = 0; i < sel.options.length; i++) {
+    if (sel.options[i].value === motivo) { found = true; break; }
+  }
+  if (found) {
+    sel.value = motivo;
+    inp.style.display = 'none';
+    inp.value = '';
+  } else {
+    sel.value = '__otro__';
+    inp.style.display = 'block';
+    inp.value = motivo;
+  }
+}
+
 // ── New Devolucion Modal ──
 function openNewDev() {
   editDev = null;
@@ -510,6 +547,8 @@ function openNewDev() {
   document.getElementById('dev-departamento').value = '';
   document.getElementById('dev-telefono').value = '';
   document.getElementById('dev-motivo').value = '';
+  document.getElementById('dev-motivo-otro').value = '';
+  document.getElementById('dev-motivo-otro').style.display = 'none';
   document.getElementById('dev-observaciones').value = '';
   document.getElementById('btn-save-dev').disabled = false;
   document.getElementById('btn-save-dev').textContent = '✓ Registrar devolución';
@@ -551,7 +590,7 @@ function openEditDev(row) {
   document.getElementById('dev-municipio').value = r.Municipio || '';
   document.getElementById('dev-departamento').value = r.Departamento || '';
   document.getElementById('dev-telefono').value = r.Telefono || '';
-  document.getElementById('dev-motivo').value = r.Motivo || '';
+  setDevMotivo(r.Motivo || '');
   document.getElementById('dev-observaciones').value = r.Observaciones || '';
   document.getElementById('btn-save-dev').disabled = false;
   document.getElementById('btn-save-dev').textContent = '✓ Guardar cambios';
@@ -591,7 +630,7 @@ async function saveDevolucion() {
   var municipio = document.getElementById('dev-municipio').value.trim();
   var departamento = document.getElementById('dev-departamento').value.trim();
   var telefono = document.getElementById('dev-telefono').value.trim();
-  var motivo = document.getElementById('dev-motivo').value.trim();
+  var motivo = getDevMotivo();
   var observaciones = document.getElementById('dev-observaciones').value.trim();
 
   if (!empresa) { showToast('Selecciona la empresa', '#e74c3c'); return; }

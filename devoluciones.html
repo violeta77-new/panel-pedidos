@@ -181,7 +181,22 @@
         </div>
         <div>
           <label class="ef-label">Motivo Devolución</label>
-          <input class="ef" id="dev-motivo" type="text" placeholder="Motivo de la devolución">
+          <select class="ef" id="dev-motivo" onchange="toggleMotivoOtro()">
+            <option value="">— Seleccionar —</option>
+            <option value="Producto defectuoso">Producto defectuoso</option>
+            <option value="Producto vencido">Producto vencido</option>
+            <option value="Producto no conforme con especificaciones">Producto no conforme con especificaciones</option>
+            <option value="Empaque deteriorado o dañado">Empaque deteriorado o dañado</option>
+            <option value="Error en despacho (producto equivocado)">Error en despacho (producto equivocado)</option>
+            <option value="Error en cantidad despachada">Error en cantidad despachada</option>
+            <option value="Producto no solicitado">Producto no solicitado</option>
+            <option value="Exceso de inventario / sobrestock">Exceso de inventario / sobrestock</option>
+            <option value="Cambio o sustitución de producto">Cambio o sustitución de producto</option>
+            <option value="Incumplimiento en condiciones de entrega">Incumplimiento en condiciones de entrega</option>
+            <option value="Avería en transporte">Avería en transporte</option>
+            <option value="__otro__">Otro (especificar)</option>
+          </select>
+          <input class="ef" id="dev-motivo-otro" type="text" placeholder="Especifique el motivo..." style="display:none;margin-top:6px">
         </div>
       </div>
 
