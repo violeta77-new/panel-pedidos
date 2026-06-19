@@ -359,6 +359,20 @@ function readIngLines() {
   });
 }
 
+// ── Origen → Empresa mapping ──
+var ORIGEN_EMPRESA = {
+  'Planta Mosquera': 'GREEN AGROSOLUCIONES DE COLOMBIA SAS',
+  'Planta Cachipay': 'PARCELAR DE COLOMBIA SAS',
+};
+
+function onOrigenChange() {
+  var origen = document.getElementById('ing-origen').value;
+  var empresa = ORIGEN_EMPRESA[origen];
+  if (empresa) {
+    document.getElementById('ing-empresa-origen').value = empresa;
+  }
+}
+
 // ── New Ingreso Modal ──
 function openNewIngreso() {
   editIngreso = null;
