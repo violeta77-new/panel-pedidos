@@ -132,10 +132,21 @@ function buildReport() {
   var fBonif = document.getElementById('rf-bonif').value;
   var fTxt = document.getElementById('rf-txt').value.toLowerCase();
 
-  // Filter lines: only Parcial with pending > 0
+  // Build set of orders that have at least one delivery
+  var ordersWithDeliveries = {};
+  pedidos.forEach(function(p) {
+    if ((Number(p.Cant_Entregada) || 0) > 0) {
+      ordersWithDeliveries[(p.Nombre_Empresa || '') + '||' + (p.Consecutivo || '')] = true;
+    }
+  });
+
+  // Filter lines: Parcial (or Recibido in an order with deliveries) with pending > 0
   var filtered = pedidos.filter(function(p) {
-    var est = norm(p.Estado_Entrega || 'Recibido');
-    if (est !== 'parcial') return false;
+    var rawEst = (p.Estado_Entrega || '').trim();
+    var est = norm(rawEst || 'Recibido');
+    var ordKey = (p.Nombre_Empresa || '') + '||' + (p.Consecutivo || '');
+    var effectiveEst = (est === 'recibido' && ordersWithDeliveries[ordKey]) ? 'parcial' : est;
+    if (effectiveEst !== 'parcial') return false;
     var pend = Number(p.Cant_Pendiente) || 0;
     if (pend <= 0) return false;
     var est2 = (p.Estado_2 || 'Abierto').trim();
