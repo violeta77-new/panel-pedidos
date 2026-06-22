@@ -326,3 +326,18 @@ thead th:not(.sort-asc):not(.sort-desc) .sort-icon::after { content: ' \2195'; c
 }
 .module-card .tag.active   { background: #d5f5e3; color: #1e8449; }
 .module-card .tag.upcoming { background: #fef3cd; color: #b7791f; }
+
+/* ── INVENTARIO STATS ── */
+.sc.inv-total     { border-color: #8e44ad; }
+.sc.inv-stock     { border-color: #2980b9; }
+.sc.inv-pedidos   { border-color: #e67e22; }
+.sc.inv-disponible { border-color: #27ae60; }
+
+/* ── INVENTARIO DISPONIBILIDAD BADGES ── */
+.inv-disp-badge {
+  display: inline-block; padding: 2px 10px; border-radius: 20px;
+  font-size: 0.78rem; font-weight: 700;
+}
+.inv-disp-ok  { background: #e8f5e9; color: #2e7d32; }
+.inv-disp-low { background: #fff3e0; color: #e65100; }
+.inv-disp-neg { background: #fce4ec; color: #c62828; }

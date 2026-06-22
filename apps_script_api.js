@@ -11,6 +11,7 @@ function doGet(e) {
   if (action === 'getProductos') return respond(getProductos());
   if (action === 'getMaestroProductos') return respond(getMaestroProductos());
   if (action === 'getClientesUnicos') return respond(getClientesUnicos());
+  if (action === 'getInventario') return respond(getInventario());
   if (action === 'repararEncabezados') return respond(repararEncabezados());
   return respond({ error: 'Accion no reconocida' });
 }
@@ -30,6 +31,9 @@ function doPost(e) {
     if (action === 'agregarDevolucion')  return respond(agregarDevolucion(body));
     if (action === 'editarDevolucion')   return respond(editarDevolucion(body));
     if (action === 'eliminarDevolucion') return respond(eliminarDevolucion(body));
+    if (action === 'agregarInventario')  return respond(agregarInventario(body));
+    if (action === 'editarInventario')   return respond(editarInventario(body));
+    if (action === 'eliminarInventario') return respond(eliminarInventario(body));
     if (action === 'repararEncabezados') return respond(repararEncabezados());
     return respond({ error: 'Accion POST no reconocida' });
   } catch (err) {
@@ -784,6 +788,108 @@ function editarDevolucion(body) {
 
 function eliminarDevolucion(body) {
   var ws = _getOrCreateDevolucionesSheet();
+  var row = Number(body.row);
+  if (!row || row < 2) return { ok: false, error: 'Fila inválida' };
+  ws.deleteRow(row);
+  return { ok: true, deleted: 1 };
+}
+
+// ══════════════════════════════════════════════════════════════
+// MÓDULO: INVENTARIO DE PRODUCTOS
+// ══════════════════════════════════════════════════════════════
+
+var INVENTARIO_HEADERS = ['Fecha','Empresa','Producto','Presentacion','Unidad_Medida','Cantidad_Caja','Lote','Cantidad','Observaciones','Fecha_Registro'];
+
+function _getOrCreateInventarioSheet() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var ws = ss.getSheetByName('Inventario');
+  if (!ws) {
+    ws = ss.insertSheet('Inventario');
+    ws.appendRow(INVENTARIO_HEADERS);
+    ws.getRange(1, 1, 1, INVENTARIO_HEADERS.length).setFontWeight('bold');
+  }
+  var firstCell = String(ws.getRange(1, 1).getValue()).trim();
+  if (firstCell !== 'Fecha') {
+    ws.insertRowBefore(1);
+    for (var h = 0; h < INVENTARIO_HEADERS.length; h++) {
+      ws.getRange(1, h + 1).setValue(INVENTARIO_HEADERS[h]);
+    }
+    ws.getRange(1, 1, 1, INVENTARIO_HEADERS.length).setFontWeight('bold');
+  }
+  return ws;
+}
+
+function getInventario() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var ws = _getOrCreateInventarioSheet();
+  var data = ws.getDataRange().getValues();
+  var rows = [];
+  for (var i = 1; i < data.length; i++) {
+    var obj = {};
+    for (var j = 0; j < INVENTARIO_HEADERS.length; j++) {
+      var val = (j < data[i].length) ? data[i][j] : '';
+      if (val instanceof Date) {
+        val = Utilities.formatDate(val, ss.getSpreadsheetTimeZone(), 'yyyy-MM-dd');
+      }
+      obj[INVENTARIO_HEADERS[j]] = val;
+    }
+    obj.__row = i + 1;
+    rows.push(obj);
+  }
+  return { ok: true, inventario: rows };
+}
+
+function agregarInventario(body) {
+  var ws = _getOrCreateInventarioSheet();
+  var now = Utilities.formatDate(new Date(), SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone(), 'yyyy-MM-dd HH:mm:ss');
+  var lineas = body.lineas || [];
+  if (!lineas.length && body.Producto) {
+    lineas = [{ Producto: body.Producto, Presentacion: body.Presentacion, Unidad_Medida: body.Unidad_Medida, Cantidad_Caja: body.Cantidad_Caja, Lote: body.Lote, Cantidad: body.Cantidad }];
+  }
+  var added = 0;
+  for (var i = 0; i < lineas.length; i++) {
+    var lin = lineas[i];
+    ws.appendRow([
+      body.Fecha || '',
+      body.Empresa || '',
+      lin.Producto || '',
+      lin.Presentacion || '',
+      lin.Unidad_Medida || '',
+      Number(lin.Cantidad_Caja) || 0,
+      lin.Lote || '',
+      Number(lin.Cantidad) || 0,
+      body.Observaciones || '',
+      now
+    ]);
+    added++;
+  }
+  return { ok: true, added: added };
+}
+
+function editarInventario(body) {
+  var ws = _getOrCreateInventarioSheet();
+  var row = Number(body.row);
+  if (!row || row < 2) return { ok: false, error: 'Fila inválida' };
+
+  var vals = [
+    body.Fecha || '',
+    body.Empresa || '',
+    body.Producto || '',
+    body.Presentacion || '',
+    body.Unidad_Medida || '',
+    Number(body.Cantidad_Caja) || 0,
+    body.Lote || '',
+    Number(body.Cantidad) || 0,
+    body.Observaciones || ''
+  ];
+  for (var i = 0; i < vals.length; i++) {
+    ws.getRange(row, i + 1).setValue(vals[i]);
+  }
+  return { ok: true, updated: 1 };
+}
+
+function eliminarInventario(body) {
+  var ws = _getOrCreateInventarioSheet();
   var row = Number(body.row);
   if (!row || row < 2) return { ok: false, error: 'Fila inválida' };
   ws.deleteRow(row);

@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Inventario de Productos — Sistema de Gestión Logística">
+<meta name="theme-color" content="#1a5276">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📦</text></svg>">
+<title>Inventario – Sistema de Gestión Logística</title>
+<link rel="stylesheet" href="css/panel.css">
+</head>
+<body>
+
+<!-- HEADER + NAVBAR -->
+<div class="header">
+  <div class="header-top">
+    <div>
+      <h1>📦 Sistema de Gestión Logística</h1>
+      <div class="sub">Holding de empresas</div>
+    </div>
+    <div id="hdr-status"></div>
+  </div>
+  <nav class="navbar">
+    <a href="index.html">🏠 Inicio</a>
+    <a href="pedidos.html">📋 Pedidos</a>
+    <a href="ingresos.html">📥 Ingresos</a>
+    <a href="devoluciones.html">🔄 Devoluciones</a>
+    <a href="inventario.html" class="active">📊 Inventario</a>
+  </nav>
+</div>
+
+<!-- LOAD ZONE -->
+<div id="load-zone">
+  <div class="spinner" id="load-spinner"></div>
+  <h2>Conectando con Google Sheets...</h2>
+  <p>Cargando datos de inventario desde la nube</p>
+  <div id="load-error"></div>
+  <button class="btn-retry" id="btn-retry" style="display:none" onclick="loadInventario()">Reintentar</button>
+</div>
+
+<!-- MAIN -->
+<div id="main">
+
+  <div id="sync-status">
+    <span id="sync-icon">☁️</span>
+    <span id="sync-msg">Conectado a Google Sheets. Los cambios se guardan directamente en la nube.</span>
+  </div>
+
+  <div class="stats">
+    <div class="sc inv-total"><div class="num" id="s-total">0</div><div class="lbl">Referencias</div></div>
+    <div class="sc inv-stock"><div class="num" id="s-stock">0</div><div class="lbl">Stock total (uds)</div></div>
+    <div class="sc inv-pedidos"><div class="num" id="s-comprometido">0</div><div class="lbl">Comprometido en pedidos</div></div>
+    <div class="sc inv-disponible"><div class="num" id="s-disponible">0</div><div class="lbl">Disponible real</div></div>
+  </div>
+
+  <!-- Alertas de stock bajo -->
+  <div id="stock-alerts" style="display:none">
+    <div style="background:#fef3cd;border:1px solid #f9ca24;border-radius:8px;padding:10px 16px;margin-bottom:14px;font-size:0.82rem;color:#856404;display:flex;align-items:center;gap:8px">
+      <span style="font-size:1.1rem">⚠️</span>
+      <span><strong>Alerta de stock:</strong> <span id="alert-count">0</span> producto(s) con disponibilidad baja o negativa.</span>
+      <button onclick="document.getElementById('f-stock-alert').value='bajo';renderInvTable()" style="margin-left:auto;background:#856404;color:white;border:none;padding:4px 12px;border-radius:5px;cursor:pointer;font-size:0.78rem;font-weight:700">Ver productos</button>
+    </div>
+  </div>
+
+  <div class="filters">
+    <div class="fg">
+      <label>Empresa</label>
+      <select id="f-empresa">
+        <option value="">Todas</option>
+        <option value="PARCELAR DE COLOMBIA SAS">PARCELAR</option>
+        <option value="GREEN AGROSOLUCIONES DE COLOMBIA SAS">GREEN</option>
+        <option value="SOLUCIONES INTEGRALES RESO SAS">RESO</option>
+        <option value="INSUMOS AGROPECUARIOS SOSTENIBLES SAS">IASO</option>
+        <option value="INSUMOS AGROPECUARIOS DE LA SABANA SAS">IAS</option>
+      </select>
+    </div>
+    <div class="fg"><label>Producto</label><select id="f-prod"><option value="">Todos</option></select></div>
+    <div class="fg">
+      <label>Disponibilidad</label>
+      <select id="f-stock-alert">
+        <option value="">Todos</option>
+        <option value="bajo">Stock bajo / agotado</option>
+        <option value="ok">Stock disponible</option>
+      </select>
+    </div>
+    <div class="fg"><label>Buscar</label><input type="text" id="f-txt" placeholder="producto, lote…" style="width:160px"></div>
+    <button onclick="clearInvFilters()" style="margin-left:auto;background:none;border:1px solid #cbd5e0;color:#4a5568;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:0.82rem;font-weight:600;transition:background 0.2s" onmouseover="this.style.background='#f7fafc'" onmouseout="this.style.background='none'">✕ Limpiar filtros</button>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <h3>Inventario de productos <span id="row-ct-inv" style="font-weight:400;color:#718096"></span></h3>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button id="btn-clear-sort-inv" onclick="clearSortInv()" title="Quitar ordenamientos" style="display:none;background:none;border:1px solid #cbd5e0;color:#4a5568;padding:5px 11px;border-radius:6px;cursor:pointer;font-size:0.78rem;font-weight:600">✕ Limpiar orden</button>
+        <label style="background:#8e44ad;color:white;border:none;padding:8px 18px;border-radius:7px;cursor:pointer;font-size:0.84rem;font-weight:600;transition:background 0.2s;display:inline-flex;align-items:center;gap:4px" onmouseover="this.style.background='#7d3c98'" onmouseout="this.style.background='#8e44ad'">
+          📄 Importar Excel
+          <input type="file" id="import-inv-file" accept=".xlsx,.xls" style="display:none" onchange="importInventarioExcel(this)">
+        </label>
+        <button class="btn-dl" onclick="openNewInventario()" style="background:#8e44ad">📊 Nuevo registro</button>
+        <button class="btn-dl" onclick="loadInventario()">🔄 Actualizar datos</button>
+      </div>
+    </div>
+    <div style="overflow-x:auto">
+      <table>
+        <thead>
+          <tr id="t-head-inv"></tr>
+        </thead>
+        <tbody id="t-body-inv"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- INVENTARIO FORM MODAL -->
+<div class="overlay" id="inv-overlay">
+  <div class="modal-box" style="max-width:720px">
+    <div class="mhdr" style="background:linear-gradient(135deg,#8e44ad,#9b59b6)">
+      <div style="flex:1">
+        <h2 id="inv-modal-title">📊 Registrar Inventario</h2>
+        <div style="font-size:0.78rem;opacity:0.85;margin-top:4px">Registra el stock de un producto</div>
+      </div>
+      <button class="btn-close" onclick="closeInvModal()">✕</button>
+    </div>
+    <div class="mbody">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+        <div>
+          <label class="ef-label">Fecha</label>
+          <input class="ef" id="inv-fecha" type="date">
+        </div>
+        <div>
+          <label class="ef-label">Empresa</label>
+          <select class="ef" id="inv-empresa">
+            <option value="">— Seleccionar —</option>
+            <option value="PARCELAR DE COLOMBIA SAS">PARCELAR</option>
+            <option value="GREEN AGROSOLUCIONES DE COLOMBIA SAS">GREEN</option>
+            <option value="SOLUCIONES INTEGRALES RESO SAS">RESO</option>
+            <option value="INSUMOS AGROPECUARIOS SOSTENIBLES SAS">IASO</option>
+            <option value="INSUMOS AGROPECUARIOS DE LA SABANA SAS">IAS</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Multi-line product entry (new mode) -->
+      <div id="inv-multi-lines">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;border-top:1px solid #e2e8f0;padding-top:14px">
+          <div style="font-weight:700;font-size:0.88rem;color:#2d3748">📦 Líneas de inventario</div>
+          <button onclick="addInvLine()" style="background:#8e44ad;color:white;border:none;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:0.8rem;font-weight:700">+ Agregar línea</button>
+        </div>
+        <div style="overflow-x:auto">
+          <table style="font-size:0.82rem;margin-bottom:0">
+            <thead>
+              <tr style="background:#f7fafc">
+                <th style="width:30px">#</th>
+                <th>Producto (buscar)</th>
+                <th style="width:110px">Presentación</th>
+                <th style="width:100px">Unidad Medida</th>
+                <th style="width:80px">Cant/Caja</th>
+                <th style="width:100px">Lote</th>
+                <th style="width:80px">Cantidad</th>
+                <th style="width:50px"></th>
+              </tr>
+            </thead>
+            <tbody id="inv-lines"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Single product edit (edit mode) -->
+      <div id="inv-edit-single" style="display:none">
+        <div style="border-top:1px solid #e2e8f0;padding-top:14px;margin-bottom:10px;font-weight:700;font-size:0.88rem;color:#2d3748">📦 Producto</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
+          <div>
+            <label class="ef-label">Producto</label>
+            <input class="ef" id="inv-edit-producto" type="text" placeholder="Nombre del producto">
+          </div>
+          <div>
+            <label class="ef-label">Presentación</label>
+            <input class="ef" id="inv-edit-presentacion" type="text" placeholder="Ej: 1L, 20KG">
+          </div>
+          <div>
+            <label class="ef-label">Unidad de Medida</label>
+            <input class="ef" id="inv-edit-unidad" type="text" placeholder="Ej: LITRO, KG">
+          </div>
+          <div>
+            <label class="ef-label">Cant. por Caja</label>
+            <input class="ef" id="inv-edit-cantcaja" type="number" min="0" placeholder="0">
+          </div>
+          <div>
+            <label class="ef-label">Lote</label>
+            <input class="ef" id="inv-edit-lote" type="text" placeholder="N° de lote">
+          </div>
+          <div>
+            <label class="ef-label">Cantidad</label>
+            <input class="ef" id="inv-edit-cantidad" type="number" min="0" placeholder="0">
+          </div>
+        </div>
+        <div style="margin-top:12px">
+          <label class="ef-label">Observaciones (opcional)</label>
+          <textarea class="ef" id="inv-edit-obs" rows="2" placeholder="Notas adicionales" style="resize:vertical"></textarea>
+        </div>
+      </div>
+
+      <!-- Observaciones for new mode -->
+      <div id="inv-obs-new" style="margin-top:12px">
+        <label class="ef-label">Observaciones (opcional)</label>
+        <textarea class="ef" id="inv-observaciones" rows="2" placeholder="Notas adicionales" style="resize:vertical"></textarea>
+      </div>
+    </div>
+    <div class="mftr">
+      <div style="font-size:0.8rem;color:#718096">Los datos se guardan directamente en Google Sheets</div>
+      <div class="mftr-btns">
+        <button class="btn-cancel" onclick="closeInvModal()">Cancelar</button>
+        <button class="btn-confirm" id="btn-save-inv" onclick="saveInventario()" style="background:#8e44ad">✓ Registrar inventario</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- IMPORT PREVIEW MODAL -->
+<div class="overlay" id="import-inv-overlay">
+  <div class="modal-box" style="max-width:820px">
+    <div class="mhdr" style="background:linear-gradient(135deg,#8e44ad,#9b59b6)">
+      <div style="flex:1">
+        <h2>📄 Vista previa de importación</h2>
+        <div style="font-size:0.78rem;opacity:0.85;margin-top:4px">Revisa los datos antes de guardar</div>
+      </div>
+      <button class="btn-close" onclick="closeImportInv()">✕</button>
+    </div>
+    <div class="mbody">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+        <div>
+          <label class="ef-label">Empresa para este inventario</label>
+          <select class="ef" id="import-inv-empresa">
+            <option value="">— Seleccionar —</option>
+            <option value="PARCELAR DE COLOMBIA SAS">PARCELAR</option>
+            <option value="GREEN AGROSOLUCIONES DE COLOMBIA SAS">GREEN</option>
+            <option value="SOLUCIONES INTEGRALES RESO SAS">RESO</option>
+            <option value="INSUMOS AGROPECUARIOS SOSTENIBLES SAS">IASO</option>
+            <option value="INSUMOS AGROPECUARIOS DE LA SABANA SAS">IAS</option>
+          </select>
+        </div>
+        <div>
+          <label class="ef-label">Fecha del inventario</label>
+          <input class="ef" id="import-inv-fecha" type="date">
+        </div>
+      </div>
+      <div style="overflow-x:auto">
+        <table style="font-size:0.82rem">
+          <thead>
+            <tr style="background:#f3e8ff">
+              <th>#</th><th>Producto</th><th>Unidad Medida</th><th>Cant/Caja</th><th>Lote</th><th>Cantidad</th>
+            </tr>
+          </thead>
+          <tbody id="import-inv-preview"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="mftr">
+      <div style="font-size:0.8rem;color:#718096" id="import-inv-count">0 líneas detectadas</div>
+      <div class="mftr-btns">
+        <button class="btn-cancel" onclick="closeImportInv()">Cancelar</button>
+        <button class="btn-confirm" id="btn-confirm-import-inv" onclick="confirmImportInv()" style="background:#8e44ad">✓ Importar inventario</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- DELETE CONFIRM MODAL -->
+<div class="overlay" id="delete-inv-overlay">
+  <div class="modal-box" style="max-width:480px">
+    <div class="mhdr" style="background:linear-gradient(135deg,#c0392b,#e74c3c)">
+      <div style="flex:1">
+        <h2>🗑️ Eliminar Registro</h2>
+        <div style="font-size:0.78rem;opacity:0.85;margin-top:4px">Esta acción no se puede deshacer</div>
+      </div>
+      <button class="btn-close" onclick="closeDeleteInv()">✕</button>
+    </div>
+    <div class="mbody" style="text-align:center;padding:28px 24px">
+      <div style="font-size:2.5rem;margin-bottom:12px">⚠️</div>
+      <div style="font-size:0.95rem;font-weight:700;color:#2d3748;margin-bottom:8px" id="del-inv-msg">¿Eliminar este registro?</div>
+      <div style="font-size:0.82rem;color:#718096" id="del-inv-detail"></div>
+    </div>
+    <div class="mftr" style="justify-content:center;gap:12px">
+      <button class="btn-cancel" onclick="closeDeleteInv()">Cancelar</button>
+      <button class="btn-confirm" id="btn-del-inv-confirm" onclick="confirmDeleteInv()" style="background:#e74c3c">🗑️ Sí, eliminar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+<script src="js/shared.js"></script>
+<script src="js/inventario.js"></script>
+</body>
+</html>
