@@ -159,6 +159,30 @@ function registrarEntrega(body) {
     }
     updated++;
   }
+
+  // Update sibling lines in the same order: Recibido → Parcial
+  if (entregas.length > 0 && colIdx['Consecutivo'] && colIdx['Nombre_Empresa']) {
+    var orderKeys = {};
+    for (var e2 = 0; e2 < entregas.length; e2++) {
+      var r = entregas[e2].row;
+      if (!r || r < 2) continue;
+      var emp = ws.getRange(r, colIdx['Nombre_Empresa']).getValue();
+      var con = ws.getRange(r, colIdx['Consecutivo']).getValue();
+      orderKeys[emp + '||' + con] = true;
+    }
+    var allData = ws.getRange(2, 1, ws.getLastRow() - 1, ws.getLastColumn()).getValues();
+    for (var d = 0; d < allData.length; d++) {
+      var rEmp = allData[d][colIdx['Nombre_Empresa'] - 1];
+      var rCon = allData[d][colIdx['Consecutivo'] - 1];
+      var key = rEmp + '||' + rCon;
+      if (!orderKeys[key]) continue;
+      var curEstado = (allData[d][colIdx['Estado_Entrega'] - 1] || '').toString().trim();
+      if (curEstado === '' || curEstado.toLowerCase() === 'recibido') {
+        ws.getRange(d + 2, colIdx['Estado_Entrega']).setValue('Parcial');
+      }
+    }
+  }
+
   return { ok: true, updated: updated };
 }
 
