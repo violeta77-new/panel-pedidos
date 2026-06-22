@@ -132,10 +132,10 @@ function buildReport() {
   var fBonif = document.getElementById('rf-bonif').value;
   var fTxt = document.getElementById('rf-txt').value.toLowerCase();
 
-  // Filter lines: only Recibido or Parcial with pending > 0
+  // Filter lines: only Parcial with pending > 0
   var filtered = pedidos.filter(function(p) {
     var est = norm(p.Estado_Entrega || 'Recibido');
-    if (est !== 'recibido' && est !== 'parcial') return false;
+    if (est !== 'parcial') return false;
     var pend = Number(p.Cant_Pendiente) || 0;
     if (pend <= 0) return false;
     var est2 = (p.Estado_2 || 'Abierto').trim();
