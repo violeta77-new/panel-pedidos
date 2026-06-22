@@ -21,7 +21,13 @@ function fmtMoney(v) {
 
 function fmtDate(v) {
   if (!v) return '—';
-  var d = v instanceof Date ? v : new Date(v);
+  var d;
+  if (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v)) {
+    var p = v.split('-');
+    d = new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2]));
+  } else {
+    d = v instanceof Date ? v : new Date(v);
+  }
   return isNaN(d) ? String(v) : d.toLocaleDateString('es-CO', { day:'2-digit', month:'2-digit', year:'numeric' });
 }
 
@@ -32,6 +38,7 @@ function today() {
 
 function toDateInput(v) {
   if (!v) return '';
+  if (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v)) return v;
   var d = v instanceof Date ? v : new Date(v);
   if (isNaN(d)) return '';
   return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
