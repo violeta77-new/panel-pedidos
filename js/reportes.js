@@ -92,7 +92,7 @@ function populateRptFilters() {
   fc.innerHTML = '<option value="">Todos</option>' + coms.map(function(c) { return '<option value="' + c + '">' + c + '</option>'; }).join('');
 
   if (!rptFiltersAttached) {
-    ['rf-emp','rf-com','rf-bonif','rf-txt'].forEach(function(id) {
+    ['rf-emp','rf-com','rf-txt'].forEach(function(id) {
       document.getElementById(id).addEventListener('change', buildReport);
       document.getElementById(id).addEventListener('input', buildReport);
     });
@@ -103,18 +103,8 @@ function populateRptFilters() {
 function clearRptFilters() {
   document.getElementById('rf-emp').value = '';
   document.getElementById('rf-com').value = '';
-  document.getElementById('rf-bonif').value = '';
   document.getElementById('rf-txt').value = '';
   buildReport();
-}
-
-// ── Bonificado detection ──
-function detectBonificado(p) {
-  var nombre = String(p.Producto || '');
-  var textoTieneBonif = /bonificado/i.test(nombre);
-  var vUnit = Number(p.Valor_Unitario) || 0;
-  var stored = String(p.Bonificado || '').trim();
-  return stored === 'Sí' || textoTieneBonif || (vUnit > 0 && vUnit < 10);
 }
 
 function limpiarProducto(nombre) {
@@ -129,7 +119,6 @@ function limpiarProducto(nombre) {
 function buildReport() {
   var fEmp = document.getElementById('rf-emp').value;
   var fCom = document.getElementById('rf-com').value;
-  var fBonif = document.getElementById('rf-bonif').value;
   var fTxt = document.getElementById('rf-txt').value.toLowerCase();
 
   // Build set of orders that have at least one delivery
@@ -164,7 +153,6 @@ function buildReport() {
     var prodLimpio = limpiarProducto(String(p.Producto || '')).toUpperCase().trim();
     var pres = String(p.Presentacion || '').toUpperCase().trim();
     var key = prodLimpio + '||' + pres;
-    var esBonif = detectBonificado(p);
     if (!map[key]) {
       map[key] = {
         producto: prodLimpio,
@@ -174,7 +162,6 @@ function buildReport() {
         entregada: 0,
         ordenes: 0,
         empresas: {},
-        bonificado: esBonif,
         _ordenKeys: {}
       };
     }
@@ -182,7 +169,6 @@ function buildReport() {
     row.pendiente += Number(p.Cant_Pendiente) || 0;
     row.pedida += Number(p.Cantidad) || 0;
     row.entregada += Number(p.Cant_Entregada) || 0;
-    if (esBonif) row.bonificado = true;
     var empSigla = getSigla(p.Nombre_Empresa);
     row.empresas[empSigla] = (row.empresas[empSigla] || 0) + (Number(p.Cant_Pendiente) || 0);
     var ordKey = (p.Nombre_Empresa || '') + '||' + p.Consecutivo;
@@ -193,15 +179,9 @@ function buildReport() {
 
   aggregated = Object.values(map);
 
-  // Apply text and bonificado filters on aggregated data
   if (fTxt) {
     aggregated = aggregated.filter(function(r) {
       return r.producto.toLowerCase().indexOf(fTxt) >= 0 || r.presentacion.toLowerCase().indexOf(fTxt) >= 0;
-    });
-  }
-  if (fBonif) {
-    aggregated = aggregated.filter(function(r) {
-      return fBonif === 'Sí' ? r.bonificado : !r.bonificado;
     });
   }
 
@@ -232,7 +212,6 @@ function sortedAggregated() {
     var va, vb;
     if (col === 'producto') { va = a.producto; vb = b.producto; }
     else if (col === 'presentacion') { va = a.presentacion; vb = b.presentacion; }
-    else if (col === 'bonificado') { va = a.bonificado ? 1 : 0; vb = b.bonificado ? 1 : 0; }
     else if (col === 'pedida') { va = a.pedida; vb = b.pedida; }
     else if (col === 'entregada') { va = a.entregada; vb = b.entregada; }
     else if (col === 'pendiente') { va = a.pendiente; vb = b.pendiente; }
@@ -248,7 +227,6 @@ function renderRptTable() {
   var cols = [
     { id: 'producto', label: 'Producto' },
     { id: 'presentacion', label: 'Presentación' },
-    { id: 'bonificado', label: 'Bonificado' },
     { id: 'pedida', label: 'Cant. Pedida' },
     { id: 'entregada', label: 'Entregada' },
     { id: 'pendiente', label: 'Pendiente' },
@@ -268,7 +246,7 @@ function renderRptTable() {
   var tbody = document.getElementById('rpt-body');
 
   if (!rows.length) {
-    tbody.innerHTML = '<tr><td colspan="8"><div class="empty-msg">No hay productos pendientes con los filtros seleccionados.</div></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7"><div class="empty-msg">No hay productos pendientes con los filtros seleccionados.</div></td></tr>';
     return;
   }
 
@@ -282,7 +260,6 @@ function renderRptTable() {
     return '<tr>' +
       '<td style="font-weight:700">' + (r.producto || '—') + '</td>' +
       '<td>' + (r.presentacion || '—') + '</td>' +
-      '<td class="center">' + (r.bonificado ? '<span class="bonif-si">Sí</span>' : '<span class="bonif-no">No</span>') + '</td>' +
       '<td class="money">' + r.pedida.toLocaleString('es-CO') + '</td>' +
       '<td class="money" style="color:#27ae60;font-weight:600">' + r.entregada.toLocaleString('es-CO') + '</td>' +
       '<td class="money" style="color:#e74c3c;font-weight:700;font-size:0.95rem">' + r.pendiente.toLocaleString('es-CO') + '</td>' +
@@ -297,12 +274,11 @@ function exportCSV() {
   var rows = sortedAggregated();
   if (!rows.length) { showToast('No hay datos para exportar', '#e74c3c'); return; }
 
-  var lines = ['Producto,Presentacion,Bonificado,Cant_Pedida,Entregada,Pendiente,Ordenes'];
+  var lines = ['Producto,Presentacion,Cant_Pedida,Entregada,Pendiente,Ordenes'];
   rows.forEach(function(r) {
     lines.push([
       '"' + (r.producto || '').replace(/"/g, '""') + '"',
       '"' + (r.presentacion || '').replace(/"/g, '""') + '"',
-      r.bonificado ? 'Sí' : 'No',
       r.pedida,
       r.entregada,
       r.pendiente,
