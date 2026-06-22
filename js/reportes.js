@@ -151,7 +151,7 @@ function buildReport() {
   var clientesSet = {};
   filtered.forEach(function(p) {
     var prodLimpio = limpiarProducto(String(p.Producto || '')).toUpperCase().trim();
-    var pres = String(p.Presentacion || '').trim();
+    var pres = String(p.Presentacion || '').toUpperCase().trim();
     var key = prodLimpio + '||' + pres;
     var esBonif = detectBonificado(p);
     if (!map[key]) {
