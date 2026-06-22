@@ -114,7 +114,7 @@ function detectBonificado(p) {
   var textoTieneBonif = /bonificado/i.test(nombre);
   var vUnit = Number(p.Valor_Unitario) || 0;
   var stored = String(p.Bonificado || '').trim();
-  return stored === 'Sí' || textoTieneBonif || vUnit < 10;
+  return stored === 'Sí' || textoTieneBonif || (vUnit > 0 && vUnit < 10);
 }
 
 function limpiarProducto(nombre) {

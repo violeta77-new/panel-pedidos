@@ -394,7 +394,7 @@ function openDetail(idx) {
       var prodLimpio = textoTieneBonif ? prodNombre.replace(/\s*bonificado\s*/gi, ' ').trim() : prodNombre;
       var vUnit = Number(l.Valor_Unitario) || 0;
       var bonif = (l.Bonificado || '').trim();
-      var esBonif = bonif === 'Sí' || textoTieneBonif || vUnit < 10;
+      var esBonif = bonif === 'Sí' || textoTieneBonif || (vUnit > 0 && vUnit < 10);
       return '<tr>' +
         '<td style="color:#a0aec0;font-size:0.74rem">' + (i+1) + '</td>' +
         '<td style="font-weight:700;white-space:nowrap">' + prodLimpio + '</td>' +
@@ -846,7 +846,7 @@ function parseOrderExcel(data, filename) {
       var textoTieneBonif = /bonificado/i.test(nombreStr);
       var productoLimpio = textoTieneBonif ? nombreStr.replace(/\s*bonificado\s*/gi, ' ').trim() : nombreStr;
       var vUnitario = Number(get(r, vuCol)) || 0;
-      var esBonificado = textoTieneBonif || vUnitario < 10;
+      var esBonificado = textoTieneBonif || (vUnitario > 0 && vUnitario < 10);
       productos.push({
         producto: productoLimpio,
         presentacion: get(r, 1),
