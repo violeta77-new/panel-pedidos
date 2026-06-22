@@ -380,11 +380,13 @@ function openDetail(idx) {
   if (!lines.length) {
     tbody.innerHTML = '<tr><td colspan="12"><div class="no-lines">⚠ Esta orden no tiene líneas de producto registradas.</div></td></tr>';
   } else {
+    var orderHasDeliveries = lines.some(function(l) { return (Number(l.Cant_Entregada)||0) > 0; });
     tbody.innerHTML = lines.map(function(l, i) {
       var pedida = Number(l.Cantidad)||0;
       var entregada = Number(l.Cant_Entregada)||0;
       var pendiente = Math.max(0, pedida - entregada);
-      var estL = l.Estado_Entrega || 'Recibido';
+      var rawEst = (l.Estado_Entrega || '').trim();
+      var estL = (!rawEst || norm(rawEst) === 'recibido') ? (orderHasDeliveries ? 'Parcial' : 'Recibido') : rawEst;
       var badgeL = norm(estL) === 'recibido' ? 'b-rec' : norm(estL) === 'parcial' ? 'b-par' : 'b-ent';
       var done = norm(estL) === 'entregado';
       var prodNombre = l.Producto || '—';
