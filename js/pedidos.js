@@ -108,7 +108,7 @@ async function loadFromAPI() {
       'Comercial','Plazo_Pago','Precio_Facturacion','Producto','Presentacion',
       'Cantidad','Valor_Unitario','Valor_Total','Total_Orden','Archivo_Fuente',
       'Estado','ID_Cliente','ID_Comercial','ID_Producto',
-      'Cant_Entregada','Cant_Pendiente','Estado_Entrega','Fecha_Ult_Entrega','Remisiones','Observaciones','Estado_2'];
+      'Cant_Entregada','Cant_Pendiente','Estado_Entrega','Fecha_Ult_Entrega','Remisiones','Observaciones','Estado_2','Bonificado'];
 
     if (data.headers && data.headers[0] !== 'Fecha_Procesamiento') {
       var oldHeaders = data.headers;
@@ -378,7 +378,7 @@ function openDetail(idx) {
 
   var tbody = document.getElementById('m-lines');
   if (!lines.length) {
-    tbody.innerHTML = '<tr><td colspan="11"><div class="no-lines">⚠ Esta orden no tiene líneas de producto registradas.</div></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="12"><div class="no-lines">⚠ Esta orden no tiene líneas de producto registradas.</div></td></tr>';
   } else {
     tbody.innerHTML = lines.map(function(l, i) {
       var pedida = Number(l.Cantidad)||0;
@@ -387,10 +387,17 @@ function openDetail(idx) {
       var estL = l.Estado_Entrega || 'Recibido';
       var badgeL = norm(estL) === 'recibido' ? 'b-rec' : norm(estL) === 'parcial' ? 'b-par' : 'b-ent';
       var done = norm(estL) === 'entregado';
+      var prodNombre = l.Producto || '—';
+      var textoTieneBonif = /bonificado/i.test(prodNombre);
+      var prodLimpio = textoTieneBonif ? prodNombre.replace(/\s*bonificado\s*/gi, ' ').trim() : prodNombre;
+      var vUnit = Number(l.Valor_Unitario) || 0;
+      var bonif = (l.Bonificado || '').trim();
+      var esBonif = bonif === 'Sí' || textoTieneBonif || vUnit < 10;
       return '<tr>' +
         '<td style="color:#a0aec0;font-size:0.74rem">' + (i+1) + '</td>' +
-        '<td style="font-weight:700;white-space:nowrap">' + (l.Producto||'—') + '</td>' +
+        '<td style="font-weight:700;white-space:nowrap">' + prodLimpio + '</td>' +
         '<td>' + (l.Presentacion||'') + '</td>' +
+        '<td style="text-align:center">' + (esBonif ? '<span style="background:#d5f5e3;color:#1e8449;padding:2px 8px;border-radius:10px;font-size:0.75rem;font-weight:700">Sí</span>' : '<span style="color:#718096;font-size:0.75rem">No</span>') + '</td>' +
         '<td class="money">' + pedida + '</td>' +
         '<td class="money" style="color:#27ae60;font-weight:700">' + entregada + '</td>' +
         '<td class="money"><span class="pend-tag ' + (pendiente > 0 ? 'pend' : 'ok') + '">' + pendiente + '</span></td>' +
@@ -833,12 +840,18 @@ function parseOrderExcel(data, filename) {
     for (var r = prodHeader + 1; r < endRow; r++) {
       var nombre = get(r, 0);
       if (nombre == null) continue;
+      var nombreStr = String(nombre);
+      var textoTieneBonif = /bonificado/i.test(nombreStr);
+      var productoLimpio = textoTieneBonif ? nombreStr.replace(/\s*bonificado\s*/gi, ' ').trim() : nombreStr;
+      var vUnitario = Number(get(r, vuCol)) || 0;
+      var esBonificado = textoTieneBonif || vUnitario < 10;
       productos.push({
-        producto: nombre,
+        producto: productoLimpio,
         presentacion: get(r, 1),
         cantidad: get(r, cantCol),
         valor_unitario: get(r, vuCol),
         valor_total: get(r, vtCol),
+        bonificado: esBonificado ? 'Sí' : '',
       });
     }
   }
@@ -905,6 +918,7 @@ async function showUploadPreview(data) {
         '<td class="money">' + (p.cantidad||0) + '</td>' +
         '<td class="money">' + fmtMoney(p.valor_unitario) + '</td>' +
         '<td class="money">' + fmtMoney(p.valor_total) + '</td>' +
+        '<td style="text-align:center">' + (p.bonificado ? '<span style="background:#d5f5e3;color:#1e8449;padding:2px 8px;border-radius:10px;font-size:0.75rem;font-weight:700">Sí</span>' : '<span style="color:#718096;font-size:0.75rem">No</span>') + '</td>' +
         '</tr>';
     }).join('');
   }
@@ -956,7 +970,10 @@ async function confirmUpload() {
       precio_facturacion: uploadData.precio_facturacion,
       total_orden: uploadData.total_orden,
       observaciones: uploadData.observaciones,
-      productos: uploadData.productos,
+      productos: uploadData.productos.map(function(p) {
+        return { producto: p.producto, presentacion: p.presentacion, cantidad: p.cantidad,
+                 valor_unitario: p.valor_unitario, valor_total: p.valor_total, bonificado: p.bonificado || '' };
+      }),
       archivo_fuente: uploadData.archivo_fuente,
     });
     if (!result.ok) throw new Error(result.error || 'Error al cargar');

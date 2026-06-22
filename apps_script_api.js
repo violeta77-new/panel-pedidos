@@ -59,7 +59,7 @@ function getPedidos() {
     'Comercial','Plazo_Pago','Precio_Facturacion','Producto','Presentacion',
     'Cantidad','Valor_Unitario','Valor_Total','Total_Orden','Archivo_Fuente',
     'Estado','ID_Cliente','ID_Comercial','ID_Producto',
-    'Cant_Entregada','Cant_Pendiente','Estado_Entrega','Fecha_Ult_Entrega','Remisiones','Observaciones','Estado_2'];
+    'Cant_Entregada','Cant_Pendiente','Estado_Entrega','Fecha_Ult_Entrega','Remisiones','Observaciones','Estado_2','Bonificado'];
 
   var data = ws.getDataRange().getValues();
   var firstCell = String(data[0][0]).trim();
@@ -172,6 +172,14 @@ function editarPedido(body) {
   var colIdx = {};
   for (var i = 0; i < headers.length; i++) colIdx[headers[i]] = i + 1;
 
+  var needed = ['Observaciones','Estado_2','Bonificado'];
+  for (var n = 0; n < needed.length; n++) {
+    if (!colIdx[needed[n]]) {
+      ws.getRange(1, ws.getLastColumn() + 1).setValue(needed[n]);
+      colIdx[needed[n]] = ws.getLastColumn();
+    }
+  }
+
   var lineas = body.lineas || [];
   var hdr = body.header || {};
   var updated = 0, added = 0;
@@ -186,7 +194,7 @@ function editarPedido(body) {
         var f = hdrFields[h];
         if (hdr[f] !== undefined && colIdx[f]) ws.getRange(row, colIdx[f]).setValue(hdr[f]);
       }
-      var lineFields = ['Producto','Presentacion','Cantidad','Valor_Unitario','Valor_Total','Cant_Pendiente','Remisiones'];
+      var lineFields = ['Producto','Presentacion','Cantidad','Valor_Unitario','Valor_Total','Cant_Pendiente','Remisiones','Bonificado'];
       for (var lf = 0; lf < lineFields.length; lf++) {
         var ff = lineFields[lf];
         if (lin[ff] !== undefined && colIdx[ff]) ws.getRange(row, colIdx[ff]).setValue(lin[ff]);
@@ -324,7 +332,8 @@ function agregarPedido(body) {
       idPr || '',
       '', '', '', '', '',
       body.observaciones || '',
-      'Abierto'
+      'Abierto',
+      prod.bonificado || ''
     ]);
     added++;
   }
@@ -418,7 +427,7 @@ function repararEncabezados() {
     'Comercial','Plazo_Pago','Precio_Facturacion','Producto','Presentacion',
     'Cantidad','Valor_Unitario','Valor_Total','Total_Orden','Archivo_Fuente',
     'Estado','ID_Cliente','ID_Comercial','ID_Producto',
-    'Cant_Entregada','Cant_Pendiente','Estado_Entrega','Fecha_Ult_Entrega','Remisiones','Observaciones'];
+    'Cant_Entregada','Cant_Pendiente','Estado_Entrega','Fecha_Ult_Entrega','Remisiones','Observaciones','Estado_2','Bonificado'];
 
   if (firstCell === 'Fecha_Procesamiento') {
     return { ok: true, message: 'Encabezados ya existen, no se necesita reparacion' };
