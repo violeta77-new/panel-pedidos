@@ -133,6 +133,7 @@ function registrarEntrega(body) {
   }
 
   var entregas = body.entregas || [];
+  var observaciones = body.observaciones;
   var updated = 0;
   for (var e = 0; e < entregas.length; e++) {
     var ent = entregas[e];
@@ -150,6 +151,9 @@ function registrarEntrega(body) {
     ws.getRange(row, colIdx['Estado_Entrega']).setValue(estado);
     ws.getRange(row, colIdx['Fecha_Ult_Entrega']).setValue(ent.fecha);
     ws.getRange(row, colIdx['Remisiones']).setValue(newRem);
+    if (observaciones !== undefined && colIdx['Observaciones']) {
+      ws.getRange(row, colIdx['Observaciones']).setValue(observaciones);
+    }
     if (pendiente <= 0) {
       ws.getRange(row, colIdx['Estado_2']).setValue('Cerrado');
     }

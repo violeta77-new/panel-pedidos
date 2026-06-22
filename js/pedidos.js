@@ -368,14 +368,8 @@ function openDetail(idx) {
     c.Municipio ? '📍 <span>' + c.Municipio + (c.Departamento ? ', ' + c.Departamento : '') + '</span>' : '',
   ].filter(Boolean).join('');
   document.getElementById('m-total').textContent = fmtMoney(c.Total_Orden);
-  var mObsWrap = document.getElementById('m-obs-wrap');
   var obsText = c.Observaciones || lines.reduce(function(a, l) { return a || l.Observaciones; }, '') || '';
-  if (obsText && String(obsText).trim()) {
-    document.getElementById('m-observaciones').textContent = String(obsText).trim();
-    mObsWrap.style.display = 'block';
-  } else {
-    mObsWrap.style.display = 'none';
-  }
+  document.getElementById('m-observaciones').value = obsText ? String(obsText).trim() : '';
   document.getElementById('m-fecha').value = today();
   document.getElementById('m-remision').value = '';
   document.getElementById('m-remision').classList.remove('error');
@@ -460,7 +454,8 @@ async function confirmarEntregas() {
   btn.textContent = '⏳ Guardando...';
 
   try {
-    var result = await apiPost({ action: 'registrarEntrega', entregas: entregas });
+    var obs = document.getElementById('m-observaciones').value.trim();
+    var result = await apiPost({ action: 'registrarEntrega', entregas: entregas, observaciones: obs });
     if (!result.ok) throw new Error(result.error || 'Error al guardar');
 
     closeModal();
