@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Reportes — Sistema de Gestión Logística">
+<meta name="theme-color" content="#1a5276">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📈</text></svg>">
+<title>Reportes – Sistema de Gestión Logística</title>
+<link rel="stylesheet" href="css/panel.css">
+<style>
+  .rpt-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; margin-bottom: 18px; }
+  .rpt-stat { background: white; border-radius: 10px; padding: 16px 20px; box-shadow: 0 1px 6px rgba(0,0,0,0.07); border-left: 4px solid #148f77; }
+  .rpt-stat .num { font-size: 1.6rem; font-weight: 800; color: #148f77; }
+  .rpt-stat .lbl { font-size: 0.76rem; color: #718096; text-transform: uppercase; font-weight: 600; margin-top: 2px; }
+  .rpt-filters { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; margin-bottom: 16px; background: white; border-radius: 10px; padding: 14px 18px; box-shadow: 0 1px 6px rgba(0,0,0,0.07); }
+  .rpt-filters .fg { display: flex; flex-direction: column; gap: 3px; }
+  .rpt-filters label { font-size: 0.74rem; font-weight: 700; color: #4a5568; text-transform: uppercase; }
+  .rpt-filters select, .rpt-filters input { padding: 6px 10px; border: 1px solid #cbd5e0; border-radius: 6px; font-size: 0.84rem; font-family: inherit; }
+  .rpt-card { background: white; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); overflow: hidden; margin-bottom: 18px; }
+  .rpt-card-head { display: flex; justify-content: space-between; align-items: center; padding: 14px 20px; border-bottom: 1px solid #e2e8f0; }
+  .rpt-card-head h3 { font-size: 1rem; color: #1a5276; }
+  .rpt-table { width: 100%; border-collapse: collapse; font-size: 0.84rem; }
+  .rpt-table th { background: #f7fafc; padding: 10px 14px; text-align: left; font-size: 0.74rem; text-transform: uppercase; color: #4a5568; font-weight: 700; border-bottom: 2px solid #e2e8f0; cursor: pointer; user-select: none; }
+  .rpt-table th:hover { background: #edf2f7; }
+  .rpt-table th.sort-asc::after { content: ' ▲'; font-size: 0.65rem; }
+  .rpt-table th.sort-desc::after { content: ' ▼'; font-size: 0.65rem; }
+  .rpt-table td { padding: 9px 14px; border-bottom: 1px solid #edf2f7; }
+  .rpt-table tr:hover { background: #f7fafc; }
+  .rpt-table .money { text-align: right; font-variant-numeric: tabular-nums; }
+  .rpt-table .center { text-align: center; }
+  .bonif-si { background: #d5f5e3; color: #1e8449; padding: 2px 8px; border-radius: 10px; font-size: 0.75rem; font-weight: 700; }
+  .bonif-no { color: #718096; font-size: 0.75rem; }
+  .badge-emp { padding: 2px 9px; border-radius: 12px; font-size: 0.72rem; font-weight: 700; }
+  .btn-export { background: #148f77; color: white; border: none; padding: 7px 16px; border-radius: 6px; cursor: pointer; font-size: 0.82rem; font-weight: 600; transition: background 0.2s; }
+  .btn-export:hover { background: #117a65; }
+  .empty-msg { text-align: center; color: #a0aec0; padding: 32px; font-size: 0.9rem; }
+</style>
+</head>
+<body>
+
+<!-- HEADER + NAVBAR -->
+<div class="header">
+  <div class="header-top">
+    <div>
+      <h1>📦 Sistema de Gestión Logística</h1>
+      <div class="sub">Holding de empresas</div>
+    </div>
+    <div id="hdr-status"></div>
+  </div>
+  <nav class="navbar">
+    <a href="index.html">🏠 Inicio</a>
+    <a href="pedidos.html">📋 Pedidos</a>
+    <a href="ingresos.html">📥 Ingresos</a>
+    <a href="devoluciones.html">🔄 Devoluciones</a>
+    <a href="inventario.html">📊 Inventario</a>
+    <a href="reportes.html" class="active">📈 Reportes</a>
+  </nav>
+</div>
+
+<!-- LOAD ZONE -->
+<div id="load-zone">
+  <div class="spinner" id="load-spinner"></div>
+  <h2>Conectando con Google Sheets...</h2>
+  <p>Cargando datos de pedidos desde la nube</p>
+  <div id="load-error"></div>
+  <button class="btn-retry" id="btn-retry" style="display:none" onclick="loadReportes()">Reintentar</button>
+</div>
+
+<!-- MAIN -->
+<div id="main">
+
+  <div id="sync-status">
+    <span id="sync-icon">☁️</span>
+    <span id="sync-msg">Conectado a Google Sheets.</span>
+  </div>
+
+  <div class="rpt-stats">
+    <div class="rpt-stat"><div class="num" id="st-productos">0</div><div class="lbl">Productos pendientes</div></div>
+    <div class="rpt-stat"><div class="num" id="st-unidades">0</div><div class="lbl">Unidades pendientes</div></div>
+    <div class="rpt-stat"><div class="num" id="st-ordenes">0</div><div class="lbl">Órdenes activas</div></div>
+    <div class="rpt-stat"><div class="num" id="st-clientes">0</div><div class="lbl">Clientes con pendientes</div></div>
+  </div>
+
+  <div class="rpt-filters">
+    <div class="fg"><label>Empresa</label><select id="rf-emp"><option value="">Todas</option></select></div>
+    <div class="fg"><label>Comercial</label><select id="rf-com"><option value="">Todos</option></select></div>
+    <div class="fg"><label>Bonificado</label><select id="rf-bonif"><option value="">Todos</option><option value="Sí">Sí</option><option value="No">No</option></select></div>
+    <div class="fg"><label>Buscar producto</label><input type="text" id="rf-txt" placeholder="nombre del producto…" style="width:200px"></div>
+    <button onclick="clearRptFilters()" style="margin-left:auto;background:none;border:1px solid #cbd5e0;color:#4a5568;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:0.82rem;font-weight:600">✕ Limpiar</button>
+  </div>
+
+  <div class="rpt-card">
+    <div class="rpt-card-head">
+      <h3>📦 Productos pendientes por entregar <span id="rpt-count" style="font-weight:400;color:#718096"></span></h3>
+      <button class="btn-export" onclick="exportCSV()">📥 Exportar CSV</button>
+    </div>
+    <div style="overflow-x:auto">
+      <table class="rpt-table">
+        <thead>
+          <tr id="rpt-head"></tr>
+        </thead>
+        <tbody id="rpt-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="js/shared.js"></script>
+<script src="js/reportes.js"></script>
+</body>
+</html>
