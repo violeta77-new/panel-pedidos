@@ -224,7 +224,7 @@ function editarPedido(body) {
         var f = hdrFields[h];
         if (hdr[f] !== undefined && colIdx[f]) ws.getRange(row, colIdx[f]).setValue(hdr[f]);
       }
-      var lineFields = ['Producto','Presentacion','Cantidad','Valor_Unitario','Valor_Total','Cant_Pendiente','Remisiones','Bonificado'];
+      var lineFields = ['Producto','Presentacion','Cantidad','Valor_Unitario','Valor_Total','Cant_Entregada','Cant_Pendiente','Remisiones','Bonificado'];
       for (var lf = 0; lf < lineFields.length; lf++) {
         var ff = lineFields[lf];
         if (lin[ff] !== undefined && colIdx[ff]) ws.getRange(row, colIdx[ff]).setValue(lin[ff]);

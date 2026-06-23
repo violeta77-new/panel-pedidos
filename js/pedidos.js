@@ -409,7 +409,7 @@ function openDetail(idx) {
         '<td><input class="ef md-pres" data-i="' + i + '" type="text" value="' + presEsc + '" style="width:90px"></td>' +
         '<td style="text-align:center">' + (esBonif ? '<span style="background:#d5f5e3;color:#1e8449;padding:2px 8px;border-radius:10px;font-size:0.75rem;font-weight:700">Sí</span>' : '<span style="color:#718096;font-size:0.75rem">No</span>') + '</td>' +
         '<td><input class="ef md-cant" data-i="' + i + '" type="number" min="0" value="' + pedida + '" style="width:70px;text-align:right" oninput="updateDetailLine(' + i + ')"></td>' +
-        '<td class="money" style="color:#27ae60;font-weight:700">' + entregada + '</td>' +
+        '<td><input class="ef md-ent" data-i="' + i + '" type="number" min="0" value="' + entregada + '" style="width:70px;text-align:right;color:#27ae60;font-weight:700" oninput="updateDetailLine(' + i + ')"></td>' +
         '<td class="money"><span class="pend-tag ' + (pendiente > 0 ? 'pend' : 'ok') + '" id="md-pend-' + i + '">' + pendiente + '</span></td>' +
         '<td><span class="badge ' + badgeL + '">' + estL + '</span>' +
           (l.Remisiones ? '<div style="font-size:0.7rem;color:#4a5568;margin-top:3px">📄 ' + l.Remisiones + '</div>' : '') +
@@ -437,8 +437,10 @@ document.getElementById('overlay').addEventListener('click', function(e) { if (i
 function updateDetailLine(i) {
   var cants = document.querySelectorAll('.md-cant');
   var vunis = document.querySelectorAll('.md-vuni');
+  var ents = document.querySelectorAll('.md-ent');
   var cant = parseFloat(cants[i] && cants[i].value) || 0;
   var vuni = parseFloat(vunis[i] && vunis[i].value) || 0;
+  var entregada = parseFloat(ents[i] && ents[i].value) || 0;
   var vtot = cant * vuni;
   var vtotEl = document.getElementById('md-vtot-' + i);
   if (vtotEl) vtotEl.textContent = fmtMoney(vtot);
@@ -446,8 +448,8 @@ function updateDetailLine(i) {
     detailWorkingLines[i].Cantidad = cant;
     detailWorkingLines[i].Valor_Unitario = vuni;
     detailWorkingLines[i].Valor_Total = vtot;
+    detailWorkingLines[i].Cant_Entregada = entregada;
   }
-  var entregada = Number(detailWorkingLines[i] && detailWorkingLines[i].Cant_Entregada) || 0;
   var pendiente = Math.max(0, cant - entregada);
   var pendEl = document.getElementById('md-pend-' + i);
   if (pendEl) {
@@ -460,8 +462,10 @@ function updateDetailLine(i) {
 function updateDeliveryMax(i) {
   var qtyInput = document.querySelectorAll('.qty-input')[i];
   if (!qtyInput || !detailWorkingLines[i]) return;
-  var cant = Number(detailWorkingLines[i].Cantidad) || 0;
-  var entregada = Number(detailWorkingLines[i].Cant_Entregada) || 0;
+  var cants = document.querySelectorAll('.md-cant');
+  var ents = document.querySelectorAll('.md-ent');
+  var cant = parseFloat(cants[i] && cants[i].value) || 0;
+  var entregada = parseFloat(ents[i] && ents[i].value) || 0;
   var pendiente = Math.max(0, cant - entregada);
   var val = Number(qtyInput.value) || 0;
   if (val > pendiente) {
@@ -486,13 +490,15 @@ async function guardarTodo() {
   var press = [].slice.call(document.querySelectorAll('.md-pres'));
   var cants = [].slice.call(document.querySelectorAll('.md-cant'));
   var vunis = [].slice.call(document.querySelectorAll('.md-vuni'));
+  var ents  = [].slice.call(document.querySelectorAll('.md-ent'));
   detailWorkingLines.forEach(function(l, i) {
     l.Producto = prods[i] ? prods[i].value.trim() : l.Producto;
     l.Presentacion = press[i] ? press[i].value.trim() : l.Presentacion;
     l.Cantidad = Number(cants[i] && cants[i].value) || 0;
     l.Valor_Unitario = Number(vunis[i] && vunis[i].value) || 0;
+    l.Cant_Entregada = Number(ents[i] && ents[i].value) || 0;
     l.Valor_Total = l.Cantidad * l.Valor_Unitario;
-    l.Cant_Pendiente = Math.max(0, l.Cantidad - (Number(l.Cant_Entregada)||0));
+    l.Cant_Pendiente = Math.max(0, l.Cantidad - l.Cant_Entregada);
   });
 
   var hdr = {
