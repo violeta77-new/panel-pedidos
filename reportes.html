@@ -62,8 +62,8 @@
 <!-- LOAD ZONE -->
 <div id="load-zone">
   <div class="spinner" id="load-spinner"></div>
-  <h2>Conectando con Google Sheets...</h2>
-  <p>Cargando datos de pedidos desde la nube</p>
+  <h2>Conectando con la nube...</h2>
+  <p>Cargando datos de pedidos</p>
   <div id="load-error"></div>
   <button class="btn-retry" id="btn-retry" style="display:none" onclick="loadReportes()">Reintentar</button>
 </div>
@@ -73,7 +73,7 @@
 
   <div id="sync-status">
     <span id="sync-icon">☁️</span>
-    <span id="sync-msg">Conectado a Google Sheets.</span>
+    <span id="sync-msg">Conectado a la nube.</span>
   </div>
 
   <div class="rpt-stats">
@@ -140,7 +140,8 @@
 
 <div class="toast" id="toast"></div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="js/shared.js"></script>
-<script src="js/reportes.js"></script>
+<script src="js/reportes.js?v=20260623b"></script>
 </body>
 </html>

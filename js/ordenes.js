@@ -107,8 +107,8 @@ async function loadOrdenes() {
 
     loadZone.style.display = 'none';
     mainEl.style.display = 'block';
-    setSyncStatus('ok', 'Conectado a Google Sheets. Última actualización: ' + new Date().toLocaleTimeString('es-CO'));
-    document.getElementById('hdr-status').textContent = '☁️ Google Sheets · ' + ordenes.length + ' líneas';
+    setSyncStatus('ok', 'Conectado a la nube. Última actualización: ' + new Date().toLocaleTimeString('es-CO'));
+    document.getElementById('hdr-status').textContent = '☁️ Supabase · ' + ordenes.length + ' líneas';
   } catch (err) {
     if (mainEl.style.display === 'block') {
       setSyncStatus('error', 'Error al actualizar: ' + err.message);
@@ -630,7 +630,7 @@ async function saveOC() {
       });
       if (!result.ok) throw new Error(result.error || 'Error al guardar');
       closeOCModal();
-      showToast('✅ Orden actualizada en Google Sheets');
+      showToast('✅ Orden actualizada en la nube');
       await loadOrdenes();
     } catch (err) {
       showToast('❌ Error: ' + err.message, '#e74c3c');
@@ -659,7 +659,7 @@ async function saveOC() {
     });
     if (!result.ok) throw new Error(result.error || 'Error al guardar');
     closeOCModal();
-    showToast('✅ ' + result.added + ' línea(s) registradas en Google Sheets');
+    showToast('✅ ' + result.added + ' línea(s) registradas en la nube');
     await loadOrdenes();
   } catch (err) {
     showToast('❌ Error: ' + err.message, '#e74c3c');
@@ -679,7 +679,7 @@ function openDeleteOC(idx, row) {
   document.getElementById('del-oc-detail').innerHTML =
     'Producto: <strong>' + (r.Producto||'—') + '</strong> · ' + (r.Cantidad||0) + ' uds<br>' +
     'OC: ' + (r.Consecutivo||'—') + ' · ' + getSiglaOC(r.Empresa_Destino) + ' ← ' + getSiglaOC(r.Empresa_Origen) + ' · ' + fmtDate(r.Fecha) + '<br><br>' +
-    '<span style="color:#e74c3c;font-weight:700">Se eliminará esta línea de Google Sheets.</span>';
+    '<span style="color:#e74c3c;font-weight:700">Se eliminará esta línea de la base de datos.</span>';
   document.getElementById('btn-del-oc-confirm').disabled = false;
   document.getElementById('btn-del-oc-confirm').textContent = '🗑️ Sí, eliminar';
   document.getElementById('delete-oc-overlay').classList.add('show');

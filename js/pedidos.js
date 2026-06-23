@@ -186,8 +186,8 @@ async function loadFromAPI() {
 
     loadZone.style.display = 'none';
     mainEl.style.display = 'block';
-    setSyncStatus('ok', 'Conectado a Google Sheets. Última actualización: ' + new Date().toLocaleTimeString('es-CO'));
-    document.getElementById('hdr-status').textContent = '☁️ Google Sheets · ' + pedidos.length + ' líneas';
+    setSyncStatus('ok', 'Conectado a la nube. Última actualización: ' + new Date().toLocaleTimeString('es-CO'));
+    document.getElementById('hdr-status').textContent = '☁️ Supabase · ' + pedidos.length + ' líneas';
   } catch (err) {
     if (mainEl.style.display === 'block') {
       setSyncStatus('error', 'Error al actualizar: ' + err.message);
@@ -557,7 +557,7 @@ async function guardarTodo() {
     closeModal();
     var msg = entregas.length > 0
       ? '✅ Cambios guardados + ' + entregas.length + ' entrega(s) registrada(s)'
-      : '✅ Cambios guardados en Google Sheets';
+      : '✅ Cambios guardados en la nube';
     showToast(msg);
     await loadFromAPI();
   } catch (err) {
@@ -802,7 +802,7 @@ async function saveEdit() {
     if (!result.ok) throw new Error(result.error || 'Error al guardar');
 
     closeEdit();
-    showToast('✅ Pedido actualizado en Google Sheets');
+    showToast('✅ Pedido actualizado en la nube');
     await loadFromAPI();
   } catch (err) {
     showToast('❌ Error: ' + err.message, '#e74c3c');
@@ -1028,7 +1028,7 @@ async function showUploadPreview(data) {
   } catch(e) {}
 
   document.getElementById('btn-upload').disabled = false;
-  document.getElementById('btn-upload').textContent = '📥 Cargar a Google Sheets';
+  document.getElementById('btn-upload').textContent = '📥 Cargar pedido';
   document.getElementById('upload-overlay').classList.add('show');
 }
 
@@ -1070,12 +1070,12 @@ async function confirmUpload() {
     });
     if (!result.ok) throw new Error(result.error || 'Error al cargar');
     closeUpload();
-    showToast('Pedido cargado: ' + (result.added||0) + ' linea(s) agregadas a Google Sheets');
+    showToast('Pedido cargado: ' + (result.added||0) + ' linea(s) agregadas');
     await loadFromAPI();
   } catch (err) {
     showToast('Error: ' + err.message, '#e74c3c');
     btn.disabled = false;
-    btn.textContent = '📥 Cargar a Google Sheets';
+    btn.textContent = '📥 Cargar pedido';
   }
 }
 
@@ -1092,7 +1092,7 @@ function openDelete(idx) {
     'Cliente: <strong>' + (c.Cliente||'—') + '</strong><br>' +
     'Productos: ' + lines.length + ' línea(s) · Estado: ' + est + '<br>' +
     'Total: ' + fmtMoney(c.Total_Orden) + '<br><br>' +
-    '<span style="color:#e74c3c;font-weight:700">Se eliminarán todas las líneas de este pedido de Google Sheets.</span>';
+    '<span style="color:#e74c3c;font-weight:700">Se eliminarán todas las líneas de este pedido de la base de datos.</span>';
   document.getElementById('btn-del-confirm').disabled = false;
   document.getElementById('btn-del-confirm').textContent = '🗑️ Sí, eliminar';
   document.getElementById('delete-overlay').classList.add('show');

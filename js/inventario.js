@@ -133,8 +133,8 @@ async function loadInventario() {
 
     loadZone.style.display = 'none';
     mainEl.style.display = 'block';
-    setSyncStatus('ok', 'Conectado a Google Sheets. Última actualización: ' + new Date().toLocaleTimeString('es-CO'));
-    document.getElementById('hdr-status').textContent = '☁️ Google Sheets · ' + inventario.length + ' registros';
+    setSyncStatus('ok', 'Conectado a la nube. Última actualización: ' + new Date().toLocaleTimeString('es-CO'));
+    document.getElementById('hdr-status').textContent = '☁️ Supabase · ' + inventario.length + ' registros';
   } catch (err) {
     if (mainEl.style.display === 'block') {
       setSyncStatus('error', 'Error al actualizar: ' + err.message);
@@ -547,7 +547,7 @@ function openDeleteInv(idx, row) {
   document.getElementById('del-inv-detail').innerHTML =
     'Producto: <strong>' + (r.Producto||'—') + '</strong> · ' + (Number(r.Cantidad)||0).toLocaleString('es-CO') + ' uds<br>' +
     'Lote: ' + (r.Lote||'—') + ' · ' + fmtDate(r.Fecha) + '<br><br>' +
-    '<span style="color:#e74c3c;font-weight:700">Se eliminará este registro de Google Sheets.</span>';
+    '<span style="color:#e74c3c;font-weight:700">Se eliminará este registro de la base de datos.</span>';
   document.getElementById('btn-del-inv-confirm').disabled = false;
   document.getElementById('btn-del-inv-confirm').textContent = '🗑️ Sí, eliminar';
   document.getElementById('delete-inv-overlay').classList.add('show');

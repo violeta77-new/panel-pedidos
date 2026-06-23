@@ -100,8 +100,8 @@ async function loadDevoluciones() {
 
     loadZone.style.display = 'none';
     mainEl.style.display = 'block';
-    setSyncStatus('ok', 'Conectado a Google Sheets. Última actualización: ' + new Date().toLocaleTimeString('es-CO'));
-    document.getElementById('hdr-status').textContent = '☁️ Google Sheets · ' + devoluciones.length + ' registros';
+    setSyncStatus('ok', 'Conectado a la nube. Última actualización: ' + new Date().toLocaleTimeString('es-CO'));
+    document.getElementById('hdr-status').textContent = '☁️ Supabase · ' + devoluciones.length + ' registros';
   } catch (err) {
     if (mainEl.style.display === 'block') {
       setSyncStatus('error', 'Error al actualizar: ' + err.message);
@@ -664,7 +664,7 @@ async function saveDevolucion() {
       });
       if (!result.ok) throw new Error(result.error || 'Error al guardar');
       closeDevModal();
-      showToast('✅ Devolución actualizada en Google Sheets');
+      showToast('✅ Devolución actualizada en la nube');
       await loadDevoluciones();
     } catch (err) {
       showToast('❌ Error: ' + err.message, '#e74c3c');
@@ -692,7 +692,7 @@ async function saveDevolucion() {
     });
     if (!result.ok) throw new Error(result.error || 'Error al guardar');
     closeDevModal();
-    showToast('✅ ' + result.added + ' línea(s) registradas en Google Sheets');
+    showToast('✅ ' + result.added + ' línea(s) registradas en la nube');
     await loadDevoluciones();
   } catch (err) {
     showToast('❌ Error: ' + err.message, '#e74c3c');
@@ -712,7 +712,7 @@ function openDeleteDev(idx, row) {
   document.getElementById('del-dev-detail').innerHTML =
     'Cliente: <strong>' + (r.Cliente||'—') + '</strong> · Producto: <strong>' + (r.Producto||'—') + '</strong><br>' +
     'Valor: ' + fmtMoney(r.Valor_Total) + ' · ' + fmtDate(r.Fecha) + '<br><br>' +
-    '<span style="color:#e74c3c;font-weight:700">Se eliminará este registro de Google Sheets.</span>';
+    '<span style="color:#e74c3c;font-weight:700">Se eliminará este registro de la base de datos.</span>';
   document.getElementById('btn-del-dev-confirm').disabled = false;
   document.getElementById('btn-del-dev-confirm').textContent = '🗑️ Sí, eliminar';
   document.getElementById('delete-dev-overlay').classList.add('show');

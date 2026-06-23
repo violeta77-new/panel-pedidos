@@ -72,8 +72,8 @@ async function loadReportes() {
 
     loadZone.style.display = 'none';
     mainEl.style.display = 'block';
-    setSyncStatus('ok', 'Conectado a Google Sheets. Última actualización: ' + new Date().toLocaleTimeString('es-CO'));
-    document.getElementById('hdr-status').textContent = '☁️ Google Sheets · ' + pedidos.length + ' líneas';
+    setSyncStatus('ok', 'Conectado a la nube. Última actualización: ' + new Date().toLocaleTimeString('es-CO'));
+    document.getElementById('hdr-status').textContent = '☁️ Supabase · ' + pedidos.length + ' líneas';
   } catch (err) {
     if (mainEl.style.display === 'block') {
       setSyncStatus('error', 'Error al actualizar: ' + err.message);
@@ -317,7 +317,7 @@ function switchTab(tab) {
 
 // ── Remisiones report ──
 var remData = [];
-var remSort = { col: 'empresa', dir: 'asc' };
+var remSortLevels = [{ col: 'empresa', dir: 'asc' }];
 
 function _addRemision(map, key, empresa, numRem, modulo, referencia, detalle, cantidad, fecha) {
   if (!map[key]) {
@@ -340,6 +340,11 @@ function _addRemision(map, key, empresa, numRem, modulo, referencia, detalle, ca
 }
 
 function buildRemisiones() {
+  try { _buildRemisionesInner(); } catch(err) {
+    document.getElementById('rem-body').innerHTML = '<tr><td colspan="7"><div class="empty-msg">Error: ' + err.message + '</div></td></tr>';
+  }
+}
+function _buildRemisionesInner() {
   var fEmp = document.getElementById('rf-emp').value;
   var fTxt = document.getElementById('rf-txt').value.toLowerCase();
 
@@ -410,24 +415,36 @@ function buildRemisiones() {
   renderRemTable();
 }
 
-function toggleRemSort(col) {
-  if (remSort.col === col) {
-    remSort.dir = remSort.dir === 'asc' ? 'desc' : 'asc';
+function toggleRemSort(col, e) {
+  var shift = e && e.shiftKey;
+  var idx = remSortLevels.findIndex(function(l) { return l.col === col; });
+  if (shift) {
+    if (idx >= 0) { remSortLevels.splice(idx, 1); }
+    else { remSortLevels.push({ col: col, dir: col === 'cantidad' || col === 'numDetalles' ? 'desc' : 'asc' }); }
   } else {
-    remSort.col = col;
-    remSort.dir = col === 'cantEntregada' || col === 'numProductos' || col === 'numOrdenes' ? 'desc' : 'asc';
+    if (idx >= 0) {
+      if (remSortLevels[idx].dir === 'asc') remSortLevels[idx].dir = 'desc';
+      else remSortLevels.splice(idx, 1);
+    } else {
+      remSortLevels = [{ col: col, dir: col === 'cantidad' || col === 'numDetalles' ? 'desc' : 'asc' }];
+    }
   }
   renderRemTable();
 }
 
 function sortedRemData() {
-  var col = remSort.col;
-  var dir = remSort.dir;
+  if (!remSortLevels.length) return [].concat(remData);
   return [].concat(remData).sort(function(a, b) {
-    var va = a[col], vb = b[col];
-    if (va === undefined) { va = ''; vb = ''; }
-    var cmp = typeof va === 'string' ? va.localeCompare(vb, 'es') : va - vb;
-    return dir === 'asc' ? cmp : -cmp;
+    for (var s = 0; s < remSortLevels.length; s++) {
+      var col = remSortLevels[s].col;
+      var dir = remSortLevels[s].dir;
+      var va = a[col], vb = b[col];
+      if (va === undefined) va = '';
+      if (vb === undefined) vb = '';
+      var cmp = typeof va === 'string' ? va.localeCompare(vb, 'es') : va - vb;
+      if (cmp !== 0) return dir === 'asc' ? cmp : -cmp;
+    }
+    return 0;
   });
 }
 
@@ -444,8 +461,10 @@ function renderRemTable() {
   ];
 
   document.getElementById('rem-head').innerHTML = cols.map(function(c) {
-    var cls = remSort.col === c.id ? (remSort.dir === 'asc' ? 'sort-asc' : 'sort-desc') : '';
-    return '<th class="' + cls + '" onclick="toggleRemSort(\'' + c.id + '\')">' + c.label + '</th>';
+    var idx = remSortLevels.findIndex(function(l) { return l.col === c.id; });
+    var cls = idx >= 0 ? (remSortLevels[idx].dir === 'asc' ? 'sort-asc' : 'sort-desc') : '';
+    var badge = idx >= 0 && remSortLevels.length > 1 ? '<span style="font-size:0.6rem;vertical-align:super;color:#2980b9">' + (idx+1) + '</span>' : '';
+    return '<th class="' + cls + '" onclick="toggleRemSort(\'' + c.id + '\', event)">' + c.label + badge + '</th>';
   }).join('');
 
   document.getElementById('rem-count').textContent = '(' + remData.length + ' remisiones)';

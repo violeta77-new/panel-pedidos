@@ -94,8 +94,8 @@ async function loadIngresos() {
 
     loadZone.style.display = 'none';
     mainEl.style.display = 'block';
-    setSyncStatus('ok', 'Conectado a Google Sheets. Última actualización: ' + new Date().toLocaleTimeString('es-CO'));
-    document.getElementById('hdr-status').textContent = '☁️ Google Sheets · ' + ingresos.length + ' registros';
+    setSyncStatus('ok', 'Conectado a la nube. Última actualización: ' + new Date().toLocaleTimeString('es-CO'));
+    document.getElementById('hdr-status').textContent = '☁️ Supabase · ' + ingresos.length + ' registros';
   } catch (err) {
     if (mainEl.style.display === 'block') {
       setSyncStatus('error', 'Error al actualizar: ' + err.message);
@@ -471,7 +471,7 @@ async function saveIngreso() {
       });
       if (!result.ok) throw new Error(result.error || 'Error al guardar');
       closeIngModal();
-      showToast('✅ Ingreso actualizado en Google Sheets');
+      showToast('✅ Ingreso actualizado en la nube');
       await loadIngresos();
     } catch (err) {
       showToast('❌ Error: ' + err.message, '#e74c3c');
@@ -497,7 +497,7 @@ async function saveIngreso() {
     });
     if (!result.ok) throw new Error(result.error || 'Error al guardar');
     closeIngModal();
-    showToast('✅ ' + result.added + ' línea(s) registradas en Google Sheets');
+    showToast('✅ ' + result.added + ' línea(s) registradas en la nube');
     await loadIngresos();
   } catch (err) {
     showToast('❌ Error: ' + err.message, '#e74c3c');
@@ -517,7 +517,7 @@ function openDeleteIng(idx, row) {
   document.getElementById('del-ing-detail').innerHTML =
     'Producto: <strong>' + (r.Producto||'—') + '</strong> · ' + (r.Cantidad||0) + ' uds<br>' +
     'Origen: ' + (r.Origen||'—') + ' · Rem: ' + (r.Remision_Origen||'—') + '/' + (r.Remision_Destino||'—') + ' · ' + fmtDate(r.Fecha) + '<br><br>' +
-    '<span style="color:#e74c3c;font-weight:700">Se eliminará este registro de Google Sheets.</span>';
+    '<span style="color:#e74c3c;font-weight:700">Se eliminará este registro de la base de datos.</span>';
   document.getElementById('btn-del-ing-confirm').disabled = false;
   document.getElementById('btn-del-ing-confirm').textContent = '🗑️ Sí, eliminar';
   document.getElementById('delete-ing-overlay').classList.add('show');

@@ -34,7 +34,7 @@
 <!-- LOAD ZONE -->
 <div id="load-zone">
   <div class="spinner" id="load-spinner"></div>
-  <h2>Conectando con Google Sheets...</h2>
+  <h2>Conectando con la nube...</h2>
   <p>Cargando datos de inventario desde la nube</p>
   <div id="load-error"></div>
   <button class="btn-retry" id="btn-retry" style="display:none" onclick="loadInventario()">Reintentar</button>
@@ -45,7 +45,7 @@
 
   <div id="sync-status">
     <span id="sync-icon">☁️</span>
-    <span id="sync-msg">Conectado a Google Sheets. Los cambios se guardan directamente en la nube.</span>
+    <span id="sync-msg">Conectado a la nube. Los cambios se guardan automáticamente.</span>
   </div>
 
   <div class="stats">
@@ -209,7 +209,7 @@
       </div>
     </div>
     <div class="mftr">
-      <div style="font-size:0.8rem;color:#718096">Los datos se guardan directamente en Google Sheets</div>
+      <div style="font-size:0.8rem;color:#718096">Los datos se guardan directamente en la nube</div>
       <div class="mftr-btns">
         <button class="btn-cancel" onclick="closeInvModal()">Cancelar</button>
         <button class="btn-confirm" id="btn-save-inv" onclick="saveInventario()" style="background:#8e44ad">✓ Registrar inventario</button>
@@ -292,6 +292,7 @@
 <div class="toast" id="toast"></div>
 
 <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="js/shared.js"></script>
 <script src="js/inventario.js"></script>
 </body>
