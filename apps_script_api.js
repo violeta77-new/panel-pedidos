@@ -12,6 +12,7 @@ function doGet(e) {
   if (action === 'getMaestroProductos') return respond(getMaestroProductos());
   if (action === 'getClientesUnicos') return respond(getClientesUnicos());
   if (action === 'getInventario') return respond(getInventario());
+  if (action === 'getOrdenesCompra') return respond(getOrdenesCompra());
   if (action === 'repararEncabezados') return respond(repararEncabezados());
   return respond({ error: 'Accion no reconocida' });
 }
@@ -31,10 +32,13 @@ function doPost(e) {
     if (action === 'agregarDevolucion')  return respond(agregarDevolucion(body));
     if (action === 'editarDevolucion')   return respond(editarDevolucion(body));
     if (action === 'eliminarDevolucion') return respond(eliminarDevolucion(body));
-    if (action === 'agregarInventario')  return respond(agregarInventario(body));
-    if (action === 'editarInventario')   return respond(editarInventario(body));
-    if (action === 'eliminarInventario') return respond(eliminarInventario(body));
-    if (action === 'repararEncabezados') return respond(repararEncabezados());
+    if (action === 'agregarInventario')    return respond(agregarInventario(body));
+    if (action === 'editarInventario')     return respond(editarInventario(body));
+    if (action === 'eliminarInventario')   return respond(eliminarInventario(body));
+    if (action === 'agregarOrdenCompra')   return respond(agregarOrdenCompra(body));
+    if (action === 'editarOrdenCompra')    return respond(editarOrdenCompra(body));
+    if (action === 'eliminarOrdenCompra')  return respond(eliminarOrdenCompra(body));
+    if (action === 'repararEncabezados')   return respond(repararEncabezados());
     return respond({ error: 'Accion POST no reconocida' });
   } catch (err) {
     return respond({ error: err.message });
@@ -929,6 +933,126 @@ function editarInventario(body) {
 
 function eliminarInventario(body) {
   var ws = _getOrCreateInventarioSheet();
+  var row = Number(body.row);
+  if (!row || row < 2) return { ok: false, error: 'Fila inválida' };
+  ws.deleteRow(row);
+  return { ok: true, deleted: 1 };
+}
+
+// ══════════════════════════════════════════════════════════════
+// MÓDULO: ÓRDENES DE COMPRA
+// ══════════════════════════════════════════════════════════════
+
+var OC_HEADERS = ['Fecha','Empresa_Destino','Empresa_Origen','Consecutivo','Direccion','Bodega','Municipio','Producto','Presentacion','Cantidad','Valor_Unitario','Valor_Total','Total_Orden','Observaciones','Estado','Fecha_Registro'];
+
+function _getOrCreateOCSheet() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var ws = ss.getSheetByName('OrdenesCompra');
+  if (!ws) {
+    ws = ss.insertSheet('OrdenesCompra');
+    ws.appendRow(OC_HEADERS);
+    ws.getRange(1, 1, 1, OC_HEADERS.length).setFontWeight('bold');
+  }
+  var firstCell = String(ws.getRange(1, 1).getValue()).trim();
+  if (firstCell !== 'Fecha') {
+    ws.insertRowBefore(1);
+    for (var h = 0; h < OC_HEADERS.length; h++) {
+      ws.getRange(1, h + 1).setValue(OC_HEADERS[h]);
+    }
+    ws.getRange(1, 1, 1, OC_HEADERS.length).setFontWeight('bold');
+  }
+  return ws;
+}
+
+function getOrdenesCompra() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var ws = _getOrCreateOCSheet();
+  var data = ws.getDataRange().getValues();
+  var rows = [];
+  for (var i = 1; i < data.length; i++) {
+    var obj = {};
+    for (var j = 0; j < OC_HEADERS.length; j++) {
+      var val = (j < data[i].length) ? data[i][j] : '';
+      if (val instanceof Date) {
+        val = Utilities.formatDate(val, ss.getSpreadsheetTimeZone(), 'yyyy-MM-dd');
+      }
+      obj[OC_HEADERS[j]] = val;
+    }
+    obj.__row = i + 1;
+    rows.push(obj);
+  }
+  return { ok: true, ordenes: rows };
+}
+
+function agregarOrdenCompra(body) {
+  var ws = _getOrCreateOCSheet();
+  var now = Utilities.formatDate(new Date(), SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone(), 'yyyy-MM-dd HH:mm:ss');
+  var lineas = body.lineas || [];
+  if (!lineas.length && body.Producto) {
+    lineas = [{ Producto: body.Producto, Presentacion: body.Presentacion, Cantidad: body.Cantidad, Valor_Unitario: body.Valor_Unitario, Valor_Total: body.Valor_Total }];
+  }
+  var added = 0;
+  for (var i = 0; i < lineas.length; i++) {
+    var lin = lineas[i];
+    var cant = Number(lin.Cantidad) || 0;
+    var vUnit = Number(lin.Valor_Unitario) || 0;
+    var vTotal = Number(lin.Valor_Total) || (cant * vUnit);
+    ws.appendRow([
+      body.Fecha || '',
+      body.Empresa_Destino || '',
+      body.Empresa_Origen || '',
+      body.Consecutivo || '',
+      body.Direccion || '',
+      body.Bodega || '',
+      body.Municipio || '',
+      lin.Producto || '',
+      lin.Presentacion || '',
+      cant,
+      vUnit,
+      vTotal,
+      Number(body.Total_Orden) || 0,
+      body.Observaciones || '',
+      body.Estado || 'Abierta',
+      now
+    ]);
+    added++;
+  }
+  return { ok: true, added: added };
+}
+
+function editarOrdenCompra(body) {
+  var ws = _getOrCreateOCSheet();
+  var row = Number(body.row);
+  if (!row || row < 2) return { ok: false, error: 'Fila inválida' };
+
+  var cant = Number(body.Cantidad) || 0;
+  var vUnit = Number(body.Valor_Unitario) || 0;
+  var vTotal = Number(body.Valor_Total) || (cant * vUnit);
+  var vals = [
+    body.Fecha || '',
+    body.Empresa_Destino || '',
+    body.Empresa_Origen || '',
+    body.Consecutivo || '',
+    body.Direccion || '',
+    body.Bodega || '',
+    body.Municipio || '',
+    body.Producto || '',
+    body.Presentacion || '',
+    cant,
+    vUnit,
+    vTotal,
+    Number(body.Total_Orden) || 0,
+    body.Observaciones || '',
+    body.Estado || 'Abierta'
+  ];
+  for (var i = 0; i < vals.length; i++) {
+    ws.getRange(row, i + 1).setValue(vals[i]);
+  }
+  return { ok: true, updated: 1 };
+}
+
+function eliminarOrdenCompra(body) {
+  var ws = _getOrCreateOCSheet();
   var row = Number(body.row);
   if (!row || row < 2) return { ok: false, error: 'Fila inválida' };
   ws.deleteRow(row);
