@@ -192,6 +192,7 @@ function buildReport() {
   document.getElementById('st-clientes').textContent = Object.keys(clientesSet).filter(Boolean).length;
 
   renderRptTable();
+  if (document.getElementById('panel-remisiones').style.display !== 'none') buildRemisiones();
 }
 
 // ── Sort ──
@@ -294,6 +295,171 @@ function exportCSV() {
   a.click();
   URL.revokeObjectURL(url);
   showToast('CSV exportado: ' + rows.length + ' productos');
+}
+
+// ── Tabs ──
+function switchTab(tab) {
+  document.getElementById('panel-pendientes').style.display = tab === 'pendientes' ? 'block' : 'none';
+  document.getElementById('panel-remisiones').style.display = tab === 'remisiones' ? 'block' : 'none';
+  document.getElementById('tab-pendientes').style.background = tab === 'pendientes' ? '#1a5276' : '#718096';
+  document.getElementById('tab-remisiones').style.background = tab === 'remisiones' ? '#1a5276' : '#718096';
+  if (tab === 'remisiones') buildRemisiones();
+}
+
+// ── Remisiones report ──
+var remData = [];
+var remSort = { col: 'empresa', dir: 'asc' };
+
+function buildRemisiones() {
+  var fEmp = document.getElementById('rf-emp').value;
+  var fTxt = document.getElementById('rf-txt').value.toLowerCase();
+
+  var map = {};
+  var empresasSet = {};
+  var ordenesSet = {};
+  var totalLineas = 0;
+
+  pedidos.forEach(function(p) {
+    var rem = (p.Remisiones || '').trim();
+    if (!rem) return;
+    if (fEmp && p.Nombre_Empresa !== fEmp) return;
+
+    var empNombre = p.Nombre_Empresa || '';
+    var empSigla = getSigla(empNombre);
+    var consec = p.Consecutivo || '';
+
+    var nums = rem.split(/[,;\/]+/).map(function(r) { return r.trim(); }).filter(Boolean);
+    nums.forEach(function(numRem) {
+      if (fTxt && numRem.toLowerCase().indexOf(fTxt) < 0 && empSigla.toLowerCase().indexOf(fTxt) < 0 && (p.Cliente || '').toLowerCase().indexOf(fTxt) < 0) return;
+
+      var key = empNombre + '||' + numRem;
+      if (!map[key]) {
+        map[key] = {
+          empresa: empSigla,
+          empresaFull: empNombre,
+          remision: numRem,
+          ordenes: {},
+          clientes: {},
+          productos: [],
+          cantEntregada: 0,
+          fechas: []
+        };
+      }
+      var row = map[key];
+      row.ordenes[consec] = true;
+      row.clientes[p.Cliente || '—'] = true;
+      row.productos.push((p.Producto || '') + ' (' + (p.Presentacion || '') + ')');
+      row.cantEntregada += Number(p.Cant_Entregada) || 0;
+      if (p.Fecha_Ult_Entrega) row.fechas.push(p.Fecha_Ult_Entrega);
+
+      empresasSet[empSigla] = true;
+      ordenesSet[empNombre + '||' + consec] = true;
+      totalLineas++;
+    });
+  });
+
+  remData = Object.values(map).map(function(r) {
+    r.numOrdenes = Object.keys(r.ordenes).length;
+    r.ordenesStr = Object.keys(r.ordenes).join(', ');
+    r.clientesStr = Object.keys(r.clientes).join(', ');
+    r.numProductos = r.productos.length;
+    r.fecha = r.fechas.length ? r.fechas.sort().pop() : '';
+    return r;
+  });
+
+  document.getElementById('st-rem-total').textContent = remData.length;
+  document.getElementById('st-rem-empresas').textContent = Object.keys(empresasSet).length;
+  document.getElementById('st-rem-ordenes').textContent = Object.keys(ordenesSet).length;
+  document.getElementById('st-rem-lineas').textContent = totalLineas;
+
+  renderRemTable();
+}
+
+function toggleRemSort(col) {
+  if (remSort.col === col) {
+    remSort.dir = remSort.dir === 'asc' ? 'desc' : 'asc';
+  } else {
+    remSort.col = col;
+    remSort.dir = col === 'cantEntregada' || col === 'numProductos' || col === 'numOrdenes' ? 'desc' : 'asc';
+  }
+  renderRemTable();
+}
+
+function sortedRemData() {
+  var col = remSort.col;
+  var dir = remSort.dir;
+  return [].concat(remData).sort(function(a, b) {
+    var va = a[col], vb = b[col];
+    if (va === undefined) { va = ''; vb = ''; }
+    var cmp = typeof va === 'string' ? va.localeCompare(vb, 'es') : va - vb;
+    return dir === 'asc' ? cmp : -cmp;
+  });
+}
+
+function renderRemTable() {
+  var cols = [
+    { id: 'empresa', label: 'Empresa' },
+    { id: 'remision', label: 'N° Remisión' },
+    { id: 'ordenesStr', label: 'Orden(es)' },
+    { id: 'clientesStr', label: 'Cliente(s)' },
+    { id: 'numProductos', label: 'Productos' },
+    { id: 'cantEntregada', label: 'Cant. Entregada' },
+    { id: 'fecha', label: 'Fecha' },
+  ];
+
+  document.getElementById('rem-head').innerHTML = cols.map(function(c) {
+    var cls = remSort.col === c.id ? (remSort.dir === 'asc' ? 'sort-asc' : 'sort-desc') : '';
+    return '<th class="' + cls + '" onclick="toggleRemSort(\'' + c.id + '\')">' + c.label + '</th>';
+  }).join('');
+
+  document.getElementById('rem-count').textContent = '(' + remData.length + ' remisiones)';
+
+  var rows = sortedRemData();
+  var tbody = document.getElementById('rem-body');
+
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="7"><div class="empty-msg">No hay remisiones registradas con los filtros seleccionados.</div></td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = rows.map(function(r) {
+    return '<tr>' +
+      '<td><span class="badge-emp" style="background:#ebf5fb;color:#1a5276">' + r.empresa + '</span></td>' +
+      '<td style="font-weight:700;color:#2c3e50">' + r.remision + '</td>' +
+      '<td style="font-size:0.8rem">' + r.ordenesStr + '</td>' +
+      '<td style="font-size:0.8rem">' + r.clientesStr + '</td>' +
+      '<td class="center">' + r.numProductos + '</td>' +
+      '<td class="money" style="color:#27ae60;font-weight:600">' + r.cantEntregada.toLocaleString('es-CO') + '</td>' +
+      '<td style="font-size:0.8rem;color:#718096">' + (r.fecha ? fmtDate(r.fecha) : '—') + '</td>' +
+    '</tr>';
+  }).join('');
+}
+
+function exportRemCSV() {
+  var rows = sortedRemData();
+  if (!rows.length) { showToast('No hay datos para exportar', '#e74c3c'); return; }
+
+  var lines = ['Empresa,Remision,Ordenes,Clientes,Productos,Cant_Entregada,Fecha'];
+  rows.forEach(function(r) {
+    lines.push([
+      '"' + r.empresa + '"',
+      '"' + r.remision + '"',
+      '"' + r.ordenesStr.replace(/"/g,'""') + '"',
+      '"' + r.clientesStr.replace(/"/g,'""') + '"',
+      r.numProductos,
+      r.cantEntregada,
+      '"' + (r.fecha || '') + '"'
+    ].join(','));
+  });
+
+  var blob = new Blob(['﻿' + lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = 'remisiones_' + today() + '.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('CSV exportado: ' + rows.length + ' remisiones');
 }
 
 // ── Init ──

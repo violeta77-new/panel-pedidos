@@ -90,18 +90,49 @@
     <button onclick="clearRptFilters()" style="margin-left:auto;background:none;border:1px solid #cbd5e0;color:#4a5568;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:0.82rem;font-weight:600">✕ Limpiar</button>
   </div>
 
-  <div class="rpt-card">
-    <div class="rpt-card-head">
-      <h3>📦 Productos pendientes por entregar <span id="rpt-count" style="font-weight:400;color:#718096"></span></h3>
-      <button class="btn-export" onclick="exportCSV()">📥 Exportar CSV</button>
+  <!-- Tabs -->
+  <div style="display:flex;gap:8px;margin-bottom:16px">
+    <button class="btn-export" id="tab-pendientes" onclick="switchTab('pendientes')" style="background:#1a5276">📦 Productos pendientes</button>
+    <button class="btn-export" id="tab-remisiones" onclick="switchTab('remisiones')" style="background:#718096">📄 Remisiones por empresa</button>
+  </div>
+
+  <div id="panel-pendientes">
+    <div class="rpt-card">
+      <div class="rpt-card-head">
+        <h3>📦 Productos pendientes por entregar <span id="rpt-count" style="font-weight:400;color:#718096"></span></h3>
+        <button class="btn-export" onclick="exportCSV()">📥 Exportar CSV</button>
+      </div>
+      <div style="overflow-x:auto">
+        <table class="rpt-table">
+          <thead>
+            <tr id="rpt-head"></tr>
+          </thead>
+          <tbody id="rpt-body"></tbody>
+        </table>
+      </div>
     </div>
-    <div style="overflow-x:auto">
-      <table class="rpt-table">
-        <thead>
-          <tr id="rpt-head"></tr>
-        </thead>
-        <tbody id="rpt-body"></tbody>
-      </table>
+  </div>
+
+  <div id="panel-remisiones" style="display:none">
+    <div class="rpt-stats" id="rem-stats">
+      <div class="rpt-stat" style="border-left-color:#2c3e50"><div class="num" id="st-rem-total">0</div><div class="lbl">Remisiones</div></div>
+      <div class="rpt-stat" style="border-left-color:#8e44ad"><div class="num" id="st-rem-empresas">0</div><div class="lbl">Empresas</div></div>
+      <div class="rpt-stat" style="border-left-color:#2980b9"><div class="num" id="st-rem-ordenes">0</div><div class="lbl">Órdenes con remisión</div></div>
+      <div class="rpt-stat" style="border-left-color:#27ae60"><div class="num" id="st-rem-lineas">0</div><div class="lbl">Líneas entregadas</div></div>
+    </div>
+    <div class="rpt-card">
+      <div class="rpt-card-head">
+        <h3>📄 Remisiones por empresa <span id="rem-count" style="font-weight:400;color:#718096"></span></h3>
+        <button class="btn-export" onclick="exportRemCSV()">📥 Exportar CSV</button>
+      </div>
+      <div style="overflow-x:auto">
+        <table class="rpt-table">
+          <thead>
+            <tr id="rem-head"></tr>
+          </thead>
+          <tbody id="rem-body"></tbody>
+        </table>
+      </div>
     </div>
   </div>
 
