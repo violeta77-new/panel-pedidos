@@ -943,7 +943,7 @@ function eliminarInventario(body) {
 // MÓDULO: ÓRDENES DE COMPRA
 // ══════════════════════════════════════════════════════════════
 
-var OC_HEADERS = ['Fecha','Empresa_Destino','Empresa_Origen','Consecutivo','Direccion','Bodega','Municipio','Producto','Presentacion','Cantidad','Valor_Unitario','Valor_Total','Total_Orden','Observaciones','Estado','Fecha_Registro'];
+var OC_HEADERS = ['Fecha','Empresa_Destino','Empresa_Origen','Consecutivo','Direccion','Bodega','Municipio','Producto','Presentacion','Cantidad','Valor_Unitario','Valor_Total','Total_Orden','Observaciones','Estado','Fecha_Registro','Remision'];
 
 function _getOrCreateOCSheet() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -1013,7 +1013,8 @@ function agregarOrdenCompra(body) {
       Number(body.Total_Orden) || 0,
       body.Observaciones || '',
       body.Estado || 'Abierta',
-      now
+      now,
+      body.Remision || ''
     ]);
     added++;
   }
@@ -1047,6 +1048,9 @@ function editarOrdenCompra(body) {
   ];
   for (var i = 0; i < vals.length; i++) {
     ws.getRange(row, i + 1).setValue(vals[i]);
+  }
+  if (body.Remision !== undefined) {
+    ws.getRange(row, 17).setValue(body.Remision || '');
   }
   return { ok: true, updated: 1 };
 }

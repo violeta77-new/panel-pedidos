@@ -178,6 +178,7 @@ function renderOCHeader() {
     { label:'Cantidad', id:'cantidad' },
     { label:'Valor Unit.', id:null },
     { label:'Valor Total', id:'valor_total' },
+    { label:'Remisión', id:null },
     { label:'Estado', id:'estado' },
     { label:'Acción', id:null },
   ];
@@ -219,7 +220,7 @@ function renderOCTable() {
 
   var tbody = document.getElementById('t-body-oc');
   if (!rows.length) {
-    tbody.innerHTML = '<tr><td colspan="12"><div class="empty">No hay órdenes de compra con los filtros seleccionados.</div></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="13"><div class="empty">No hay órdenes de compra con los filtros seleccionados.</div></td></tr>';
     return;
   }
 
@@ -235,6 +236,7 @@ function renderOCTable() {
       '<td style="text-align:center;font-weight:700">' + (r.Cantidad||0) + '</td>' +
       '<td style="text-align:right;font-size:0.82rem">' + fmtMoney(r.Valor_Unitario) + '</td>' +
       '<td style="text-align:right;font-weight:700;font-size:0.82rem">' + fmtMoney(r.Valor_Total) + '</td>' +
+      '<td style="font-size:0.78rem;color:#4a5568">' + (r.Remision || '—') + '</td>' +
       '<td>' + estadoBadge(r.Estado) + '</td>' +
       '<td><div style="display:flex;gap:6px;align-items:center">' +
         '<button class="btn-edit" onclick="openEditOC(' + r.__row + ')" title="Editar">✏️</button>' +
@@ -522,6 +524,7 @@ function openNewOC() {
   document.getElementById('oc-direccion').value = '';
   document.getElementById('oc-bodega').value = '';
   document.getElementById('oc-municipio').value = '';
+  document.getElementById('oc-remision').value = '';
   document.getElementById('oc-estado').value = 'Abierta';
   document.getElementById('oc-observaciones').value = '';
   document.getElementById('btn-save-oc').disabled = false;
@@ -544,6 +547,13 @@ function closeOCModal() {
 
 document.getElementById('oc-overlay').addEventListener('click', function(e) { if (isBackdropClick(e)) closeOCModal(); });
 
+function onOCRemisionChange() {
+  var rem = document.getElementById('oc-remision').value.trim();
+  if (rem) {
+    document.getElementById('oc-estado').value = 'Cerrada';
+  }
+}
+
 // ── Edit OC ──
 function openEditOC(row) {
   var r = null;
@@ -560,6 +570,7 @@ function openEditOC(row) {
   document.getElementById('oc-direccion').value = r.Direccion || '';
   document.getElementById('oc-bodega').value = r.Bodega || '';
   document.getElementById('oc-municipio').value = r.Municipio || '';
+  document.getElementById('oc-remision').value = r.Remision || '';
   document.getElementById('oc-estado').value = r.Estado || 'Abierta';
   document.getElementById('oc-observaciones').value = r.Observaciones || '';
   document.getElementById('btn-save-oc').disabled = false;
@@ -586,6 +597,7 @@ async function saveOC() {
   var direccion = document.getElementById('oc-direccion').value.trim();
   var bodega = document.getElementById('oc-bodega').value.trim();
   var municipio = document.getElementById('oc-municipio').value.trim();
+  var remision = document.getElementById('oc-remision').value.trim();
   var estado = document.getElementById('oc-estado').value;
   var observaciones = document.getElementById('oc-observaciones').value.trim();
 
@@ -614,7 +626,7 @@ async function saveOC() {
         Consecutivo: consecutivo, Direccion: direccion, Bodega: bodega, Municipio: municipio,
         Producto: prod, Presentacion: pres, Cantidad: cant,
         Valor_Unitario: vunit, Valor_Total: vtotal || (cant * vunit),
-        Total_Orden: '', Observaciones: observaciones, Estado: estado,
+        Total_Orden: '', Observaciones: observaciones, Estado: estado, Remision: remision,
       });
       if (!result.ok) throw new Error(result.error || 'Error al guardar');
       closeOCModal();
@@ -642,7 +654,7 @@ async function saveOC() {
       action: 'agregarOrdenCompra',
       Fecha: fecha, Empresa_Destino: empresa_destino, Empresa_Origen: empresa_origen,
       Consecutivo: consecutivo, Direccion: direccion, Bodega: bodega, Municipio: municipio,
-      Total_Orden: totalOrden, Observaciones: observaciones, Estado: estado,
+      Total_Orden: totalOrden, Observaciones: observaciones, Estado: estado, Remision: remision,
       lineas: validLines,
     });
     if (!result.ok) throw new Error(result.error || 'Error al guardar');
