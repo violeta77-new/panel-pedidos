@@ -434,36 +434,101 @@ function closeModal() {
 
 document.getElementById('overlay').addEventListener('click', function(e) { if (isBackdropClick(e)) closeModal(); });
 
-// ── Confirm deliveries ──
-async function confirmarEntregas() {
+// ── Detail line helpers ──
+function updateDetailLine(i) {
+  var cants = document.querySelectorAll('.md-cant');
+  var vunis = document.querySelectorAll('.md-vuni');
+  var cant = parseFloat(cants[i] && cants[i].value) || 0;
+  var vuni = parseFloat(vunis[i] && vunis[i].value) || 0;
+  var vtot = cant * vuni;
+  var vtotEl = document.getElementById('md-vtot-' + i);
+  if (vtotEl) vtotEl.textContent = fmtMoney(vtot);
+  if (detailWorkingLines[i]) {
+    detailWorkingLines[i].Cantidad = cant;
+    detailWorkingLines[i].Valor_Unitario = vuni;
+    detailWorkingLines[i].Valor_Total = vtot;
+  }
+  var entregada = Number(detailWorkingLines[i] && detailWorkingLines[i].Cant_Entregada) || 0;
+  var pendiente = Math.max(0, cant - entregada);
+  var pendEl = document.getElementById('md-pend-' + i);
+  if (pendEl) {
+    pendEl.textContent = pendiente;
+    pendEl.className = 'pend-tag ' + (pendiente > 0 ? 'pend' : 'ok');
+  }
+  updateDetailTotal();
+}
+
+function updateDeliveryMax(i) {
+  var qtyInput = document.querySelectorAll('.qty-input')[i];
+  if (!qtyInput || !detailWorkingLines[i]) return;
+  var cant = Number(detailWorkingLines[i].Cantidad) || 0;
+  var entregada = Number(detailWorkingLines[i].Cant_Entregada) || 0;
+  var pendiente = Math.max(0, cant - entregada);
+  var val = Number(qtyInput.value) || 0;
+  if (val > pendiente) {
+    qtyInput.value = pendiente;
+    qtyInput.classList.add('error');
+  } else {
+    qtyInput.classList.remove('error');
+  }
+}
+
+function updateDetailTotal() {
+  var total = detailWorkingLines.reduce(function(s, l) { return s + (Number(l.Valor_Total)||0); }, 0);
+  document.getElementById('m-total').textContent = fmtMoney(total);
+}
+
+// ── Save all changes (edits + deliveries) ──
+async function guardarTodo() {
+  if (activeIdx === null) return;
+  var c = consecs[activeIdx];
+
+  var prods = [].slice.call(document.querySelectorAll('.md-prod'));
+  var press = [].slice.call(document.querySelectorAll('.md-pres'));
+  var cants = [].slice.call(document.querySelectorAll('.md-cant'));
+  var vunis = [].slice.call(document.querySelectorAll('.md-vuni'));
+  detailWorkingLines.forEach(function(l, i) {
+    l.Producto = prods[i] ? prods[i].value.trim() : l.Producto;
+    l.Presentacion = press[i] ? press[i].value.trim() : l.Presentacion;
+    l.Cantidad = Number(cants[i] && cants[i].value) || 0;
+    l.Valor_Unitario = Number(vunis[i] && vunis[i].value) || 0;
+    l.Valor_Total = l.Cantidad * l.Valor_Unitario;
+    l.Cant_Pendiente = Math.max(0, l.Cantidad - (Number(l.Cant_Entregada)||0));
+  });
+
+  var hdr = {
+    Cliente: document.getElementById('md-cliente').value.trim(),
+    NIT: document.getElementById('md-nit').value.trim(),
+    Fecha_Pedido: document.getElementById('md-fecha-pedido').value || null,
+    Comercial: document.getElementById('md-comercial').value.trim(),
+    Municipio: document.getElementById('md-municipio').value.trim(),
+    Departamento: document.getElementById('md-departamento').value.trim(),
+    Telefono: document.getElementById('md-telefono').value.trim(),
+    Plazo_Pago: document.getElementById('md-plazo').value.trim(),
+    Precio_Facturacion: document.getElementById('md-precio').value.trim(),
+    Total_Orden: detailWorkingLines.reduce(function(s, l) { return s + (Number(l.Valor_Total)||0); }, 0),
+    Estado_2: document.getElementById('md-estado2').value,
+    Nombre_Empresa: c.Nombre_Empresa,
+    Consecutivo: c.Consecutivo
+  };
+
   var fecha = document.getElementById('m-fecha').value;
-  if (!fecha) { showToast('Selecciona la fecha de entrega', '#e74c3c'); return; }
-
-  var remInput = document.getElementById('m-remision');
-  var rem = remInput.value.trim();
-
+  var rem = document.getElementById('m-remision').value.trim();
   var qtyInputs = document.querySelectorAll('#m-lines input.qty-input');
-  var hasSomething = false, hasError = false;
-
-  qtyInputs.forEach(function(inp) {
+  var entregas = [];
+  var hasError = false;
+  qtyInputs.forEach(function(inp, i) {
     inp.classList.remove('error');
     var cant = Number(inp.value) || 0;
     if (cant > 0) {
-      hasSomething = true;
-      if (cant > Number(inp.dataset.max)) { inp.classList.add('error'); hasError = true; }
+      var pendiente = Math.max(0, (Number(detailWorkingLines[i] && detailWorkingLines[i].Cantidad)||0) - (Number(detailWorkingLines[i] && detailWorkingLines[i].Cant_Entregada)||0));
+      if (cant > pendiente) { inp.classList.add('error'); hasError = true; return; }
+      entregas.push({ row: Number(inp.dataset.row), cantidad: cant, fecha: fecha, remision: rem });
     }
   });
 
   if (hasError) { showToast('Verifica las cantidades en rojo', '#e74c3c'); return; }
-  if (!hasSomething) { showToast('Ingresa al menos una cantidad mayor a 0', '#e67e22'); return; }
-  remInput.classList.remove('error');
-
-  var entregas = [];
-  qtyInputs.forEach(function(inp) {
-    var cant = Number(inp.value) || 0;
-    if (cant <= 0) return;
-    entregas.push({ row: Number(inp.dataset.row), cantidad: cant, fecha: fecha, remision: rem });
-  });
+  if (entregas.length > 0 && !fecha) { showToast('Selecciona la fecha de entrega', '#e74c3c'); return; }
 
   var btn = document.getElementById('btn-confirmar');
   btn.disabled = true;
@@ -471,16 +536,29 @@ async function confirmarEntregas() {
 
   try {
     var obs = document.getElementById('m-observaciones').value.trim();
-    var result = await apiPost({ action: 'registrarEntrega', entregas: entregas, observaciones: obs });
-    if (!result.ok) throw new Error(result.error || 'Error al guardar');
+    var editResult = await apiPost({
+      action: 'editarPedido',
+      header: hdr,
+      lineas: detailWorkingLines,
+      deleteRows: []
+    });
+    if (!editResult.ok) throw new Error(editResult.error || 'Error al guardar edición');
+
+    if (entregas.length > 0) {
+      var entResult = await apiPost({ action: 'registrarEntrega', entregas: entregas, observaciones: obs });
+      if (!entResult.ok) throw new Error(entResult.error || 'Error al registrar entregas');
+    }
 
     closeModal();
-    showToast('✅ ' + result.updated + ' línea(s) guardadas en Google Sheets');
+    var msg = entregas.length > 0
+      ? '✅ Cambios guardados + ' + entregas.length + ' entrega(s) registrada(s)'
+      : '✅ Cambios guardados en Google Sheets';
+    showToast(msg);
     await loadFromAPI();
   } catch (err) {
     showToast('❌ Error: ' + err.message, '#e74c3c');
     btn.disabled = false;
-    btn.textContent = '✓ Registrar entregas';
+    btn.textContent = '✓ Guardar cambios';
   }
 }
 
