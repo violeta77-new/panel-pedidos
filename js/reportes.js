@@ -1,5 +1,7 @@
 // ── State ──
 var pedidos = [];
+var ingresos = [];
+var ordenesCompra = [];
 var aggregated = [];
 var rptSort = { col: 'pendiente', dir: 'desc' };
 
@@ -57,6 +59,13 @@ async function loadReportes() {
       p.Cant_Pendiente = Math.max(0, cantQ - cantE);
       return p;
     });
+
+    var results = await Promise.all([
+      apiGet('getIngresos').catch(function() { return { ok: true, ingresos: [] }; }),
+      apiGet('getOrdenesCompra').catch(function() { return { ok: true, ordenes: [] }; })
+    ]);
+    ingresos = (results[0].ingresos || []);
+    ordenesCompra = (results[1].ordenes || []);
 
     populateRptFilters();
     buildReport();
@@ -310,66 +319,92 @@ function switchTab(tab) {
 var remData = [];
 var remSort = { col: 'empresa', dir: 'asc' };
 
+function _addRemision(map, key, empresa, numRem, modulo, referencia, detalle, cantidad, fecha) {
+  if (!map[key]) {
+    map[key] = {
+      empresa: getSigla(empresa),
+      empresaFull: empresa,
+      remision: numRem,
+      modulo: modulo,
+      referencias: {},
+      detalles: [],
+      cantidad: 0,
+      fechas: []
+    };
+  }
+  var row = map[key];
+  if (referencia) row.referencias[referencia] = true;
+  if (detalle) row.detalles.push(detalle);
+  row.cantidad += Number(cantidad) || 0;
+  if (fecha) row.fechas.push(String(fecha));
+}
+
 function buildRemisiones() {
   var fEmp = document.getElementById('rf-emp').value;
   var fTxt = document.getElementById('rf-txt').value.toLowerCase();
 
   var map = {};
   var empresasSet = {};
-  var ordenesSet = {};
   var totalLineas = 0;
 
+  // 1. Pedidos — campo Remisiones (puede tener varios separados por coma)
   pedidos.forEach(function(p) {
     var rem = (p.Remisiones || '').trim();
     if (!rem) return;
-    if (fEmp && p.Nombre_Empresa !== fEmp) return;
-
     var empNombre = p.Nombre_Empresa || '';
-    var empSigla = getSigla(empNombre);
-    var consec = p.Consecutivo || '';
-
+    if (fEmp && empNombre !== fEmp) return;
     var nums = rem.split(/[,;\/]+/).map(function(r) { return r.trim(); }).filter(Boolean);
     nums.forEach(function(numRem) {
-      if (fTxt && numRem.toLowerCase().indexOf(fTxt) < 0 && empSigla.toLowerCase().indexOf(fTxt) < 0 && (p.Cliente || '').toLowerCase().indexOf(fTxt) < 0) return;
-
-      var key = empNombre + '||' + numRem;
-      if (!map[key]) {
-        map[key] = {
-          empresa: empSigla,
-          empresaFull: empNombre,
-          remision: numRem,
-          ordenes: {},
-          clientes: {},
-          productos: [],
-          cantEntregada: 0,
-          fechas: []
-        };
-      }
-      var row = map[key];
-      row.ordenes[consec] = true;
-      row.clientes[p.Cliente || '—'] = true;
-      row.productos.push((p.Producto || '') + ' (' + (p.Presentacion || '') + ')');
-      row.cantEntregada += Number(p.Cant_Entregada) || 0;
-      if (p.Fecha_Ult_Entrega) row.fechas.push(p.Fecha_Ult_Entrega);
-
-      empresasSet[empSigla] = true;
-      ordenesSet[empNombre + '||' + consec] = true;
+      if (fTxt && numRem.toLowerCase().indexOf(fTxt) < 0 && getSigla(empNombre).toLowerCase().indexOf(fTxt) < 0) return;
+      var key = empNombre + '||' + numRem + '||Pedido';
+      _addRemision(map, key, empNombre, numRem, 'Pedido', 'Orden ' + (p.Consecutivo || ''), (p.Producto || '') + ' (' + (p.Presentacion || '') + ')', p.Cant_Entregada, p.Fecha_Ult_Entrega);
+      empresasSet[getSigla(empNombre)] = true;
       totalLineas++;
     });
   });
 
+  // 2. Ingresos — campos Remision_Origen y Remision_Destino
+  ingresos.forEach(function(ing) {
+    var empOrigen = ing.Empresa_Origen || '';
+    var empDestino = ing.Empresa_Destino || '';
+    var rems = [];
+    if ((ing.Remision_Origen || '').trim()) rems.push({ num: (ing.Remision_Origen || '').trim(), emp: empOrigen || empDestino });
+    if ((ing.Remision_Destino || '').trim()) rems.push({ num: (ing.Remision_Destino || '').trim(), emp: empDestino || empOrigen });
+    rems.forEach(function(r) {
+      if (fEmp && r.emp !== fEmp && empOrigen !== fEmp && empDestino !== fEmp) return;
+      if (fTxt && r.num.toLowerCase().indexOf(fTxt) < 0 && getSigla(r.emp).toLowerCase().indexOf(fTxt) < 0) return;
+      var key = r.emp + '||' + r.num + '||Ingreso';
+      _addRemision(map, key, r.emp, r.num, 'Ingreso', ing.Origen || '', (ing.Producto || '') + ' (' + (ing.Presentacion || '') + ')', ing.Cantidad, ing.Fecha);
+      empresasSet[getSigla(r.emp)] = true;
+      totalLineas++;
+    });
+  });
+
+  // 3. Órdenes de Compra — campo Remision
+  ordenesCompra.forEach(function(oc) {
+    var rem = (oc.Remision || '').trim();
+    if (!rem) return;
+    var empNombre = oc.Empresa_Destino || oc.Empresa_Origen || '';
+    if (fEmp && empNombre !== fEmp && (oc.Empresa_Origen || '') !== fEmp) return;
+    if (fTxt && rem.toLowerCase().indexOf(fTxt) < 0 && getSigla(empNombre).toLowerCase().indexOf(fTxt) < 0) return;
+    var key = empNombre + '||' + rem + '||Orden de Compra';
+    _addRemision(map, key, empNombre, rem, 'Orden de Compra', 'OC ' + (oc.Consecutivo || ''), (oc.Producto || '') + ' (' + (oc.Presentacion || '') + ')', oc.Cantidad, oc.Fecha);
+    empresasSet[getSigla(empNombre)] = true;
+    totalLineas++;
+  });
+
   remData = Object.values(map).map(function(r) {
-    r.numOrdenes = Object.keys(r.ordenes).length;
-    r.ordenesStr = Object.keys(r.ordenes).join(', ');
-    r.clientesStr = Object.keys(r.clientes).join(', ');
-    r.numProductos = r.productos.length;
+    r.referenciasStr = Object.keys(r.referencias).join(', ') || '—';
+    r.numDetalles = r.detalles.length;
     r.fecha = r.fechas.length ? r.fechas.sort().pop() : '';
     return r;
   });
 
   document.getElementById('st-rem-total').textContent = remData.length;
   document.getElementById('st-rem-empresas').textContent = Object.keys(empresasSet).length;
-  document.getElementById('st-rem-ordenes').textContent = Object.keys(ordenesSet).length;
+  var modulosSet = {};
+  remData.forEach(function(r) { modulosSet[r.modulo] = true; });
+  document.getElementById('st-rem-ordenes').textContent = Object.keys(modulosSet).length;
   document.getElementById('st-rem-lineas').textContent = totalLineas;
 
   renderRemTable();
@@ -397,13 +432,14 @@ function sortedRemData() {
 }
 
 function renderRemTable() {
+  var MOD_COLORS = { 'Pedido': '#2980b9', 'Ingreso': '#27ae60', 'Orden de Compra': '#8e44ad' };
   var cols = [
     { id: 'empresa', label: 'Empresa' },
     { id: 'remision', label: 'N° Remisión' },
-    { id: 'ordenesStr', label: 'Orden(es)' },
-    { id: 'clientesStr', label: 'Cliente(s)' },
-    { id: 'numProductos', label: 'Productos' },
-    { id: 'cantEntregada', label: 'Cant. Entregada' },
+    { id: 'modulo', label: 'Módulo' },
+    { id: 'referenciasStr', label: 'Referencia' },
+    { id: 'numDetalles', label: 'Productos' },
+    { id: 'cantidad', label: 'Cantidad' },
     { id: 'fecha', label: 'Fecha' },
   ];
 
@@ -423,13 +459,14 @@ function renderRemTable() {
   }
 
   tbody.innerHTML = rows.map(function(r) {
+    var modColor = MOD_COLORS[r.modulo] || '#718096';
     return '<tr>' +
       '<td><span class="badge-emp" style="background:#ebf5fb;color:#1a5276">' + r.empresa + '</span></td>' +
       '<td style="font-weight:700;color:#2c3e50">' + r.remision + '</td>' +
-      '<td style="font-size:0.8rem">' + r.ordenesStr + '</td>' +
-      '<td style="font-size:0.8rem">' + r.clientesStr + '</td>' +
-      '<td class="center">' + r.numProductos + '</td>' +
-      '<td class="money" style="color:#27ae60;font-weight:600">' + r.cantEntregada.toLocaleString('es-CO') + '</td>' +
+      '<td><span style="background:' + modColor + ';color:white;padding:2px 9px;border-radius:12px;font-size:0.72rem;font-weight:700">' + r.modulo + '</span></td>' +
+      '<td style="font-size:0.8rem">' + r.referenciasStr + '</td>' +
+      '<td class="center">' + r.numDetalles + '</td>' +
+      '<td class="money" style="color:#27ae60;font-weight:600">' + r.cantidad.toLocaleString('es-CO') + '</td>' +
       '<td style="font-size:0.8rem;color:#718096">' + (r.fecha ? fmtDate(r.fecha) : '—') + '</td>' +
     '</tr>';
   }).join('');
@@ -439,15 +476,15 @@ function exportRemCSV() {
   var rows = sortedRemData();
   if (!rows.length) { showToast('No hay datos para exportar', '#e74c3c'); return; }
 
-  var lines = ['Empresa,Remision,Ordenes,Clientes,Productos,Cant_Entregada,Fecha'];
+  var lines = ['Empresa,Remision,Modulo,Referencia,Productos,Cantidad,Fecha'];
   rows.forEach(function(r) {
     lines.push([
       '"' + r.empresa + '"',
       '"' + r.remision + '"',
-      '"' + r.ordenesStr.replace(/"/g,'""') + '"',
-      '"' + r.clientesStr.replace(/"/g,'""') + '"',
-      r.numProductos,
-      r.cantEntregada,
+      '"' + r.modulo + '"',
+      '"' + r.referenciasStr.replace(/"/g,'""') + '"',
+      r.numDetalles,
+      r.cantidad,
       '"' + (r.fecha || '') + '"'
     ].join(','));
   });
