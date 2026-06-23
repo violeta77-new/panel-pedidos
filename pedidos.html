@@ -108,11 +108,28 @@
     <div class="mhdr">
       <div style="flex:1">
         <h2 id="m-titulo">—</h2>
-        <div class="meta" id="m-meta"></div>
       </div>
       <button class="btn-close" onclick="closeModal()">✕</button>
     </div>
     <div class="mbody">
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px">
+        <div><label class="ef-label">Cliente</label><input class="ef" id="md-cliente" type="text"></div>
+        <div><label class="ef-label">NIT</label><input class="ef" id="md-nit" type="text"></div>
+        <div><label class="ef-label">Fecha Pedido</label><input class="ef" id="md-fecha-pedido" type="date"></div>
+        <div><label class="ef-label">Comercial</label><input class="ef" id="md-comercial" type="text"></div>
+        <div><label class="ef-label">Municipio</label><input class="ef" id="md-municipio" type="text"></div>
+        <div><label class="ef-label">Departamento</label><input class="ef" id="md-departamento" type="text"></div>
+        <div><label class="ef-label">Teléfono</label><input class="ef" id="md-telefono" type="text"></div>
+        <div><label class="ef-label">Plazo de Pago</label><input class="ef" id="md-plazo" type="text"></div>
+        <div><label class="ef-label">Precio Facturación</label><input class="ef" id="md-precio" type="text"></div>
+        <div><label class="ef-label">Estado</label>
+          <select class="ef" id="md-estado2">
+            <option value="Abierto">Abierto</option>
+            <option value="Cerrado">Cerrado</option>
+            <option value="Anulado">Anulado</option>
+          </select>
+        </div>
+      </div>
       <div style="background:#fef9e7;border:1px solid #f9e79f;border-radius:8px;padding:10px 16px;margin-bottom:12px;font-size:0.84rem">
         <label style="font-weight:700;color:#7d6608;font-size:0.76rem;text-transform:uppercase;display:block;margin-bottom:6px">📝 Observaciones</label>
         <textarea id="m-observaciones" rows="2" placeholder="Agregar observaciones del pedido..." style="width:100%;border:1px solid #f9e79f;border-radius:6px;padding:8px 10px;font-size:0.84rem;font-family:inherit;resize:vertical;background:white;outline:none;color:#4a5568;transition:border-color 0.2s" onfocus="this.style.borderColor='#d4ac0d'" onblur="this.style.borderColor='#f9e79f'"></textarea>
@@ -188,7 +205,7 @@
       <div class="total-tag">Total orden: <strong id="m-total">$0</strong></div>
       <div class="mftr-btns">
         <button class="btn-cancel" onclick="closeModal()">Cancelar</button>
-        <button class="btn-confirm" id="btn-confirmar" onclick="confirmarEntregas()">✓ Registrar entregas</button>
+        <button class="btn-confirm" id="btn-confirmar" onclick="guardarTodo()">✓ Guardar cambios</button>
       </div>
     </div>
   </div>
