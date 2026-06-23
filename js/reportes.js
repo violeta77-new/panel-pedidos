@@ -349,11 +349,11 @@ function buildRemisiones() {
 
   // 1. Pedidos — campo Remisiones (puede tener varios separados por coma)
   pedidos.forEach(function(p) {
-    var rem = (p.Remisiones || '').trim();
+    var rem = String(p.Remisiones || '').trim();
     if (!rem) return;
     var empNombre = p.Nombre_Empresa || '';
     if (fEmp && empNombre !== fEmp) return;
-    var nums = rem.split(/[,;\/]+/).map(function(r) { return r.trim(); }).filter(Boolean);
+    var nums = rem.split(/[,;\/]+/).map(function(r) { return String(r).trim(); }).filter(Boolean);
     nums.forEach(function(numRem) {
       if (fTxt && numRem.toLowerCase().indexOf(fTxt) < 0 && getSigla(empNombre).toLowerCase().indexOf(fTxt) < 0) return;
       var key = empNombre + '||' + numRem + '||Pedido';
@@ -368,8 +368,8 @@ function buildRemisiones() {
     var empOrigen = ing.Empresa_Origen || '';
     var empDestino = ing.Empresa_Destino || '';
     var rems = [];
-    if ((ing.Remision_Origen || '').trim()) rems.push({ num: (ing.Remision_Origen || '').trim(), emp: empOrigen || empDestino });
-    if ((ing.Remision_Destino || '').trim()) rems.push({ num: (ing.Remision_Destino || '').trim(), emp: empDestino || empOrigen });
+    if (String(ing.Remision_Origen || '').trim()) rems.push({ num: String(ing.Remision_Origen || '').trim(), emp: empOrigen || empDestino });
+    if (String(ing.Remision_Destino || '').trim()) rems.push({ num: String(ing.Remision_Destino || '').trim(), emp: empDestino || empOrigen });
     rems.forEach(function(r) {
       if (fEmp && r.emp !== fEmp && empOrigen !== fEmp && empDestino !== fEmp) return;
       if (fTxt && r.num.toLowerCase().indexOf(fTxt) < 0 && getSigla(r.emp).toLowerCase().indexOf(fTxt) < 0) return;
@@ -382,7 +382,7 @@ function buildRemisiones() {
 
   // 3. Órdenes de Compra — campo Remision
   ordenesCompra.forEach(function(oc) {
-    var rem = (oc.Remision || '').trim();
+    var rem = String(oc.Remision || '').trim();
     if (!rem) return;
     var empNombre = oc.Empresa_Destino || oc.Empresa_Origen || '';
     if (fEmp && empNombre !== fEmp && (oc.Empresa_Origen || '') !== fEmp) return;
