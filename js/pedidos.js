@@ -81,6 +81,7 @@ var activeIdx = null;
 var editIdx = null;
 var editKey = null;
 var editWorkingLines = [];
+var detailWorkingLines = [];
 
 // ── Load from API ──
 async function loadFromAPI() {
@@ -360,13 +361,16 @@ function openDetail(idx) {
   var lines = getLinesFor(c);
 
   document.getElementById('m-titulo').textContent = '[' + getSigla(c.Nombre_Empresa) + '] ' + (c.Nombre_Empresa||'—') + ' · Orden #' + (c.Consecutivo||'');
-  document.getElementById('m-meta').innerHTML = [
-    '👤 <span>' + (c.Cliente||'—') + '</span>',
-    '📅 <span>' + fmtDate(c.Fecha_Pedido) + '</span>',
-    c.Comercial ? '🧑‍💼 <span>' + c.Comercial + '</span>' : '',
-    '💵 <span>' + fmtMoney(c.Total_Orden) + '</span>',
-    c.Municipio ? '📍 <span>' + c.Municipio + (c.Departamento ? ', ' + c.Departamento : '') + '</span>' : '',
-  ].filter(Boolean).join('');
+  document.getElementById('md-cliente').value = c.Cliente || '';
+  document.getElementById('md-nit').value = c.NIT || '';
+  document.getElementById('md-fecha-pedido').value = toDateInput(c.Fecha_Pedido);
+  document.getElementById('md-comercial').value = c.Comercial || '';
+  document.getElementById('md-municipio').value = c.Municipio || '';
+  document.getElementById('md-departamento').value = c.Departamento || '';
+  document.getElementById('md-telefono').value = c.Telefono || '';
+  document.getElementById('md-plazo').value = c.Plazo_Pago || '';
+  document.getElementById('md-precio').value = c.Precio_Facturacion || '';
+  document.getElementById('md-estado2').value = derivedEstado2(lines);
   document.getElementById('m-total').textContent = fmtMoney(c.Total_Orden);
   var obsText = c.Observaciones || lines.reduce(function(a, l) { return a || l.Observaciones; }, '') || '';
   document.getElementById('m-observaciones').value = obsText ? String(obsText).trim() : '';
@@ -374,11 +378,13 @@ function openDetail(idx) {
   document.getElementById('m-remision').value = '';
   document.getElementById('m-remision').classList.remove('error');
   document.getElementById('btn-confirmar').disabled = false;
-  document.getElementById('btn-confirmar').textContent = '✓ Registrar entregas';
+  document.getElementById('btn-confirmar').textContent = '✓ Guardar cambios';
+
+  detailWorkingLines = lines.map(function(l) { return Object.assign({}, l); });
 
   var tbody = document.getElementById('m-lines');
   if (!lines.length) {
-    tbody.innerHTML = '<tr><td colspan="12"><div class="no-lines">⚠ Esta orden no tiene líneas de producto registradas.</div></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="11"><div class="no-lines">⚠ Esta orden no tiene líneas de producto registradas.</div></td></tr>';
   } else {
     var orderHasDeliveries = lines.some(function(l) { return (Number(l.Cant_Entregada)||0) > 0; });
     tbody.innerHTML = lines.map(function(l, i) {
@@ -389,28 +395,30 @@ function openDetail(idx) {
       var estL = (!rawEst || norm(rawEst) === 'recibido') ? (orderHasDeliveries ? 'Parcial' : 'Recibido') : rawEst;
       var badgeL = norm(estL) === 'recibido' ? 'b-rec' : norm(estL) === 'parcial' ? 'b-par' : 'b-ent';
       var done = norm(estL) === 'entregado';
-      var prodNombre = l.Producto || '—';
+      var prodNombre = l.Producto || '';
       var textoTieneBonif = /bonificado/i.test(prodNombre);
       var prodLimpio = textoTieneBonif ? prodNombre.replace(/\s*bonificado\s*/gi, ' ').trim() : prodNombre;
       var vUnit = Number(l.Valor_Unitario) || 0;
       var bonif = (l.Bonificado || '').trim();
       var esBonif = bonif === 'Sí' || textoTieneBonif || (vUnit > 0 && vUnit < 10);
+      var prodEsc = prodLimpio.replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+      var presEsc = (l.Presentacion||'').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
       return '<tr>' +
         '<td style="color:#a0aec0;font-size:0.74rem">' + (i+1) + '</td>' +
-        '<td style="font-weight:700;white-space:nowrap">' + prodLimpio + '</td>' +
-        '<td>' + (l.Presentacion||'') + '</td>' +
+        '<td><input class="ef md-prod" data-i="' + i + '" type="text" value="' + prodEsc + '" style="min-width:120px;font-weight:700"></td>' +
+        '<td><input class="ef md-pres" data-i="' + i + '" type="text" value="' + presEsc + '" style="width:90px"></td>' +
         '<td style="text-align:center">' + (esBonif ? '<span style="background:#d5f5e3;color:#1e8449;padding:2px 8px;border-radius:10px;font-size:0.75rem;font-weight:700">Sí</span>' : '<span style="color:#718096;font-size:0.75rem">No</span>') + '</td>' +
-        '<td class="money">' + pedida + '</td>' +
+        '<td><input class="ef md-cant" data-i="' + i + '" type="number" min="0" value="' + pedida + '" style="width:70px;text-align:right" oninput="updateDetailLine(' + i + ')"></td>' +
         '<td class="money" style="color:#27ae60;font-weight:700">' + entregada + '</td>' +
-        '<td class="money"><span class="pend-tag ' + (pendiente > 0 ? 'pend' : 'ok') + '">' + pendiente + '</span></td>' +
+        '<td class="money"><span class="pend-tag ' + (pendiente > 0 ? 'pend' : 'ok') + '" id="md-pend-' + i + '">' + pendiente + '</span></td>' +
         '<td><span class="badge ' + badgeL + '">' + estL + '</span>' +
           (l.Remisiones ? '<div style="font-size:0.7rem;color:#4a5568;margin-top:3px">📄 ' + l.Remisiones + '</div>' : '') +
           (l.Fecha_Ult_Entrega ? '<div style="font-size:0.68rem;color:#718096">📅 ' + fmtDate(l.Fecha_Ult_Entrega) + '</div>' : '') +
         '</td>' +
-        '<td class="money" style="font-size:0.78rem">' + fmtMoney(l.Valor_Unitario) + '</td>' +
-        '<td class="money" style="font-size:0.78rem">' + fmtMoney(l.Valor_Total) + '</td>' +
-        '<td><input type="number" class="qty-input" data-row="' + l.__row + '" data-max="' + pendiente + '" min="0" max="' + pendiente + '" value="0" placeholder="0"' +
-          (done ? ' disabled style="background:#f7fafc;color:#a0aec0"' : '') + '></td>' +
+        '<td><input class="ef md-vuni" data-i="' + i + '" type="number" min="0" value="' + vUnit + '" style="width:90px;text-align:right" oninput="updateDetailLine(' + i + ')"></td>' +
+        '<td class="money" style="font-size:0.78rem" id="md-vtot-' + i + '">' + fmtMoney(l.Valor_Total) + '</td>' +
+        '<td><input type="number" class="qty-input" data-row="' + l.__row + '" data-idx="' + i + '" min="0" value="0" placeholder="0"' +
+          (done ? ' disabled style="background:#f7fafc;color:#a0aec0"' : '') + ' oninput="updateDeliveryMax(' + i + ')"></td>' +
       '</tr>';
     }).join('');
   }
