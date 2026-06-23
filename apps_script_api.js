@@ -145,7 +145,9 @@ function registrarEntrega(body) {
     var pendiente = Math.max(0, cantPedida - nuevaEntregada);
     var estado = pendiente <= 0 ? 'Entregado' : 'Parcial';
     var prevRem = ws.getRange(row, colIdx['Remisiones']).getValue() || '';
-    var newRem = prevRem ? prevRem + ', ' + ent.remision : ent.remision;
+    var newRem = ent.remision
+      ? (prevRem ? prevRem + ', ' + ent.remision : ent.remision)
+      : prevRem;
     ws.getRange(row, colIdx['Cant_Entregada']).setValue(nuevaEntregada);
     ws.getRange(row, colIdx['Cant_Pendiente']).setValue(pendiente);
     ws.getRange(row, colIdx['Estado_Entrega']).setValue(estado);

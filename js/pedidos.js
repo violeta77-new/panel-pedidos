@@ -448,7 +448,6 @@ async function confirmarEntregas() {
 
   if (hasError) { showToast('Verifica las cantidades en rojo', '#e74c3c'); return; }
   if (!hasSomething) { showToast('Ingresa al menos una cantidad mayor a 0', '#e67e22'); return; }
-  if (!rem) { remInput.classList.add('error'); showToast('Ingresa el número de remisión del pedido', '#e74c3c'); return; }
   remInput.classList.remove('error');
 
   var entregas = [];
