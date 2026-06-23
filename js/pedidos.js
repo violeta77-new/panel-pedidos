@@ -417,8 +417,7 @@ function openDetail(idx) {
         '</td>' +
         '<td><input class="ef md-vuni" data-i="' + i + '" type="number" min="0" value="' + vUnit + '" style="width:90px;text-align:right" oninput="updateDetailLine(' + i + ')"></td>' +
         '<td class="money" style="font-size:0.78rem" id="md-vtot-' + i + '">' + fmtMoney(l.Valor_Total) + '</td>' +
-        '<td><input type="number" class="qty-input" data-row="' + l.__row + '" data-idx="' + i + '" min="0" value="0" placeholder="0"' +
-          (done ? ' disabled style="background:#f7fafc;color:#a0aec0"' : '') + ' oninput="updateDeliveryMax(' + i + ')"></td>' +
+        '<td><input type="number" class="qty-input" data-row="' + l.__row + '" data-idx="' + i + '" min="0" value="0" placeholder="0"></td>' +
       '</tr>';
     }).join('');
   }
