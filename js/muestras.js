@@ -598,6 +598,11 @@ async function saveMuestra() {
 
     if (!producto) { showToast('Ingresa el producto', '#e74c3c'); return; }
 
+    var cantEntregada = Number(document.getElementById('mu-edit-cant-entregada').value) || 0;
+    var fechaEntrega = document.getElementById('mu-edit-fecha-entrega').value;
+    var estado = document.getElementById('mu-estado').value;
+    if (cantEntregada > 0) estado = 'Despachada';
+
     btn.disabled = true;
     btn.textContent = '⏳ Guardando...';
 
@@ -617,14 +622,14 @@ async function saveMuestra() {
         Remision: document.getElementById('mu-remision').value.trim(),
         Solicitante: document.getElementById('mu-solicitante').value.trim(),
         Autoriza: document.getElementById('mu-autoriza').value.trim(),
-        Estado: document.getElementById('mu-estado').value,
+        Estado: estado,
         Objetivo: document.getElementById('mu-objetivo').value.trim(),
         Observaciones: document.getElementById('mu-observaciones').value.trim(),
         Producto: producto,
         Presentacion: presentacion,
         Cantidad: cantidad,
-        Cant_Entregada: Number(document.getElementById('mu-edit-cant-entregada').value) || 0,
-        Fecha_Entrega: document.getElementById('mu-edit-fecha-entrega').value
+        Cant_Entregada: cantEntregada,
+        Fecha_Entrega: fechaEntrega
       });
       if (!result.ok) throw new Error(result.error || 'Error al guardar');
       closeMuModal();
