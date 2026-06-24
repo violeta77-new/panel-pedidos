@@ -118,7 +118,7 @@
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px">
         <div>
           <label class="ef-label">Empresa</label>
-          <select class="ef" id="mu-empresa">
+          <select class="ef" id="mu-empresa" onchange="onEmpresaChange()">
             <option value="">— Seleccionar —</option>
             <option value="PARCELAR DE COLOMBIA SAS">PARCELAR</option>
             <option value="GREEN AGROSOLUCIONES DE COLOMBIA SAS">GREEN</option>
@@ -129,7 +129,7 @@
         </div>
         <div>
           <label class="ef-label">Consecutivo</label>
-          <input class="ef" id="mu-consecutivo" type="text" placeholder="N° consecutivo">
+          <input class="ef" id="mu-consecutivo" type="text" placeholder="Automático al seleccionar empresa" style="background:#f7fafc">
         </div>
         <div>
           <label class="ef-label">Fecha solicitud</label>
@@ -282,6 +282,6 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="js/shared.js"></script>
-<script src="js/muestras.js?v=20260624"></script>
+<script src="js/muestras.js?v=20260624b"></script>
 </body>
 </html>

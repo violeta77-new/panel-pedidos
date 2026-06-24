@@ -422,6 +422,24 @@ async function loadProductosCache() {
   else productosCache = [];
 }
 
+async function getNextConsecutivo(empresa) {
+  if (!empresa) return '';
+  var maxNum = 0;
+  allMuestras.forEach(function(r) {
+    if (r.Empresa === empresa) {
+      var n = parseInt(r.Consecutivo, 10);
+      if (!isNaN(n) && n > maxNum) maxNum = n;
+    }
+  });
+  return String(maxNum + 1);
+}
+
+async function onEmpresaChange() {
+  if (muEditId) return;
+  var empresa = document.getElementById('mu-empresa').value;
+  document.getElementById('mu-consecutivo').value = await getNextConsecutivo(empresa);
+}
+
 async function openNewMuestra() {
   muEditId = null;
   document.getElementById('mu-modal-title').textContent = '🧪 Nueva Solicitud de Muestras';
