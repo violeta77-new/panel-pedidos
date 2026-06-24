@@ -422,7 +422,7 @@ async function loadProductosCache() {
   else productosCache = [];
 }
 
-function openNewMuestra() {
+async function openNewMuestra() {
   muEditId = null;
   document.getElementById('mu-modal-title').textContent = '🧪 Nueva Solicitud de Muestras';
   document.getElementById('btn-save-mu').textContent = '✓ Registrar solicitud';
