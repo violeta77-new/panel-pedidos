@@ -383,8 +383,6 @@ function viewMuestra(id) {
 
   var remVal = (r.Remision || '').replace(/"/g, '&quot;');
   var fDespachoVal = r.Fecha_Despacho ? toDateInput(r.Fecha_Despacho) : '';
-  var fEntregaVal = r.Fecha_Entrega ? toDateInput(r.Fecha_Entrega) : '';
-
   var editField = function(label, id, type, val, placeholder) {
     return '<div><span style="font-weight:700;color:#4a5568;font-size:0.76rem;text-transform:uppercase">' + label + '</span><br>' +
       '<input type="' + type + '" id="' + id + '" class="ef" value="' + val + '"' +
@@ -404,10 +402,9 @@ function viewMuestra(id) {
     field('Fecha Aplicación', fmtDate(r.Fecha_Aplicacion)) +
     field('Fecha Seguimiento', fmtDate(r.Fecha_Seguimiento)) +
     '</div>' +
-    '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px 24px;margin-bottom:18px;font-size:0.85rem;background:#f0fdf4;padding:12px 14px;border-radius:8px;border:1px solid #bbf7d0">' +
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 24px;margin-bottom:18px;font-size:0.85rem;background:#f0fdf4;padding:12px 14px;border-radius:8px;border:1px solid #bbf7d0">' +
     editField('N° Remisión', 'mu-view-remision', 'text', remVal, 'N° remisión') +
     editField('Fecha Despacho', 'mu-view-fecha-despacho', 'date', fDespachoVal, '') +
-    editField('Fecha Entrega', 'mu-view-fecha-entrega', 'date', fEntregaVal, '') +
     '</div>';
 
   if (r.Objetivo) {
@@ -443,7 +440,6 @@ function viewMuestra(id) {
 async function saveEntregas() {
   var remision = document.getElementById('mu-view-remision').value.trim();
   var fechaDespacho = document.getElementById('mu-view-fecha-despacho').value;
-  var fechaEntrega = document.getElementById('mu-view-fecha-entrega').value;
   var cantInputs = document.querySelectorAll('.mu-view-cant-ent');
   var updates = [];
   cantInputs.forEach(function(el) {
@@ -475,7 +471,7 @@ async function saveEntregas() {
         Estado: estado, Objetivo: row.Objetivo, Observaciones: row.Observaciones,
         Producto: row.Producto, Presentacion: row.Presentacion,
         Cantidad: row.Cantidad, Cant_Entregada: u.Cant_Entregada,
-        Fecha_Entrega: fechaEntrega || row.Fecha_Entrega
+        Fecha_Entrega: row.Fecha_Entrega || ''
       });
       if (!res.ok) throw new Error(res.error || 'Error al guardar línea ' + u.id);
     }
