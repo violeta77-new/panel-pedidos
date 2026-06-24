@@ -381,14 +381,19 @@ function viewMuestra(id) {
     '<span>📅 ' + fmtDate(r.Fecha_Solicitud) + '</span>' +
     '<span>👤 ' + (r.Responsable || '—') + '</span>';
 
+  var remVal = (r.Remision || '').replace(/"/g, '&quot;');
+  var fDespachoVal = r.Fecha_Despacho ? toDateInput(r.Fecha_Despacho) : '';
+
   var html = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 24px;margin-bottom:18px;font-size:0.85rem">' +
     field('Empresa', EMPRESAS_SIGLA[r.Empresa] || r.Empresa) +
     field('Fecha Solicitud', fmtDate(r.Fecha_Solicitud)) +
-    field('Fecha Despacho', fmtDate(r.Fecha_Despacho)) +
+    '<div><span style="font-weight:700;color:#4a5568;font-size:0.76rem;text-transform:uppercase">N° Remisión</span><br>' +
+      '<input type="text" id="mu-view-remision" class="ef" value="' + remVal + '" placeholder="N° remisión" style="padding:4px 8px;font-size:0.85rem;width:90%;margin-top:2px"></div>' +
     field('Responsable', r.Responsable) +
     field('Municipio / Vereda', r.Municipio) +
     field('Tipo de Cultivo', r.Tipo_Cultivo) +
-    field('N° Remisión', r.Remision) +
+    '<div><span style="font-weight:700;color:#4a5568;font-size:0.76rem;text-transform:uppercase">Fecha Despacho</span><br>' +
+      '<input type="date" id="mu-view-fecha-despacho" class="ef" value="' + fDespachoVal + '" style="padding:4px 8px;font-size:0.85rem;width:90%;margin-top:2px"></div>' +
     field('Fecha Aplicación', fmtDate(r.Fecha_Aplicacion)) +
     field('Fecha Seguimiento', fmtDate(r.Fecha_Seguimiento)) +
     field('Solicitante', r.Solicitante) +
@@ -429,8 +434,9 @@ function viewMuestra(id) {
 }
 
 async function saveEntregas() {
+  var remision = document.getElementById('mu-view-remision').value.trim();
+  var fechaDespacho = document.getElementById('mu-view-fecha-despacho').value;
   var cantInputs = document.querySelectorAll('.mu-view-cant-ent');
-  var fechaInputs = document.querySelectorAll('.mu-view-fecha-ent');
   var updates = [];
   cantInputs.forEach(function(el) {
     var id = Number(el.getAttribute('data-id'));
@@ -455,10 +461,10 @@ async function saveEntregas() {
       var res = await apiPost({
         action: 'editarMuestra', row: u.id,
         Empresa: row.Empresa, Consecutivo: row.Consecutivo,
-        Fecha_Solicitud: row.Fecha_Solicitud, Fecha_Despacho: row.Fecha_Despacho,
+        Fecha_Solicitud: row.Fecha_Solicitud, Fecha_Despacho: fechaDespacho || row.Fecha_Despacho,
         Responsable: row.Responsable, Municipio: row.Municipio,
         Tipo_Cultivo: row.Tipo_Cultivo, Fecha_Aplicacion: row.Fecha_Aplicacion,
-        Fecha_Seguimiento: row.Fecha_Seguimiento, Remision: row.Remision,
+        Fecha_Seguimiento: row.Fecha_Seguimiento, Remision: remision,
         Solicitante: row.Solicitante, Autoriza: row.Autoriza,
         Estado: estado, Objetivo: row.Objetivo, Observaciones: row.Observaciones,
         Producto: row.Producto, Presentacion: row.Presentacion,
