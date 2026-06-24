@@ -265,6 +265,7 @@ function groupDevoluciones(rows) {
   });
   return order.map(function(k) {
     var g = map[k];
+    g.head._key = k;
     g.head._nProds = g.lines.length;
     g.head._lines = g.lines;
     g.head._totalValor = g.lines.reduce(function(s, l) { return s + (Number(l.Valor_Total)||0); }, 0);
@@ -334,7 +335,7 @@ function renderDevTable() {
   }
 
   tbody.innerHTML = grouped.map(function(r, i) {
-    var keyEsc = (r.key || '').replace(/'/g, "\\'");
+    var keyEsc = (r._key || '').replace(/'/g, "\\'");
     return '<tr>' +
       '<td style="color:#718096;font-size:0.78rem">' + (i+1) + '</td>' +
       '<td style="white-space:nowrap;font-size:0.78rem">' + fmtDate(r.Fecha) + '</td>' +
