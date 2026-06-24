@@ -383,22 +383,31 @@ function viewMuestra(id) {
 
   var remVal = (r.Remision || '').replace(/"/g, '&quot;');
   var fDespachoVal = r.Fecha_Despacho ? toDateInput(r.Fecha_Despacho) : '';
+  var fEntregaVal = r.Fecha_Entrega ? toDateInput(r.Fecha_Entrega) : '';
+
+  var editField = function(label, id, type, val, placeholder) {
+    return '<div><span style="font-weight:700;color:#4a5568;font-size:0.76rem;text-transform:uppercase">' + label + '</span><br>' +
+      '<input type="' + type + '" id="' + id + '" class="ef" value="' + val + '"' +
+      (placeholder ? ' placeholder="' + placeholder + '"' : '') +
+      ' style="padding:4px 8px;font-size:0.85rem;width:90%;margin-top:2px"></div>';
+  };
 
   var html = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 24px;margin-bottom:18px;font-size:0.85rem">' +
     field('Empresa', EMPRESAS_SIGLA[r.Empresa] || r.Empresa) +
     field('Fecha Solicitud', fmtDate(r.Fecha_Solicitud)) +
-    '<div><span style="font-weight:700;color:#4a5568;font-size:0.76rem;text-transform:uppercase">N° Remisión</span><br>' +
-      '<input type="text" id="mu-view-remision" class="ef" value="' + remVal + '" placeholder="N° remisión" style="padding:4px 8px;font-size:0.85rem;width:90%;margin-top:2px"></div>' +
     field('Responsable', r.Responsable) +
     field('Municipio / Vereda', r.Municipio) +
     field('Tipo de Cultivo', r.Tipo_Cultivo) +
-    '<div><span style="font-weight:700;color:#4a5568;font-size:0.76rem;text-transform:uppercase">Fecha Despacho</span><br>' +
-      '<input type="date" id="mu-view-fecha-despacho" class="ef" value="' + fDespachoVal + '" style="padding:4px 8px;font-size:0.85rem;width:90%;margin-top:2px"></div>' +
-    field('Fecha Aplicación', fmtDate(r.Fecha_Aplicacion)) +
-    field('Fecha Seguimiento', fmtDate(r.Fecha_Seguimiento)) +
     field('Solicitante', r.Solicitante) +
     field('Quien Autoriza', r.Autoriza) +
     field('Estado', r.Estado) +
+    field('Fecha Aplicación', fmtDate(r.Fecha_Aplicacion)) +
+    field('Fecha Seguimiento', fmtDate(r.Fecha_Seguimiento)) +
+    '</div>' +
+    '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px 24px;margin-bottom:18px;font-size:0.85rem;background:#f0fdf4;padding:12px 14px;border-radius:8px;border:1px solid #bbf7d0">' +
+    editField('N° Remisión', 'mu-view-remision', 'text', remVal, 'N° remisión') +
+    editField('Fecha Despacho', 'mu-view-fecha-despacho', 'date', fDespachoVal, '') +
+    editField('Fecha Entrega', 'mu-view-fecha-entrega', 'date', fEntregaVal, '') +
     '</div>';
 
   if (r.Objetivo) {
@@ -411,13 +420,11 @@ function viewMuestra(id) {
       '<div style="font-weight:700;font-size:0.84rem;color:#2d3748">📦 Productos solicitados (' + sameConsec.length + ')</div>' +
       '<button onclick="saveEntregas()" style="background:#27ae60;color:white;border:none;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:0.8rem;font-weight:700" id="btn-save-entregas">💾 Guardar entregas</button>' +
       '</div>';
-    html += '<table style="font-size:0.82rem;width:100%"><thead><tr style="background:#f7fafc"><th>Producto</th><th>Presentación</th><th style="text-align:right">Cantidad</th><th style="text-align:right;width:90px">Entregada</th><th style="width:130px">Fecha Entrega</th><th></th></tr></thead><tbody>';
+    html += '<table style="font-size:0.82rem;width:100%"><thead><tr style="background:#f7fafc"><th>Producto</th><th>Presentación</th><th style="text-align:right">Cantidad</th><th style="text-align:right;width:90px">Entregada</th><th></th></tr></thead><tbody>';
     sameConsec.forEach(function(x) {
       var cantEnt = x.Cant_Entregada != null && x.Cant_Entregada !== '' ? x.Cant_Entregada : '';
-      var fechaEnt = x.Fecha_Entrega ? toDateInput(x.Fecha_Entrega) : '';
       html += '<tr><td>' + (x.Producto || '—') + '</td><td>' + (x.Presentacion || '—') + '</td><td style="text-align:right">' + (x.Cantidad || 0) + '</td>' +
         '<td><input type="number" min="0" class="ef mu-view-cant-ent" data-id="' + x.id + '" value="' + cantEnt + '" style="width:70px;text-align:right;padding:4px 6px;font-size:0.82rem"></td>' +
-        '<td><input type="date" class="ef mu-view-fecha-ent" data-id="' + x.id + '" value="' + fechaEnt + '" style="width:125px;padding:4px 6px;font-size:0.82rem"></td>' +
         '<td style="white-space:nowrap"><button class="btn-edit" onclick="closeViewMu();editMuestra(' + x.id + ')" style="font-size:0.75rem;padding:3px 8px">✏️</button> ' +
         '<button class="btn-del" onclick="closeViewMu();deleteMuestra(' + x.id + ')" style="font-size:0.75rem;padding:3px 8px">🗑️</button></td></tr>';
     });
@@ -436,14 +443,13 @@ function viewMuestra(id) {
 async function saveEntregas() {
   var remision = document.getElementById('mu-view-remision').value.trim();
   var fechaDespacho = document.getElementById('mu-view-fecha-despacho').value;
+  var fechaEntrega = document.getElementById('mu-view-fecha-entrega').value;
   var cantInputs = document.querySelectorAll('.mu-view-cant-ent');
   var updates = [];
   cantInputs.forEach(function(el) {
     var id = Number(el.getAttribute('data-id'));
-    var fechaEl = document.querySelector('.mu-view-fecha-ent[data-id="' + id + '"]');
     var cantVal = Number(el.value) || 0;
-    var fechaVal = fechaEl ? fechaEl.value : '';
-    updates.push({ id: id, Cant_Entregada: cantVal, Fecha_Entrega: fechaVal });
+    updates.push({ id: id, Cant_Entregada: cantVal });
   });
 
   if (!updates.length) return;
@@ -469,7 +475,7 @@ async function saveEntregas() {
         Estado: estado, Objetivo: row.Objetivo, Observaciones: row.Observaciones,
         Producto: row.Producto, Presentacion: row.Presentacion,
         Cantidad: row.Cantidad, Cant_Entregada: u.Cant_Entregada,
-        Fecha_Entrega: u.Fecha_Entrega
+        Fecha_Entrega: fechaEntrega || row.Fecha_Entrega
       });
       if (!res.ok) throw new Error(res.error || 'Error al guardar línea ' + u.id);
     }
