@@ -138,6 +138,9 @@ var MU_COLS = [
   { key: 'Producto', label: 'Producto', sortable: true },
   { key: 'Presentacion', label: 'Presentación', sortable: true },
   { key: 'Cantidad', label: 'Cant.', sortable: true, cls: 'money' },
+  { key: 'Cant_Entregada', label: 'Entregada', sortable: true, cls: 'money' },
+  { key: 'Remision', label: 'Remisión', sortable: true },
+  { key: 'Fecha_Entrega', label: 'Fecha Entrega', sortable: true, fmt: 'date' },
   { key: 'Solicitante', label: 'Solicitante', sortable: true },
   { key: 'Estado', label: 'Estado', sortable: true },
   { key: '_actions', label: 'Acciones' }
@@ -336,6 +339,9 @@ function renderMuTable() {
       '<td>' + (r.Producto || '—') + '</td>' +
       '<td>' + (r.Presentacion || '—') + '</td>' +
       '<td class="money">' + (r.Cantidad || 0) + '</td>' +
+      '<td class="money">' + (r.Cant_Entregada != null && r.Cant_Entregada !== '' ? r.Cant_Entregada : '—') + '</td>' +
+      '<td>' + (r.Remision || '—') + '</td>' +
+      '<td>' + fmtDate(r.Fecha_Entrega) + '</td>' +
       '<td>' + (r.Solicitante || '—') + '</td>' +
       '<td>' + estadoBadge + '</td>' +
       '<td style="white-space:nowrap">' +
@@ -383,9 +389,9 @@ function viewMuestra(id) {
 
   if (sameConsec.length > 1 || sameConsec.length === 1) {
     html += '<div style="border-top:1px solid #e2e8f0;padding-top:14px;margin-bottom:10px;font-weight:700;font-size:0.84rem;color:#2d3748">📦 Productos solicitados</div>';
-    html += '<table style="font-size:0.82rem;width:100%"><thead><tr style="background:#f7fafc"><th>Producto</th><th>Presentación</th><th style="text-align:right">Cantidad</th></tr></thead><tbody>';
+    html += '<table style="font-size:0.82rem;width:100%"><thead><tr style="background:#f7fafc"><th>Producto</th><th>Presentación</th><th style="text-align:right">Cantidad</th><th style="text-align:right">Entregada</th><th>Remisión</th><th>Fecha Entrega</th></tr></thead><tbody>';
     sameConsec.forEach(function(x) {
-      html += '<tr><td>' + (x.Producto || '—') + '</td><td>' + (x.Presentacion || '—') + '</td><td style="text-align:right">' + (x.Cantidad || 0) + '</td></tr>';
+      html += '<tr><td>' + (x.Producto || '—') + '</td><td>' + (x.Presentacion || '—') + '</td><td style="text-align:right">' + (x.Cantidad || 0) + '</td><td style="text-align:right">' + (x.Cant_Entregada != null && x.Cant_Entregada !== '' ? x.Cant_Entregada : '—') + '</td><td>' + (x.Remision || '—') + '</td><td>' + fmtDate(x.Fecha_Entrega) + '</td></tr>';
     });
     html += '</tbody></table>';
   }
@@ -502,6 +508,8 @@ async function editMuestra(id) {
   document.getElementById('mu-edit-producto').value = r.Producto || '';
   document.getElementById('mu-edit-presentacion').value = r.Presentacion || '';
   document.getElementById('mu-edit-cantidad').value = r.Cantidad || 0;
+  document.getElementById('mu-edit-cant-entregada').value = r.Cant_Entregada != null ? r.Cant_Entregada : '';
+  document.getElementById('mu-edit-fecha-entrega').value = toDateInput(r.Fecha_Entrega);
 
   document.getElementById('mu-overlay').classList.add('show');
   await loadProductosCache();
@@ -614,7 +622,9 @@ async function saveMuestra() {
         Observaciones: document.getElementById('mu-observaciones').value.trim(),
         Producto: producto,
         Presentacion: presentacion,
-        Cantidad: cantidad
+        Cantidad: cantidad,
+        Cant_Entregada: Number(document.getElementById('mu-edit-cant-entregada').value) || 0,
+        Fecha_Entrega: document.getElementById('mu-edit-fecha-entrega').value
       });
       if (!result.ok) throw new Error(result.error || 'Error al guardar');
       closeMuModal();

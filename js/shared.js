@@ -393,7 +393,8 @@ async function apiPost(body) {
           Fecha_Aplicacion: body.Fecha_Aplicacion || '', Fecha_Seguimiento: body.Fecha_Seguimiento || '',
           Remision: body.Remision || '', Objetivo: body.Objetivo || '',
           Producto: lin.Producto || '', Presentacion: lin.Presentacion || '',
-          Cantidad: Number(lin.Cantidad) || 0, Solicitante: body.Solicitante || '',
+          Cantidad: Number(lin.Cantidad) || 0, Cant_Entregada: Number(lin.Cant_Entregada) || 0,
+          Fecha_Entrega: lin.Fecha_Entrega || '', Solicitante: body.Solicitante || '',
           Autoriza: body.Autoriza || '', Estado: body.Estado || 'Pendiente',
           Observaciones: body.Observaciones || '', Fecha_Registro: now
         };
@@ -411,7 +412,8 @@ async function apiPost(body) {
         Fecha_Aplicacion: body.Fecha_Aplicacion || '', Fecha_Seguimiento: body.Fecha_Seguimiento || '',
         Remision: body.Remision || '', Objetivo: body.Objetivo || '',
         Producto: body.Producto || '', Presentacion: body.Presentacion || '',
-        Cantidad: Number(body.Cantidad) || 0, Solicitante: body.Solicitante || '',
+        Cantidad: Number(body.Cantidad) || 0, Cant_Entregada: Number(body.Cant_Entregada) || 0,
+        Fecha_Entrega: body.Fecha_Entrega || '', Solicitante: body.Solicitante || '',
         Autoriza: body.Autoriza || '', Estado: body.Estado || 'Pendiente',
         Observaciones: body.Observaciones || ''
       }).eq('id', body.row);
