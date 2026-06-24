@@ -459,7 +459,7 @@ async function saveEntregas() {
       var u = updates[i];
       var row = allMuestras.filter(function(r) { return r.id === u.id; })[0];
       if (!row) continue;
-      var estado = u.Cant_Entregada > 0 ? 'Despachada' : row.Estado;
+      var estado = 'Despachada';
       var res = await apiPost({
         action: 'editarMuestra', row: u.id,
         Empresa: row.Empresa, Consecutivo: row.Consecutivo,
