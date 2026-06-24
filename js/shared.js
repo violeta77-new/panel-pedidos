@@ -387,7 +387,7 @@ async function apiPost(body) {
       }
       var rows = lineas.map(function(lin) {
         return {
-          Consecutivo: body.Consecutivo || '', Fecha_Solicitud: body.Fecha_Solicitud || '',
+          Empresa: body.Empresa || '', Consecutivo: body.Consecutivo || '', Fecha_Solicitud: body.Fecha_Solicitud || '',
           Fecha_Despacho: body.Fecha_Despacho || '', Responsable: body.Responsable || '',
           Municipio: body.Municipio || '', Tipo_Cultivo: body.Tipo_Cultivo || '',
           Fecha_Aplicacion: body.Fecha_Aplicacion || '', Fecha_Seguimiento: body.Fecha_Seguimiento || '',
@@ -405,7 +405,7 @@ async function apiPost(body) {
 
     if (action === 'editarMuestra') {
       var res = await _sb.from('SolicitudMuestras').update({
-        Consecutivo: body.Consecutivo || '', Fecha_Solicitud: body.Fecha_Solicitud || '',
+        Empresa: body.Empresa || '', Consecutivo: body.Consecutivo || '', Fecha_Solicitud: body.Fecha_Solicitud || '',
         Fecha_Despacho: body.Fecha_Despacho || '', Responsable: body.Responsable || '',
         Municipio: body.Municipio || '', Tipo_Cultivo: body.Tipo_Cultivo || '',
         Fecha_Aplicacion: body.Fecha_Aplicacion || '', Fecha_Seguimiento: body.Fecha_Seguimiento || '',

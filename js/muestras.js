@@ -69,7 +69,12 @@ function setupMuProdAutocomplete() {
   if (!productosCache) return;
   [].slice.call(document.querySelectorAll('.mu-prod')).forEach(function(input, i) {
     muProdACs.push(muInitAC(input, {
-      items: function() { return productosCache || []; },
+      items: function() {
+        var emp = document.getElementById('mu-empresa').value;
+        var prods = productosCache || [];
+        if (emp) prods = prods.filter(function(p) { return p.empresa === emp; });
+        return prods;
+      },
       display: function(p) {
         return '<strong>' + escHtml(p.producto) + '</strong>' +
                (p.presentacion ? ' <span class="ac-sub">— ' + escHtml(p.presentacion) + '</span>' : '') +
@@ -93,7 +98,12 @@ function setupMuEditProdAC() {
   if (!productosCache) return;
   var input = document.getElementById('mu-edit-producto');
   muEditProdAC = muInitAC(input, {
-    items: function() { return productosCache || []; },
+    items: function() {
+      var emp = document.getElementById('mu-empresa').value;
+      var prods = productosCache || [];
+      if (emp) prods = prods.filter(function(p) { return p.empresa === emp; });
+      return prods;
+    },
     display: function(p) {
       return '<strong>' + escHtml(p.producto) + '</strong>' +
              (p.presentacion ? ' <span class="ac-sub">— ' + escHtml(p.presentacion) + '</span>' : '') +
@@ -109,7 +119,16 @@ function setupMuEditProdAC() {
   });
 }
 
+var EMPRESAS_SIGLA = {
+  'PARCELAR DE COLOMBIA SAS': 'PARCELAR',
+  'GREEN AGROSOLUCIONES DE COLOMBIA SAS': 'GREEN',
+  'SOLUCIONES INTEGRALES RESO SAS': 'RESO',
+  'INSUMOS AGROPECUARIOS SOSTENIBLES SAS': 'IASO',
+  'INSUMOS AGROPECUARIOS DE LA SABANA SAS': 'IAS'
+};
+
 var MU_COLS = [
+  { key: 'Empresa', label: 'Empresa', sortable: true },
   { key: 'Consecutivo', label: 'Consec.', sortable: true },
   { key: 'Fecha_Solicitud', label: 'Fecha Solicitud', sortable: true, fmt: 'date' },
   { key: 'Fecha_Despacho', label: 'Fecha Despacho', sortable: true, fmt: 'date' },
@@ -189,7 +208,7 @@ function applyMuFilters() {
     if (fMun && r.Municipio !== fMun) return false;
     if (fEst && r.Estado !== fEst) return false;
     if (fTxt) {
-      var hay = [r.Consecutivo, r.Responsable, r.Municipio, r.Producto, r.Presentacion,
+      var hay = [r.Empresa, r.Consecutivo, r.Responsable, r.Municipio, r.Producto, r.Presentacion,
                  r.Tipo_Cultivo, r.Solicitante, r.Autoriza, r.Objetivo, r.Remision]
         .join(' ').toLowerCase();
       if (hay.indexOf(fTxt) < 0) return false;
@@ -303,7 +322,11 @@ function renderMuTable() {
       ? '<span class="badge b-ent">Despachada</span>'
       : '<span class="badge b-rec">Pendiente</span>';
 
+    var sigla = EMPRESAS_SIGLA[r.Empresa] || r.Empresa || '—';
+    var siglaCls = 'sigla-' + (EMPRESAS_SIGLA[r.Empresa] || 'DEFAULT');
+
     return '<tr>' +
+      '<td><span class="sigla-badge ' + siglaCls + '">' + escHtml(sigla) + '</span></td>' +
       '<td>' + (r.Consecutivo || '—') + '</td>' +
       '<td>' + fmtDate(r.Fecha_Solicitud) + '</td>' +
       '<td>' + fmtDate(r.Fecha_Despacho) + '</td>' +
@@ -339,6 +362,7 @@ function viewMuestra(id) {
     '<span>👤 ' + (r.Responsable || '—') + '</span>';
 
   var html = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 24px;margin-bottom:18px;font-size:0.85rem">' +
+    field('Empresa', EMPRESAS_SIGLA[r.Empresa] || r.Empresa) +
     field('Fecha Solicitud', fmtDate(r.Fecha_Solicitud)) +
     field('Fecha Despacho', fmtDate(r.Fecha_Despacho)) +
     field('Responsable', r.Responsable) +
@@ -404,6 +428,7 @@ function openNewMuestra() {
   document.getElementById('btn-save-mu').textContent = '✓ Registrar solicitud';
   document.getElementById('btn-save-mu').disabled = false;
 
+  document.getElementById('mu-empresa').value = '';
   document.getElementById('mu-consecutivo').value = '';
   document.getElementById('mu-fecha-solicitud').value = today();
   document.getElementById('mu-fecha-despacho').value = '';
@@ -438,6 +463,7 @@ async function editMuestra(id) {
   document.getElementById('btn-save-mu').textContent = '✓ Guardar cambios';
   document.getElementById('btn-save-mu').disabled = false;
 
+  document.getElementById('mu-empresa').value = r.Empresa || '';
   document.getElementById('mu-consecutivo').value = r.Consecutivo || '';
   document.getElementById('mu-fecha-solicitud').value = toDateInput(r.Fecha_Solicitud);
   document.getElementById('mu-fecha-despacho').value = toDateInput(r.Fecha_Despacho);
@@ -553,6 +579,7 @@ async function saveMuestra() {
       var result = await apiPost({
         action: 'editarMuestra',
         row: muEditId,
+        Empresa: document.getElementById('mu-empresa').value,
         Consecutivo: document.getElementById('mu-consecutivo').value.trim(),
         Fecha_Solicitud: document.getElementById('mu-fecha-solicitud').value,
         Fecha_Despacho: document.getElementById('mu-fecha-despacho').value,
@@ -585,10 +612,12 @@ async function saveMuestra() {
 
   // New mode
   syncMuLinesFromDOM();
+  var empresa = document.getElementById('mu-empresa').value;
   var consecutivo = document.getElementById('mu-consecutivo').value.trim();
   var fechaSol = document.getElementById('mu-fecha-solicitud').value;
   var responsable = document.getElementById('mu-responsable').value.trim();
 
+  if (!empresa) { showToast('Selecciona la empresa', '#e74c3c'); return; }
   if (!consecutivo) { showToast('Ingresa el consecutivo', '#e74c3c'); return; }
   if (!fechaSol) { showToast('Selecciona la fecha de solicitud', '#e74c3c'); return; }
   if (!responsable) { showToast('Ingresa el responsable', '#e74c3c'); return; }
@@ -602,6 +631,7 @@ async function saveMuestra() {
   try {
     var result = await apiPost({
       action: 'agregarMuestra',
+      Empresa: empresa,
       Consecutivo: consecutivo,
       Fecha_Solicitud: fechaSol,
       Fecha_Despacho: document.getElementById('mu-fecha-despacho').value,
