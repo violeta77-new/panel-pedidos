@@ -341,6 +341,7 @@ BEGIN
         "Valor_Total" = COALESCE((lin->>'Valor_Total')::numeric, "Valor_Total"),
         "Cant_Entregada" = COALESCE((lin->>'Cant_Entregada')::numeric, "Cant_Entregada"),
         "Cant_Pendiente" = COALESCE((lin->>'Cant_Pendiente')::numeric, "Cant_Pendiente"),
+        "Estado_Entrega" = COALESCE(lin->>'Estado_Entrega', "Estado_Entrega"),
         "Remisiones" = COALESCE(lin->>'Remisiones', "Remisiones"),
         "Bonificado" = COALESCE(lin->>'Bonificado', "Bonificado")
       WHERE id = v_row;
@@ -381,6 +382,26 @@ BEGIN
       v_added := v_added + 1;
     END IF;
   END LOOP;
+
+  -- Recalculate Estado_Entrega for all sibling lines of the order
+  IF p_header->>'Nombre_Empresa' IS NOT NULL AND p_header->>'Consecutivo' IS NOT NULL THEN
+    WITH order_stats AS (
+      SELECT bool_or(COALESCE("Cant_Entregada", 0) > 0) AS any_delivery
+      FROM "Pedidos"
+      WHERE "Nombre_Empresa" = p_header->>'Nombre_Empresa'
+        AND "Consecutivo" = p_header->>'Consecutivo'
+    )
+    UPDATE "Pedidos" p SET
+      "Estado_Entrega" = CASE
+        WHEN COALESCE(p."Cantidad", 0) > 0 AND COALESCE(p."Cant_Entregada", 0) >= p."Cantidad" THEN 'Entregado'
+        WHEN COALESCE(p."Cant_Entregada", 0) > 0 THEN 'Parcial'
+        WHEN os.any_delivery THEN 'Parcial'
+        ELSE 'Recibido'
+      END
+    FROM order_stats os
+    WHERE p."Nombre_Empresa" = p_header->>'Nombre_Empresa'
+      AND p."Consecutivo" = p_header->>'Consecutivo';
+  END IF;
 
   IF array_length(p_delete_ids, 1) > 0 THEN
     DELETE FROM "Pedidos" WHERE id = ANY(p_delete_ids);

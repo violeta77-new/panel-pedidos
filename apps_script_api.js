@@ -224,7 +224,7 @@ function editarPedido(body) {
         var f = hdrFields[h];
         if (hdr[f] !== undefined && colIdx[f]) ws.getRange(row, colIdx[f]).setValue(hdr[f]);
       }
-      var lineFields = ['Producto','Presentacion','Cantidad','Valor_Unitario','Valor_Total','Cant_Entregada','Cant_Pendiente','Estado_Entrega','Remisiones','Bonificado'];
+      var lineFields = ['Producto','Presentacion','Cantidad','Valor_Unitario','Valor_Total','Cant_Entregada','Cant_Pendiente','Remisiones','Bonificado'];
       for (var lf = 0; lf < lineFields.length; lf++) {
         var ff = lineFields[lf];
         if (lin[ff] !== undefined && colIdx[ff]) ws.getRange(row, colIdx[ff]).setValue(lin[ff]);
@@ -238,34 +238,6 @@ function editarPedido(body) {
       }
       ws.appendRow(newRow);
       added++;
-    }
-  }
-
-  // Recalculate Estado_Entrega for all lines of this order
-  if (hdr.Nombre_Empresa && hdr.Consecutivo && colIdx['Estado_Entrega'] && colIdx['Cant_Entregada']) {
-    var allData = ws.getRange(2, 1, ws.getLastRow() - 1, ws.getLastColumn()).getValues();
-    var orderRows = [];
-    for (var r = 0; r < allData.length; r++) {
-      if (String(allData[r][colIdx['Nombre_Empresa'] - 1]) === String(hdr.Nombre_Empresa) &&
-          String(allData[r][colIdx['Consecutivo'] - 1]) === String(hdr.Consecutivo)) {
-        orderRows.push({ row: r + 2, entregada: Number(allData[r][colIdx['Cant_Entregada'] - 1]) || 0,
-                         pedida: Number(allData[r][colIdx['Cantidad'] - 1]) || 0 });
-      }
-    }
-    var anyDel = orderRows.some(function(o) { return o.entregada > 0; });
-    for (var or2 = 0; or2 < orderRows.length; or2++) {
-      var o = orderRows[or2];
-      var est;
-      if (o.pedida > 0 && o.entregada >= o.pedida) {
-        est = 'Entregado';
-      } else if (o.entregada > 0) {
-        est = 'Parcial';
-      } else if (anyDel) {
-        est = 'Parcial';
-      } else {
-        est = 'Recibido';
-      }
-      ws.getRange(o.row, colIdx['Estado_Entrega']).setValue(est);
     }
   }
 
