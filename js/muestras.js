@@ -72,7 +72,10 @@ function setupMuProdAutocomplete() {
       items: function() {
         var emp = document.getElementById('mu-empresa').value;
         var prods = productosCache || [];
-        if (emp) prods = prods.filter(function(p) { return p.empresa === emp; });
+        if (emp) {
+          var filtered = prods.filter(function(p) { return p.empresa === emp; });
+          if (filtered.length) prods = filtered;
+        }
         return prods;
       },
       display: function(p) {
@@ -101,7 +104,10 @@ function setupMuEditProdAC() {
     items: function() {
       var emp = document.getElementById('mu-empresa').value;
       var prods = productosCache || [];
-      if (emp) prods = prods.filter(function(p) { return p.empresa === emp; });
+      if (emp) {
+        var filtered = prods.filter(function(p) { return p.empresa === emp; });
+        if (filtered.length) prods = filtered;
+      }
       return prods;
     },
     display: function(p) {
