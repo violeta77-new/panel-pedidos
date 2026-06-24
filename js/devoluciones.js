@@ -36,7 +36,6 @@ var SORT_COLS_DEV = [
   { id:'empresa',    label:'Empresa',     fn: function(r) { return getSiglaDev(r.Empresa); } },
   { id:'consecutivo',label:'Consec.',     fn: function(r) { return Number(r.Consecutivo)||0; } },
   { id:'cliente',    label:'Cliente',     fn: function(r) { return (r.Cliente||'').toLowerCase(); } },
-  { id:'producto',   label:'Producto',    fn: function(r) { return (r.Producto||'').toLowerCase(); } },
   { id:'cantidad',   label:'Cantidad',    fn: function(r) { return Number(r.Cantidad)||0; } },
   { id:'valor_total',label:'Valor Total', fn: function(r) { return Number(r.Valor_Total)||0; } },
   { id:'vendedor',   label:'Vendedor',    fn: function(r) { return (r.Vendedor||'').toLowerCase(); } },
@@ -252,6 +251,29 @@ function clearDevFilters() {
   renderDevTable();
 }
 
+// ── Group devoluciones ──
+function groupDevoluciones(rows) {
+  var map = {};
+  var order = [];
+  rows.forEach(function(r) {
+    var key = (r.Empresa || '') + '||' + (r.Consecutivo || r.id);
+    if (!map[key]) {
+      map[key] = { head: Object.assign({}, r), lines: [], key: key };
+      order.push(key);
+    }
+    map[key].lines.push(r);
+  });
+  return order.map(function(k) {
+    var g = map[k];
+    g.head._nProds = g.lines.length;
+    g.head._lines = g.lines;
+    g.head._totalValor = g.lines.reduce(function(s, l) { return s + (Number(l.Valor_Total)||0); }, 0);
+    g.head._totalCant = g.lines.reduce(function(s, l) { return s + (Number(l.Cantidad)||0); }, 0);
+    g.head._lineIds = g.lines.map(function(l) { return l.__row || l.id; });
+    return g.head;
+  });
+}
+
 // ── Render ──
 function renderDevHeader() {
   var cols = [
@@ -262,11 +284,8 @@ function renderDevHeader() {
     { label:'Factura', id:null },
     { label:'Cliente', id:'cliente' },
     { label:'Vendedor', id:'vendedor' },
-    { label:'Producto', id:'producto' },
-    { label:'Pres.', id:null },
-    { label:'Cant.', id:'cantidad' },
-    { label:'Cant. Ent.', id:null },
-    { label:'V. Unit.', id:null },
+    { label:'# Prod.', id:null },
+    { label:'Cant. Total', id:'cantidad' },
     { label:'V. Total', id:'valor_total' },
     { label:'Motivo', id:null },
     { label:'Acción', id:null },
@@ -285,15 +304,17 @@ function renderDevHeader() {
 }
 
 function renderDevTable() {
-  var rows = applySortDev(filteredDev());
+  var filtered = filteredDev();
+  var grouped = groupDevoluciones(applySortDev(filtered));
 
-  var totalRegs = devoluciones.length;
+  var allGrouped = groupDevoluciones(devoluciones);
+  var totalRegs = allGrouped.length;
   var totalValor = devoluciones.reduce(function(s, r) { return s + (Number(r.Valor_Total)||0); }, 0);
   var now = new Date();
-  var mesActual = devoluciones.filter(function(r) {
+  var mesActual = groupDevoluciones(devoluciones.filter(function(r) {
     var d = new Date(r.Fecha);
     return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-  }).length;
+  })).length;
   var clientesSet = {};
   devoluciones.forEach(function(r) { if (r.Cliente) clientesSet[r.Cliente] = true; });
   var clientesCount = Object.keys(clientesSet).length;
@@ -302,17 +323,18 @@ function renderDevTable() {
   document.getElementById('s-valor').textContent = fmtMoney(totalValor);
   document.getElementById('s-mes').textContent = mesActual;
   document.getElementById('s-clientes').textContent = clientesCount;
-  document.getElementById('row-ct-dev').textContent = '(' + rows.length + ' mostrados)';
+  document.getElementById('row-ct-dev').textContent = '(' + grouped.length + ' mostrados)';
 
   renderDevHeader();
 
   var tbody = document.getElementById('t-body-dev');
-  if (!rows.length) {
-    tbody.innerHTML = '<tr><td colspan="15"><div class="empty">No hay devoluciones con los filtros seleccionados.</div></td></tr>';
+  if (!grouped.length) {
+    tbody.innerHTML = '<tr><td colspan="12"><div class="empty">No hay devoluciones con los filtros seleccionados.</div></td></tr>';
     return;
   }
 
-  tbody.innerHTML = rows.map(function(r, i) {
+  tbody.innerHTML = grouped.map(function(r, i) {
+    var keyEsc = (r.key || '').replace(/'/g, "\\'");
     return '<tr>' +
       '<td style="color:#718096;font-size:0.78rem">' + (i+1) + '</td>' +
       '<td style="white-space:nowrap;font-size:0.78rem">' + fmtDate(r.Fecha) + '</td>' +
@@ -321,20 +343,116 @@ function renderDevTable() {
       '<td style="font-size:0.78rem">' + (r.Num_Factura||'—') + '</td>' +
       '<td style="font-weight:600;font-size:0.82rem">' + (r.Cliente||'—') + '</td>' +
       '<td style="font-size:0.78rem">' + (r.Vendedor||'—') + '</td>' +
-      '<td style="font-weight:700">' + (r.Producto||'—') + '</td>' +
-      '<td style="font-size:0.78rem">' + (r.Presentacion||'—') + '</td>' +
-      '<td style="text-align:center">' + (r.Cantidad||0) + '</td>' +
-      '<td style="text-align:center">' + (r.Cant_Entregada||'—') + '</td>' +
-      '<td style="text-align:right;font-size:0.78rem">' + fmtMoney(r.Valor_Unitario) + '</td>' +
-      '<td style="text-align:right;font-weight:700;font-size:0.82rem">' + fmtMoney(r.Valor_Total) + '</td>' +
+      '<td style="text-align:center"><span style="background:#edf2f7;padding:2px 8px;border-radius:10px;font-weight:700;font-size:0.8rem">' + (r._nProds||0) + '</span></td>' +
+      '<td style="text-align:center;font-weight:600">' + (r._totalCant||0) + '</td>' +
+      '<td style="text-align:right;font-weight:700;font-size:0.82rem">' + fmtMoney(r._totalValor) + '</td>' +
       '<td style="font-size:0.76rem;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + (r.Motivo||'') + '">' + (r.Motivo||'—') + '</td>' +
       '<td><div style="display:flex;gap:6px;align-items:center">' +
-        '<button class="btn-edit" onclick="openEditDev(' + r.__row + ')" title="Editar">✏️</button>' +
-        '<button class="btn-del" onclick="openDeleteDev(' + i + ',' + (r.__row||0) + ')" title="Eliminar">🗑️</button>' +
+        '<button class="btn-edit" onclick="viewDevDetail(\'' + keyEsc + '\')" title="Ver detalle" style="background:#3498db;font-size:0.72rem;padding:4px 8px;border-radius:5px;color:white;border:none;cursor:pointer;font-weight:700">📋 Ver</button>' +
+        '<button class="btn-del" onclick="openDeleteDevGroup(\'' + keyEsc + '\')" title="Eliminar devolución">🗑️</button>' +
       '</div></td>' +
     '</tr>';
   }).join('');
 }
+
+// ── Detail view modal ──
+function viewDevDetail(key) {
+  var lines = devoluciones.filter(function(r) {
+    return ((r.Empresa || '') + '||' + (r.Consecutivo || r.id)) === key;
+  });
+  if (!lines.length) return;
+  var r = lines[0];
+
+  function devField(label, val) {
+    return '<div><span style="font-weight:700;color:#4a5568;font-size:0.76rem;text-transform:uppercase">' + label + '</span><br>' +
+      '<span style="font-size:0.85rem;color:#2d3748">' + (val || '—') + '</span></div>';
+  }
+
+  var html = '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px 24px;margin-bottom:18px;font-size:0.85rem">' +
+    devField('Empresa', getSiglaDev(r.Empresa)) +
+    devField('Fecha', fmtDate(r.Fecha)) +
+    devField('Consecutivo', r.Consecutivo) +
+    devField('Vendedor', r.Vendedor) +
+    devField('Cliente', r.Cliente) +
+    devField('NIT', r.NIT) +
+    devField('Dirección', r.Direccion) +
+    devField('Municipio', r.Municipio) +
+    devField('Departamento', r.Departamento) +
+    devField('Teléfono', r.Telefono) +
+    devField('N° Factura', r.Num_Factura) +
+    devField('Motivo', r.Motivo) +
+    '</div>';
+
+  if (r.Observaciones) {
+    html += '<div style="margin-bottom:14px"><div style="font-weight:700;font-size:0.78rem;color:#4a5568;text-transform:uppercase;margin-bottom:4px">Observaciones</div>' +
+      '<div style="font-size:0.85rem;color:#2d3748;background:#f7fafc;padding:10px 14px;border-radius:6px">' + (r.Observaciones || '') + '</div></div>';
+  }
+
+  html += '<div style="border-top:1px solid #e2e8f0;padding-top:14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center">' +
+    '<div style="font-weight:700;font-size:0.84rem;color:#2d3748">📦 Productos (' + lines.length + ')</div>' +
+    '</div>';
+
+  html += '<div style="overflow-x:auto"><table style="font-size:0.82rem;width:100%"><thead><tr style="background:#f7fafc">' +
+    '<th>Producto</th><th>Presentación</th><th style="text-align:right">Cantidad</th>' +
+    '<th style="text-align:right">Cant. Ent.</th><th style="text-align:right">V. Unitario</th>' +
+    '<th style="text-align:right">V. Total</th><th style="width:80px"></th>' +
+    '</tr></thead><tbody>';
+
+  var totalValor = 0;
+  lines.forEach(function(x) {
+    totalValor += Number(x.Valor_Total) || 0;
+    html += '<tr>' +
+      '<td style="font-weight:600">' + (x.Producto || '—') + '</td>' +
+      '<td>' + (x.Presentacion || '—') + '</td>' +
+      '<td style="text-align:right">' + (x.Cantidad || 0) + '</td>' +
+      '<td style="text-align:right">' + (x.Cant_Entregada || '—') + '</td>' +
+      '<td style="text-align:right">' + fmtMoney(x.Valor_Unitario) + '</td>' +
+      '<td style="text-align:right;font-weight:700">' + fmtMoney(x.Valor_Total) + '</td>' +
+      '<td style="white-space:nowrap">' +
+        '<button class="btn-edit" onclick="closeViewDev();openEditDev(' + x.__row + ')" style="font-size:0.75rem;padding:3px 8px" title="Editar línea">✏️</button> ' +
+        '<button class="btn-del" onclick="closeViewDev();openDeleteDev(0,' + (x.__row||0) + ')" style="font-size:0.75rem;padding:3px 8px" title="Eliminar línea">🗑️</button>' +
+      '</td></tr>';
+  });
+
+  html += '<tr style="background:#fef9f2;font-weight:700;border-top:2px solid #e2e8f0">' +
+    '<td colspan="5" style="text-align:right">TOTAL:</td>' +
+    '<td style="text-align:right">' + fmtMoney(totalValor) + '</td><td></td></tr>';
+  html += '</tbody></table></div>';
+
+  document.getElementById('view-dev-meta').innerHTML =
+    '<span>📋 Consec: ' + (r.Consecutivo || '—') + '</span>' +
+    '<span>📅 ' + fmtDate(r.Fecha) + '</span>' +
+    '<span>👤 ' + (r.Cliente || '—') + '</span>';
+
+  document.getElementById('view-dev-body').innerHTML = html;
+  document.getElementById('view-dev-overlay').classList.add('show');
+}
+
+function closeViewDev() {
+  document.getElementById('view-dev-overlay').classList.remove('show');
+}
+
+document.getElementById('view-dev-overlay').addEventListener('click', function(e) { if (isBackdropClick(e)) closeViewDev(); });
+
+// ── Delete group ──
+function openDeleteDevGroup(key) {
+  var lines = devoluciones.filter(function(r) {
+    return ((r.Empresa || '') + '||' + (r.Consecutivo || r.id)) === key;
+  });
+  if (!lines.length) return;
+  var r = lines[0];
+  deleteDevGroupIds = lines.map(function(l) { return l.__row || l.id; });
+  document.getElementById('del-dev-msg').textContent = '¿Eliminar esta devolución completa?';
+  document.getElementById('del-dev-detail').innerHTML =
+    'Cliente: <strong>' + (r.Cliente||'—') + '</strong> · Consec: <strong>' + (r.Consecutivo||'—') + '</strong><br>' +
+    'Productos: ' + lines.length + ' · Valor: ' + fmtMoney(lines.reduce(function(s,l){return s+(Number(l.Valor_Total)||0);},0)) + '<br><br>' +
+    '<span style="color:#e74c3c;font-weight:700">Se eliminarán ' + lines.length + ' registro(s) de la base de datos.</span>';
+  document.getElementById('btn-del-dev-confirm').disabled = false;
+  document.getElementById('btn-del-dev-confirm').textContent = '🗑️ Sí, eliminar';
+  document.getElementById('delete-dev-overlay').classList.add('show');
+}
+
+var deleteDevGroupIds = null;
 
 // ── Product search/autocomplete ──
 var activeAutocompleteDev = null;
@@ -706,13 +824,17 @@ var deleteDevRow = null;
 
 function openDeleteDev(idx, row) {
   deleteDevRow = row;
-  var rows = filteredDev();
-  var r = rows[idx] || {};
-  document.getElementById('del-dev-msg').textContent = '¿Eliminar esta devolución?';
+  deleteDevGroupIds = null;
+  var r = null;
+  for (var i = 0; i < devoluciones.length; i++) {
+    if (devoluciones[i].__row === row) { r = devoluciones[i]; break; }
+  }
+  if (!r) r = {};
+  document.getElementById('del-dev-msg').textContent = '¿Eliminar esta línea de producto?';
   document.getElementById('del-dev-detail').innerHTML =
     'Cliente: <strong>' + (r.Cliente||'—') + '</strong> · Producto: <strong>' + (r.Producto||'—') + '</strong><br>' +
     'Valor: ' + fmtMoney(r.Valor_Total) + ' · ' + fmtDate(r.Fecha) + '<br><br>' +
-    '<span style="color:#e74c3c;font-weight:700">Se eliminará este registro de la base de datos.</span>';
+    '<span style="color:#e74c3c;font-weight:700">Se eliminará esta línea de la base de datos.</span>';
   document.getElementById('btn-del-dev-confirm').disabled = false;
   document.getElementById('btn-del-dev-confirm').textContent = '🗑️ Sí, eliminar';
   document.getElementById('delete-dev-overlay').classList.add('show');
@@ -721,21 +843,30 @@ function openDeleteDev(idx, row) {
 function closeDeleteDev() {
   document.getElementById('delete-dev-overlay').classList.remove('show');
   deleteDevRow = null;
+  deleteDevGroupIds = null;
 }
 
 document.getElementById('delete-dev-overlay').addEventListener('click', function(e) { if (isBackdropClick(e)) closeDeleteDev(); });
 
 async function confirmDeleteDev() {
-  if (!deleteDevRow) return;
   var btn = document.getElementById('btn-del-dev-confirm');
   btn.disabled = true;
   btn.textContent = '⏳ Eliminando...';
 
   try {
-    var result = await apiPost({ action: 'eliminarDevolucion', row: deleteDevRow });
-    if (!result.ok) throw new Error(result.error || 'Error al eliminar');
-    closeDeleteDev();
-    showToast('🗑️ Devolución eliminada');
+    if (deleteDevGroupIds && deleteDevGroupIds.length) {
+      for (var i = 0; i < deleteDevGroupIds.length; i++) {
+        var result = await apiPost({ action: 'eliminarDevolucion', row: deleteDevGroupIds[i] });
+        if (!result.ok) throw new Error(result.error || 'Error al eliminar');
+      }
+      closeDeleteDev();
+      showToast('🗑️ Devolución eliminada (' + deleteDevGroupIds.length + ' líneas)');
+    } else if (deleteDevRow) {
+      var result = await apiPost({ action: 'eliminarDevolucion', row: deleteDevRow });
+      if (!result.ok) throw new Error(result.error || 'Error al eliminar');
+      closeDeleteDev();
+      showToast('🗑️ Línea eliminada');
+    }
     await loadDevoluciones();
   } catch (err) {
     showToast('❌ Error: ' + err.message, '#e74c3c');

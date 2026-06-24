@@ -283,6 +283,24 @@
   </div>
 </div>
 
+<!-- DETAIL VIEW MODAL -->
+<div class="overlay" id="view-dev-overlay">
+  <div class="modal-box" style="max-width:860px">
+    <div class="mhdr" style="background:linear-gradient(135deg,#2c3e50,#34495e)">
+      <div style="flex:1">
+        <h2>📋 Detalle de Devolución</h2>
+        <div style="font-size:0.78rem;opacity:0.85;margin-top:4px;display:flex;gap:16px" id="view-dev-meta"></div>
+      </div>
+      <button class="btn-close" onclick="closeViewDev()">✕</button>
+    </div>
+    <div class="mbody" id="view-dev-body" style="max-height:70vh;overflow-y:auto"></div>
+    <div class="mftr">
+      <div></div>
+      <button class="btn-cancel" onclick="closeViewDev()">Cerrar</button>
+    </div>
+  </div>
+</div>
+
 <!-- DELETE CONFIRM MODAL -->
 <div class="overlay" id="delete-dev-overlay">
   <div class="modal-box" style="max-width:480px">
