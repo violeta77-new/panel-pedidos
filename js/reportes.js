@@ -319,7 +319,7 @@ function switchTab(tab) {
 var remData = [];
 var remSortLevels = [{ col: 'empresa', dir: 'asc' }];
 
-function _addRemision(map, key, empresa, numRem, modulo, referencia, detalle, cantidad, fecha) {
+function _addRemision(map, key, empresa, numRem, modulo, referencia, detalle, cantidad, fecha, empresaOrigen, empresaDestino) {
   if (!map[key]) {
     map[key] = {
       empresa: getSigla(empresa),
@@ -329,7 +329,9 @@ function _addRemision(map, key, empresa, numRem, modulo, referencia, detalle, ca
       referencias: {},
       detalles: [],
       cantidad: 0,
-      fechas: []
+      fechas: [],
+      empresaOrigen: empresaOrigen || '',
+      empresaDestino: empresaDestino || ''
     };
   }
   var row = map[key];
@@ -341,7 +343,7 @@ function _addRemision(map, key, empresa, numRem, modulo, referencia, detalle, ca
 
 function buildRemisiones() {
   try { _buildRemisionesInner(); } catch(err) {
-    document.getElementById('rem-body').innerHTML = '<tr><td colspan="7"><div class="empty-msg">Error: ' + err.message + '</div></td></tr>';
+    document.getElementById('rem-body').innerHTML = '<tr><td colspan="9"><div class="empty-msg">Error: ' + err.message + '</div></td></tr>';
   }
 }
 function _buildRemisionesInner() {
@@ -393,7 +395,7 @@ function _buildRemisionesInner() {
     if (fEmp && empNombre !== fEmp && (oc.Empresa_Origen || '') !== fEmp) return;
     if (fTxt && rem.toLowerCase().indexOf(fTxt) < 0 && getSigla(empNombre).toLowerCase().indexOf(fTxt) < 0) return;
     var key = empNombre + '||' + rem + '||Orden de Compra';
-    _addRemision(map, key, empNombre, rem, 'Orden de Compra', 'OC ' + (oc.Consecutivo || ''), (oc.Producto || '') + ' (' + (oc.Presentacion || '') + ')', oc.Cantidad, oc.Fecha);
+    _addRemision(map, key, empNombre, rem, 'Orden de Compra', 'OC ' + (oc.Consecutivo || ''), (oc.Producto || '') + ' (' + (oc.Presentacion || '') + ')', oc.Cantidad, oc.Fecha, oc.Empresa_Origen || '', oc.Empresa_Destino || '');
     empresasSet[getSigla(empNombre)] = true;
     totalLineas++;
   });
@@ -452,6 +454,8 @@ function renderRemTable() {
   var MOD_COLORS = { 'Pedido': '#2980b9', 'Ingreso': '#27ae60', 'Orden de Compra': '#8e44ad' };
   var cols = [
     { id: 'empresa', label: 'Empresa' },
+    { id: 'empresaOrigen', label: 'Emp. Origen' },
+    { id: 'empresaDestino', label: 'Emp. Destino' },
     { id: 'remision', label: 'N° Remisión' },
     { id: 'modulo', label: 'Módulo' },
     { id: 'referenciasStr', label: 'Referencia' },
@@ -473,14 +477,18 @@ function renderRemTable() {
   var tbody = document.getElementById('rem-body');
 
   if (!rows.length) {
-    tbody.innerHTML = '<tr><td colspan="7"><div class="empty-msg">No hay remisiones registradas con los filtros seleccionados.</div></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="9"><div class="empty-msg">No hay remisiones registradas con los filtros seleccionados.</div></td></tr>';
     return;
   }
 
   tbody.innerHTML = rows.map(function(r) {
     var modColor = MOD_COLORS[r.modulo] || '#718096';
+    var empOrigCell = r.empresaOrigen ? '<span class="badge-emp" style="background:#fef9e7;color:#7d6608">' + getSigla(r.empresaOrigen) + '</span>' : '—';
+    var empDestCell = r.empresaDestino ? '<span class="badge-emp" style="background:#eafaf1;color:#1e8449">' + getSigla(r.empresaDestino) + '</span>' : '—';
     return '<tr>' +
       '<td><span class="badge-emp" style="background:#ebf5fb;color:#1a5276">' + r.empresa + '</span></td>' +
+      '<td>' + empOrigCell + '</td>' +
+      '<td>' + empDestCell + '</td>' +
       '<td style="font-weight:700;color:#2c3e50">' + r.remision + '</td>' +
       '<td><span style="background:' + modColor + ';color:white;padding:2px 9px;border-radius:12px;font-size:0.72rem;font-weight:700">' + r.modulo + '</span></td>' +
       '<td style="font-size:0.8rem">' + r.referenciasStr + '</td>' +
@@ -495,10 +503,12 @@ function exportRemCSV() {
   var rows = sortedRemData();
   if (!rows.length) { showToast('No hay datos para exportar', '#e74c3c'); return; }
 
-  var lines = ['Empresa,Remision,Modulo,Referencia,Productos,Cantidad,Fecha'];
+  var lines = ['Empresa,Emp_Origen,Emp_Destino,Remision,Modulo,Referencia,Productos,Cantidad,Fecha'];
   rows.forEach(function(r) {
     lines.push([
       '"' + r.empresa + '"',
+      '"' + (r.empresaOrigen ? getSigla(r.empresaOrigen) : '') + '"',
+      '"' + (r.empresaDestino ? getSigla(r.empresaDestino) : '') + '"',
       '"' + r.remision + '"',
       '"' + r.modulo + '"',
       '"' + r.referenciasStr.replace(/"/g,'""') + '"',
