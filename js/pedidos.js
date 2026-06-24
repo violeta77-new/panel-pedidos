@@ -501,6 +501,21 @@ async function guardarTodo() {
     l.Cant_Pendiente = Math.max(0, l.Cantidad - l.Cant_Entregada);
   });
 
+  var anyDelivery = detailWorkingLines.some(function(l) { return (Number(l.Cant_Entregada)||0) > 0; });
+  detailWorkingLines.forEach(function(l) {
+    var pedida = Number(l.Cantidad) || 0;
+    var entregada = Number(l.Cant_Entregada) || 0;
+    if (pedida > 0 && entregada >= pedida) {
+      l.Estado_Entrega = 'Entregado';
+    } else if (entregada > 0) {
+      l.Estado_Entrega = 'Parcial';
+    } else if (anyDelivery) {
+      l.Estado_Entrega = 'Parcial';
+    } else {
+      l.Estado_Entrega = 'Recibido';
+    }
+  });
+
   var hdr = {
     Cliente: document.getElementById('md-cliente').value.trim(),
     NIT: document.getElementById('md-nit').value.trim(),
