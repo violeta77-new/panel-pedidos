@@ -404,10 +404,15 @@ function viewMuestra(id) {
   if (sameConsec.length) {
     html += '<div style="border-top:1px solid #e2e8f0;padding-top:14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center">' +
       '<div style="font-weight:700;font-size:0.84rem;color:#2d3748">📦 Productos solicitados (' + sameConsec.length + ')</div>' +
+      '<button onclick="saveEntregas()" style="background:#27ae60;color:white;border:none;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:0.8rem;font-weight:700" id="btn-save-entregas">💾 Guardar entregas</button>' +
       '</div>';
-    html += '<table style="font-size:0.82rem;width:100%"><thead><tr style="background:#f7fafc"><th>Producto</th><th>Presentación</th><th style="text-align:right">Cantidad</th><th style="text-align:right">Entregada</th><th>Fecha Entrega</th><th></th></tr></thead><tbody>';
+    html += '<table style="font-size:0.82rem;width:100%"><thead><tr style="background:#f7fafc"><th>Producto</th><th>Presentación</th><th style="text-align:right">Cantidad</th><th style="text-align:right;width:90px">Entregada</th><th style="width:130px">Fecha Entrega</th><th></th></tr></thead><tbody>';
     sameConsec.forEach(function(x) {
-      html += '<tr><td>' + (x.Producto || '—') + '</td><td>' + (x.Presentacion || '—') + '</td><td style="text-align:right">' + (x.Cantidad || 0) + '</td><td style="text-align:right">' + (x.Cant_Entregada != null && x.Cant_Entregada !== '' ? x.Cant_Entregada : '—') + '</td><td>' + fmtDate(x.Fecha_Entrega) + '</td>' +
+      var cantEnt = x.Cant_Entregada != null && x.Cant_Entregada !== '' ? x.Cant_Entregada : '';
+      var fechaEnt = x.Fecha_Entrega ? toDateInput(x.Fecha_Entrega) : '';
+      html += '<tr><td>' + (x.Producto || '—') + '</td><td>' + (x.Presentacion || '—') + '</td><td style="text-align:right">' + (x.Cantidad || 0) + '</td>' +
+        '<td><input type="number" min="0" class="ef mu-view-cant-ent" data-id="' + x.id + '" value="' + cantEnt + '" style="width:70px;text-align:right;padding:4px 6px;font-size:0.82rem"></td>' +
+        '<td><input type="date" class="ef mu-view-fecha-ent" data-id="' + x.id + '" value="' + fechaEnt + '" style="width:125px;padding:4px 6px;font-size:0.82rem"></td>' +
         '<td style="white-space:nowrap"><button class="btn-edit" onclick="closeViewMu();editMuestra(' + x.id + ')" style="font-size:0.75rem;padding:3px 8px">✏️</button> ' +
         '<button class="btn-del" onclick="closeViewMu();deleteMuestra(' + x.id + ')" style="font-size:0.75rem;padding:3px 8px">🗑️</button></td></tr>';
     });
@@ -421,6 +426,55 @@ function viewMuestra(id) {
 
   document.getElementById('view-mu-body').innerHTML = html;
   document.getElementById('view-mu-overlay').classList.add('show');
+}
+
+async function saveEntregas() {
+  var cantInputs = document.querySelectorAll('.mu-view-cant-ent');
+  var fechaInputs = document.querySelectorAll('.mu-view-fecha-ent');
+  var updates = [];
+  cantInputs.forEach(function(el) {
+    var id = Number(el.getAttribute('data-id'));
+    var fechaEl = document.querySelector('.mu-view-fecha-ent[data-id="' + id + '"]');
+    var cantVal = Number(el.value) || 0;
+    var fechaVal = fechaEl ? fechaEl.value : '';
+    updates.push({ id: id, Cant_Entregada: cantVal, Fecha_Entrega: fechaVal });
+  });
+
+  if (!updates.length) return;
+
+  var btn = document.getElementById('btn-save-entregas');
+  btn.disabled = true;
+  btn.textContent = '⏳ Guardando...';
+
+  try {
+    for (var i = 0; i < updates.length; i++) {
+      var u = updates[i];
+      var row = allMuestras.filter(function(r) { return r.id === u.id; })[0];
+      if (!row) continue;
+      var estado = u.Cant_Entregada > 0 ? 'Despachada' : row.Estado;
+      var res = await apiPost({
+        action: 'editarMuestra', row: u.id,
+        Empresa: row.Empresa, Consecutivo: row.Consecutivo,
+        Fecha_Solicitud: row.Fecha_Solicitud, Fecha_Despacho: row.Fecha_Despacho,
+        Responsable: row.Responsable, Municipio: row.Municipio,
+        Tipo_Cultivo: row.Tipo_Cultivo, Fecha_Aplicacion: row.Fecha_Aplicacion,
+        Fecha_Seguimiento: row.Fecha_Seguimiento, Remision: row.Remision,
+        Solicitante: row.Solicitante, Autoriza: row.Autoriza,
+        Estado: estado, Objetivo: row.Objetivo, Observaciones: row.Observaciones,
+        Producto: row.Producto, Presentacion: row.Presentacion,
+        Cantidad: row.Cantidad, Cant_Entregada: u.Cant_Entregada,
+        Fecha_Entrega: u.Fecha_Entrega
+      });
+      if (!res.ok) throw new Error(res.error || 'Error al guardar línea ' + u.id);
+    }
+    closeViewMu();
+    showToast('✅ Entregas registradas');
+    await loadMuestras();
+  } catch (err) {
+    showToast('❌ Error: ' + err.message, '#e74c3c');
+    btn.disabled = false;
+    btn.textContent = '💾 Guardar entregas';
+  }
 }
 
 function field(label, val) {
