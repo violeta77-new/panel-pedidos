@@ -1229,6 +1229,22 @@ function setupProductoAutocomplete() {
 // ── New Order Manual Entry ──
 var nuevoProductos = [];
 
+function populateNuevoDataLists() {
+  var plazos = {}, precios = {};
+  pedidos.forEach(function(p) {
+    var pl = (p.Plazo_Pago || '').trim();
+    var pr = (p.Precio_Facturacion || '').trim();
+    if (pl) plazos[pl] = true;
+    if (pr) precios[pr] = true;
+  });
+  document.getElementById('dl-plazo').innerHTML = Object.keys(plazos).sort().map(function(v) {
+    return '<option value="' + v.replace(/"/g, '&quot;') + '">';
+  }).join('');
+  document.getElementById('dl-precio').innerHTML = Object.keys(precios).sort().map(function(v) {
+    return '<option value="' + v.replace(/"/g, '&quot;') + '">';
+  }).join('');
+}
+
 async function openNuevoPedido() {
   document.getElementById('nv-empresa').value = '';
   document.getElementById('nv-consecutivo').value = '';
@@ -1247,6 +1263,7 @@ async function openNuevoPedido() {
   document.getElementById('btn-guardar-nuevo').disabled = false;
   document.getElementById('btn-guardar-nuevo').textContent = '✏️ Guardar pedido';
   nuevoProductos = [{ producto:'', presentacion:'', cantidad:0, valor_unitario:0, valor_total:0, bonificado:'' }];
+  populateNuevoDataLists();
   renderNuevoLines();
   document.getElementById('nuevo-overlay').classList.add('show');
 
