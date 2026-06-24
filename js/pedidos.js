@@ -1129,10 +1129,107 @@ async function confirmDelete() {
   }
 }
 
+// ── Autocomplete ──
+function escHtml(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+var clientesCache = null;
+var productosCache = null;
+var clienteAC = null;
+var productoACs = [];
+
+async function loadAutocompleteData() {
+  if (!clientesCache) {
+    try { var r = await apiGet('getClientesUnicos'); if (r.ok) clientesCache = r.clientes || []; } catch(e) { clientesCache = []; }
+  }
+  if (!productosCache) {
+    try { var r = await apiGet('getMaestroProductos'); if (r.ok) productosCache = r.productos || []; } catch(e) { productosCache = []; }
+  }
+}
+
+function initAutocomplete(input, opts) {
+  var dd = document.createElement('div');
+  dd.className = 'ac-dropdown';
+  dd.style.display = 'none';
+  document.body.appendChild(dd);
+  var selIdx = -1, items = [];
+
+  function pos() {
+    var r = input.getBoundingClientRect();
+    dd.style.top = r.bottom + 'px';
+    dd.style.left = r.left + 'px';
+    dd.style.width = Math.max(r.width, 250) + 'px';
+  }
+
+  function show() {
+    var val = input.value.toLowerCase().trim();
+    if (val.length < (opts.minChars || 2)) { dd.style.display = 'none'; return; }
+    var all = typeof opts.items === 'function' ? opts.items() : opts.items;
+    items = all.filter(function(it) { return opts.match(it, val); }).slice(0, 10);
+    if (!items.length) { dd.style.display = 'none'; return; }
+    selIdx = -1;
+    dd.innerHTML = items.map(function(it) { return '<div class="ac-item">' + opts.display(it) + '</div>'; }).join('');
+    [].slice.call(dd.children).forEach(function(el, i) {
+      el.addEventListener('mousedown', function(e) { e.preventDefault(); pick(i); });
+    });
+    pos();
+    dd.style.display = 'block';
+  }
+
+  function pick(i) { if (items[i]) { opts.onSelect(items[i]); dd.style.display = 'none'; selIdx = -1; } }
+
+  function hl() {
+    [].slice.call(dd.children).forEach(function(el, j) { el.className = 'ac-item' + (j === selIdx ? ' active' : ''); });
+    if (selIdx >= 0 && dd.children[selIdx]) dd.children[selIdx].scrollIntoView({ block: 'nearest' });
+  }
+
+  input.addEventListener('input', show);
+  input.addEventListener('focus', function() { if (input.value.trim().length >= (opts.minChars || 2)) show(); });
+  input.addEventListener('blur', function() { setTimeout(function() { dd.style.display = 'none'; }, 150); });
+  input.addEventListener('keydown', function(e) {
+    if (dd.style.display === 'none' || !items.length) return;
+    if (e.key === 'ArrowDown') { e.preventDefault(); selIdx = Math.min(selIdx + 1, items.length - 1); hl(); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); selIdx = Math.max(selIdx - 1, 0); hl(); }
+    else if (e.key === 'Enter' && selIdx >= 0) { e.preventDefault(); pick(selIdx); }
+    else if (e.key === 'Escape') { dd.style.display = 'none'; }
+  });
+
+  return { destroy: function() { if (dd.parentElement) dd.parentElement.removeChild(dd); } };
+}
+
+function destroyProductoACs() { productoACs.forEach(function(ac) { ac.destroy(); }); productoACs = []; }
+
+function setupProductoAutocomplete() {
+  destroyProductoACs();
+  if (!productosCache) return;
+  [].slice.call(document.querySelectorAll('.nv-prod')).forEach(function(input, i) {
+    productoACs.push(initAutocomplete(input, {
+      items: function() {
+        var emp = document.getElementById('nv-empresa').value;
+        var prods = productosCache || [];
+        if (emp) prods = prods.filter(function(p) { return p.empresa === emp; });
+        return prods;
+      },
+      display: function(p) {
+        return '<strong>' + escHtml(p.producto) + '</strong>' +
+               (p.presentacion ? ' <span class="ac-sub">— ' + escHtml(p.presentacion) + '</span>' : '');
+      },
+      match: function(p, val) {
+        return ((p.producto||'') + ' ' + (p.presentacion||'')).toLowerCase().indexOf(val) >= 0;
+      },
+      onSelect: function(p) {
+        input.value = p.producto || '';
+        var presInputs = document.querySelectorAll('.nv-pres');
+        if (presInputs[i]) presInputs[i].value = p.presentacion || '';
+        syncNuevoFromDOM();
+      }
+    }));
+  });
+}
+
 // ── New Order Manual Entry ──
 var nuevoProductos = [];
 
-function openNuevoPedido() {
+async function openNuevoPedido() {
   document.getElementById('nv-empresa').value = '';
   document.getElementById('nv-consecutivo').value = '';
   document.getElementById('nv-fecha').value = today();
@@ -1152,14 +1249,41 @@ function openNuevoPedido() {
   nuevoProductos = [{ producto:'', presentacion:'', cantidad:0, valor_unitario:0, valor_total:0, bonificado:'' }];
   renderNuevoLines();
   document.getElementById('nuevo-overlay').classList.add('show');
+
+  await loadAutocompleteData();
+  if (clienteAC) { clienteAC.destroy(); clienteAC = null; }
+  clienteAC = initAutocomplete(document.getElementById('nv-cliente'), {
+    items: function() { return clientesCache || []; },
+    display: function(c) {
+      return '<strong>' + escHtml(c.cliente) + '</strong>' +
+             (c.nit ? '<div class="ac-sub">NIT: ' + escHtml(c.nit) + '</div>' : '');
+    },
+    match: function(c, val) {
+      return ((c.cliente||'') + ' ' + (c.nit||'')).toLowerCase().indexOf(val) >= 0;
+    },
+    onSelect: function(c) {
+      document.getElementById('nv-cliente').value = c.cliente || '';
+      if (c.nit) document.getElementById('nv-nit').value = c.nit;
+      if (c.telefono) document.getElementById('nv-telefono').value = c.telefono;
+      if (c.municipio) document.getElementById('nv-municipio').value = c.municipio;
+      if (c.departamento) document.getElementById('nv-departamento').value = c.departamento;
+      if (c.direccion) document.getElementById('nv-direccion').value = c.direccion;
+    }
+  });
+  setupProductoAutocomplete();
 }
 
 function closeNuevo() {
   document.getElementById('nuevo-overlay').classList.remove('show');
   nuevoProductos = [];
+  if (clienteAC) { clienteAC.destroy(); clienteAC = null; }
+  destroyProductoACs();
 }
 
 document.getElementById('nuevo-overlay').addEventListener('click', function(e) { if (isBackdropClick(e)) closeNuevo(); });
+document.getElementById('nuevo-overlay').addEventListener('scroll', function() {
+  [].slice.call(document.querySelectorAll('.ac-dropdown')).forEach(function(dd) { dd.style.display = 'none'; });
+}, true);
 
 function renderNuevoLines() {
   var tbody = document.getElementById('nv-lines');
@@ -1181,6 +1305,7 @@ function renderNuevoLines() {
       '</td></tr>';
   }).join('');
   updateNuevoTotal();
+  setupProductoAutocomplete();
 }
 
 function updateNuevoLine(i) {
