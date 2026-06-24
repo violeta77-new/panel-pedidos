@@ -4,7 +4,7 @@ var allMuestras = [];
 var filteredMu = [];
 var muSortCols = [];
 var muEditId = null;
-var muDeleteId = null;
+var muDeleteIds = [];
 var muLines = [{ producto: '', presentacion: '', cantidad: 0 }];
 var productosCache = null;
 var muProdACs = [];
@@ -137,20 +137,17 @@ var MU_COLS = [
   { key: 'Empresa', label: 'Empresa', sortable: true },
   { key: 'Consecutivo', label: 'Consec.', sortable: true },
   { key: 'Fecha_Solicitud', label: 'Fecha Solicitud', sortable: true, fmt: 'date' },
-  { key: 'Fecha_Despacho', label: 'Fecha Despacho', sortable: true, fmt: 'date' },
   { key: 'Responsable', label: 'Responsable', sortable: true },
   { key: 'Municipio', label: 'Municipio', sortable: true },
   { key: 'Tipo_Cultivo', label: 'Tipo Cultivo', sortable: true },
-  { key: 'Producto', label: 'Producto', sortable: true },
-  { key: 'Presentacion', label: 'Presentación', sortable: true },
-  { key: 'Cantidad', label: 'Cant.', sortable: true, cls: 'money' },
-  { key: 'Cant_Entregada', label: 'Entregada', sortable: true, cls: 'money' },
+  { key: '_nProds', label: 'Productos', sortable: true, cls: 'money' },
   { key: 'Remision', label: 'Remisión', sortable: true },
-  { key: 'Fecha_Entrega', label: 'Fecha Entrega', sortable: true, fmt: 'date' },
   { key: 'Solicitante', label: 'Solicitante', sortable: true },
   { key: 'Estado', label: 'Estado', sortable: true },
   { key: '_actions', label: 'Acciones' }
 ];
+
+var groupedMu = [];
 
 // ── Load data ──
 
@@ -206,6 +203,25 @@ function populateMuFilters() {
   selMun.value = prevMun;
 }
 
+function groupMuestras(rows) {
+  var map = {};
+  var order = [];
+  rows.forEach(function(r) {
+    var key = (r.Empresa || '') + '||' + (r.Consecutivo || r.id);
+    if (!map[key]) {
+      map[key] = { head: r, lines: [], key: key };
+      order.push(key);
+    }
+    map[key].lines.push(r);
+  });
+  return order.map(function(k) {
+    var g = map[k];
+    g.head._nProds = g.lines.length;
+    g.head._lineIds = g.lines.map(function(l) { return l.id; });
+    return g.head;
+  });
+}
+
 function applyMuFilters() {
   var fResp = document.getElementById('f-responsable').value;
   var fMun = document.getElementById('f-municipio').value;
@@ -225,6 +241,7 @@ function applyMuFilters() {
     return true;
   });
 
+  groupedMu = groupMuestras(filteredMu);
   sortMuData();
   renderMuTable();
   updateMuStats();
@@ -246,19 +263,18 @@ document.getElementById('f-txt').addEventListener('input', applyMuFilters);
 // ── Stats ──
 
 function updateMuStats() {
-  var consecs = {};
-  var despachadas = {};
-  var pendientes = {};
+  var allGrouped = groupMuestras(allMuestras);
+  var despachadas = 0;
+  var pendientes = 0;
   var totalProd = 0;
-  allMuestras.forEach(function(r) {
-    consecs[r.Consecutivo || r.id] = 1;
-    if (r.Estado === 'Despachada') despachadas[r.Consecutivo || r.id] = 1;
-    else pendientes[r.Consecutivo || r.id] = 1;
-    totalProd += Number(r.Cantidad) || 0;
+  allGrouped.forEach(function(r) {
+    if (r.Estado === 'Despachada') despachadas++;
+    else pendientes++;
   });
-  document.getElementById('s-total').textContent = Object.keys(consecs).length;
-  document.getElementById('s-despachadas').textContent = Object.keys(despachadas).length;
-  document.getElementById('s-pendientes').textContent = Object.keys(pendientes).length;
+  allMuestras.forEach(function(r) { totalProd += Number(r.Cantidad) || 0; });
+  document.getElementById('s-total').textContent = allGrouped.length;
+  document.getElementById('s-despachadas').textContent = despachadas;
+  document.getElementById('s-pendientes').textContent = pendientes;
   document.getElementById('s-productos').textContent = totalProd;
 }
 
@@ -266,7 +282,7 @@ function updateMuStats() {
 
 function sortMuData() {
   if (!muSortCols.length) return;
-  filteredMu.sort(function(a, b) {
+  groupedMu.sort(function(a, b) {
     for (var i = 0; i < muSortCols.length; i++) {
       var col = muSortCols[i];
       var va = a[col.key] == null ? '' : a[col.key];
@@ -299,9 +315,8 @@ function clearSortMu() {
 // ── Render table ──
 
 function renderMuTable() {
-  // Header
   var thead = document.getElementById('t-head-mu');
-  thead.innerHTML = MU_COLS.map(function(col, ci) {
+  thead.innerHTML = MU_COLS.map(function(col) {
     if (!col.sortable) return '<th>' + col.label + '</th>';
     var sc = muSortCols.filter(function(c) { return c.key === col.key; })[0];
     var cls = 'sortable' + (sc ? (sc.dir === 'asc' ? ' sort-asc' : ' sort-desc') : '');
@@ -316,17 +331,16 @@ function renderMuTable() {
   var btnSort = document.getElementById('btn-clear-sort-mu');
   btnSort.style.display = muSortCols.length ? 'inline-block' : 'none';
 
-  // Body
   var tbody = document.getElementById('t-body-mu');
-  if (!filteredMu.length) {
+  if (!groupedMu.length) {
     tbody.innerHTML = '<tr><td colspan="' + MU_COLS.length + '" class="empty">No hay solicitudes de muestras registradas</td></tr>';
     document.getElementById('row-ct').textContent = '';
     return;
   }
 
-  document.getElementById('row-ct').textContent = '(' + filteredMu.length + ' registro' + (filteredMu.length !== 1 ? 's' : '') + ')';
+  document.getElementById('row-ct').textContent = '(' + groupedMu.length + ' solicitud' + (groupedMu.length !== 1 ? 'es' : '') + ')';
 
-  tbody.innerHTML = filteredMu.map(function(r) {
+  tbody.innerHTML = groupedMu.map(function(r) {
     var estadoBadge = r.Estado === 'Despachada'
       ? '<span class="badge b-ent">Despachada</span>'
       : '<span class="badge b-rec">Pendiente</span>';
@@ -334,26 +348,20 @@ function renderMuTable() {
     var sigla = EMPRESAS_SIGLA[r.Empresa] || r.Empresa || '—';
     var siglaCls = 'sigla-' + (EMPRESAS_SIGLA[r.Empresa] || 'DEFAULT');
 
-    return '<tr>' +
+    return '<tr style="cursor:pointer" onclick="viewMuestra(' + r.id + ')">' +
       '<td><span class="sigla-badge ' + siglaCls + '">' + escHtml(sigla) + '</span></td>' +
       '<td>' + (r.Consecutivo || '—') + '</td>' +
       '<td>' + fmtDate(r.Fecha_Solicitud) + '</td>' +
-      '<td>' + fmtDate(r.Fecha_Despacho) + '</td>' +
       '<td>' + (r.Responsable || '—') + '</td>' +
       '<td>' + (r.Municipio || '—') + '</td>' +
       '<td>' + (r.Tipo_Cultivo || '—') + '</td>' +
-      '<td>' + (r.Producto || '—') + '</td>' +
-      '<td>' + (r.Presentacion || '—') + '</td>' +
-      '<td class="money">' + (r.Cantidad || 0) + '</td>' +
-      '<td class="money">' + (r.Cant_Entregada != null && r.Cant_Entregada !== '' ? r.Cant_Entregada : '—') + '</td>' +
+      '<td class="money">' + (r._nProds || 0) + '</td>' +
       '<td>' + (r.Remision || '—') + '</td>' +
-      '<td>' + fmtDate(r.Fecha_Entrega) + '</td>' +
       '<td>' + (r.Solicitante || '—') + '</td>' +
       '<td>' + estadoBadge + '</td>' +
-      '<td style="white-space:nowrap">' +
-        '<button class="btn-ver" onclick="viewMuestra(' + r.id + ')">👁️ Ver</button> ' +
+      '<td style="white-space:nowrap" onclick="event.stopPropagation()">' +
         '<button class="btn-edit" onclick="editMuestra(' + r.id + ')">✏️</button> ' +
-        '<button class="btn-del" onclick="deleteMuestra(' + r.id + ')">🗑️</button>' +
+        '<button class="btn-del" onclick="deleteSolicitud(\'' + escHtml((r.Empresa || '') + '||' + (r.Consecutivo || r.id)) + '\')">🗑️</button>' +
       '</td></tr>';
   }).join('');
 }
@@ -393,11 +401,15 @@ function viewMuestra(id) {
       '<div style="font-size:0.85rem;color:#2d3748;background:#f7fafc;padding:10px 14px;border-radius:6px">' + escHtml(r.Objetivo) + '</div></div>';
   }
 
-  if (sameConsec.length > 1 || sameConsec.length === 1) {
-    html += '<div style="border-top:1px solid #e2e8f0;padding-top:14px;margin-bottom:10px;font-weight:700;font-size:0.84rem;color:#2d3748">📦 Productos solicitados</div>';
-    html += '<table style="font-size:0.82rem;width:100%"><thead><tr style="background:#f7fafc"><th>Producto</th><th>Presentación</th><th style="text-align:right">Cantidad</th><th style="text-align:right">Entregada</th><th>Remisión</th><th>Fecha Entrega</th></tr></thead><tbody>';
+  if (sameConsec.length) {
+    html += '<div style="border-top:1px solid #e2e8f0;padding-top:14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center">' +
+      '<div style="font-weight:700;font-size:0.84rem;color:#2d3748">📦 Productos solicitados (' + sameConsec.length + ')</div>' +
+      '</div>';
+    html += '<table style="font-size:0.82rem;width:100%"><thead><tr style="background:#f7fafc"><th>Producto</th><th>Presentación</th><th style="text-align:right">Cantidad</th><th style="text-align:right">Entregada</th><th>Fecha Entrega</th><th></th></tr></thead><tbody>';
     sameConsec.forEach(function(x) {
-      html += '<tr><td>' + (x.Producto || '—') + '</td><td>' + (x.Presentacion || '—') + '</td><td style="text-align:right">' + (x.Cantidad || 0) + '</td><td style="text-align:right">' + (x.Cant_Entregada != null && x.Cant_Entregada !== '' ? x.Cant_Entregada : '—') + '</td><td>' + (x.Remision || '—') + '</td><td>' + fmtDate(x.Fecha_Entrega) + '</td></tr>';
+      html += '<tr><td>' + (x.Producto || '—') + '</td><td>' + (x.Presentacion || '—') + '</td><td style="text-align:right">' + (x.Cantidad || 0) + '</td><td style="text-align:right">' + (x.Cant_Entregada != null && x.Cant_Entregada !== '' ? x.Cant_Entregada : '—') + '</td><td>' + fmtDate(x.Fecha_Entrega) + '</td>' +
+        '<td style="white-space:nowrap"><button class="btn-edit" onclick="closeViewMu();editMuestra(' + x.id + ')" style="font-size:0.75rem;padding:3px 8px">✏️</button> ' +
+        '<button class="btn-del" onclick="closeViewMu();deleteMuestra(' + x.id + ')" style="font-size:0.75rem;padding:3px 8px">🗑️</button></td></tr>';
     });
     html += '</tbody></table>';
   }
@@ -706,31 +718,49 @@ async function saveMuestra() {
 function deleteMuestra(id) {
   var r = allMuestras.filter(function(x) { return x.id === id; })[0];
   if (!r) return;
-  muDeleteId = id;
-  document.getElementById('del-mu-msg').textContent = '¿Eliminar esta solicitud de muestra?';
+  muDeleteIds = [id];
+  document.getElementById('del-mu-msg').textContent = '¿Eliminar esta línea de producto?';
   document.getElementById('del-mu-detail').textContent =
-    'Consecutivo: ' + (r.Consecutivo || '—') + ' — ' + (r.Producto || 'Sin producto');
+    'Producto: ' + (r.Producto || 'Sin producto') + ' — Cantidad: ' + (r.Cantidad || 0);
+  document.getElementById('btn-del-mu-confirm').disabled = false;
+  document.getElementById('delete-mu-overlay').classList.add('show');
+}
+
+function deleteSolicitud(key) {
+  var parts = key.split('||');
+  var empresa = parts[0];
+  var consec = parts[1];
+  var lines = allMuestras.filter(function(r) {
+    return (r.Empresa || '') === empresa && (r.Consecutivo || String(r.id)) === consec;
+  });
+  if (!lines.length) return;
+  muDeleteIds = lines.map(function(r) { return r.id; });
+  document.getElementById('del-mu-msg').textContent = '¿Eliminar esta solicitud completa?';
+  document.getElementById('del-mu-detail').textContent =
+    'Consecutivo: ' + consec + ' — ' + lines.length + ' producto(s)';
   document.getElementById('btn-del-mu-confirm').disabled = false;
   document.getElementById('delete-mu-overlay').classList.add('show');
 }
 
 function closeDeleteMu() {
   document.getElementById('delete-mu-overlay').classList.remove('show');
-  muDeleteId = null;
+  muDeleteIds = [];
 }
 document.getElementById('delete-mu-overlay').addEventListener('click', function(e) { if (isBackdropClick(e)) closeDeleteMu(); });
 
 async function confirmDeleteMu() {
-  if (!muDeleteId) return;
+  if (!muDeleteIds.length) return;
   var btn = document.getElementById('btn-del-mu-confirm');
   btn.disabled = true;
   btn.textContent = '⏳ Eliminando...';
 
   try {
-    var result = await apiPost({ action: 'eliminarMuestra', row: muDeleteId });
-    if (!result.ok) throw new Error(result.error || 'Error al eliminar');
+    for (var i = 0; i < muDeleteIds.length; i++) {
+      var result = await apiPost({ action: 'eliminarMuestra', row: muDeleteIds[i] });
+      if (!result.ok) throw new Error(result.error || 'Error al eliminar');
+    }
     closeDeleteMu();
-    showToast('✅ Solicitud eliminada');
+    showToast('✅ Eliminado correctamente');
     await loadMuestras();
   } catch (err) {
     showToast('❌ Error: ' + err.message, '#e74c3c');
