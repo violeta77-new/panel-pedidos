@@ -1,0 +1,564 @@
+// ── Solicitud de Muestras ──
+
+var allMuestras = [];
+var filteredMu = [];
+var muSortCols = [];
+var muEditId = null;
+var muDeleteId = null;
+var muLines = [{ producto: '', presentacion: '', cantidad: 0 }];
+var productosCache = null;
+
+var MU_COLS = [
+  { key: 'Consecutivo', label: 'Consec.', sortable: true },
+  { key: 'Fecha_Solicitud', label: 'Fecha Solicitud', sortable: true, fmt: 'date' },
+  { key: 'Fecha_Despacho', label: 'Fecha Despacho', sortable: true, fmt: 'date' },
+  { key: 'Responsable', label: 'Responsable', sortable: true },
+  { key: 'Municipio', label: 'Municipio', sortable: true },
+  { key: 'Tipo_Cultivo', label: 'Tipo Cultivo', sortable: true },
+  { key: 'Producto', label: 'Producto', sortable: true },
+  { key: 'Presentacion', label: 'Presentación', sortable: true },
+  { key: 'Cantidad', label: 'Cant.', sortable: true, cls: 'money' },
+  { key: 'Solicitante', label: 'Solicitante', sortable: true },
+  { key: 'Estado', label: 'Estado', sortable: true },
+  { key: '_actions', label: 'Acciones' }
+];
+
+// ── Load data ──
+
+async function loadMuestras() {
+  var loadZone = document.getElementById('load-zone');
+  var main = document.getElementById('main');
+  var loadErr = document.getElementById('load-error');
+  var btnRetry = document.getElementById('btn-retry');
+  loadZone.style.display = 'block';
+  main.style.display = 'none';
+  loadErr.style.display = 'none';
+  btnRetry.style.display = 'none';
+
+  var res = await apiGet('getMuestras');
+  if (!res.ok) {
+    loadErr.textContent = res.error || 'Error al cargar';
+    loadErr.style.display = 'block';
+    btnRetry.style.display = 'inline-block';
+    return;
+  }
+
+  allMuestras = res.muestras || [];
+  loadZone.style.display = 'none';
+  main.style.display = 'block';
+  populateMuFilters();
+  applyMuFilters();
+}
+
+// ── Filters ──
+
+function populateMuFilters() {
+  var responsables = {};
+  var municipios = {};
+  allMuestras.forEach(function(r) {
+    if (r.Responsable) responsables[r.Responsable] = 1;
+    if (r.Municipio) municipios[r.Municipio] = 1;
+  });
+
+  var selResp = document.getElementById('f-responsable');
+  var prevResp = selResp.value;
+  selResp.innerHTML = '<option value="">Todos</option>';
+  Object.keys(responsables).sort().forEach(function(v) {
+    selResp.innerHTML += '<option value="' + v.replace(/"/g, '&quot;') + '">' + v + '</option>';
+  });
+  selResp.value = prevResp;
+
+  var selMun = document.getElementById('f-municipio');
+  var prevMun = selMun.value;
+  selMun.innerHTML = '<option value="">Todos</option>';
+  Object.keys(municipios).sort().forEach(function(v) {
+    selMun.innerHTML += '<option value="' + v.replace(/"/g, '&quot;') + '">' + v + '</option>';
+  });
+  selMun.value = prevMun;
+}
+
+function applyMuFilters() {
+  var fResp = document.getElementById('f-responsable').value;
+  var fMun = document.getElementById('f-municipio').value;
+  var fEst = document.getElementById('f-estado').value;
+  var fTxt = document.getElementById('f-txt').value.toLowerCase().trim();
+
+  filteredMu = allMuestras.filter(function(r) {
+    if (fResp && r.Responsable !== fResp) return false;
+    if (fMun && r.Municipio !== fMun) return false;
+    if (fEst && r.Estado !== fEst) return false;
+    if (fTxt) {
+      var hay = [r.Consecutivo, r.Responsable, r.Municipio, r.Producto, r.Presentacion,
+                 r.Tipo_Cultivo, r.Solicitante, r.Autoriza, r.Objetivo, r.Remision]
+        .join(' ').toLowerCase();
+      if (hay.indexOf(fTxt) < 0) return false;
+    }
+    return true;
+  });
+
+  sortMuData();
+  renderMuTable();
+  updateMuStats();
+}
+
+function clearMuestraFilters() {
+  document.getElementById('f-responsable').value = '';
+  document.getElementById('f-municipio').value = '';
+  document.getElementById('f-estado').value = '';
+  document.getElementById('f-txt').value = '';
+  applyMuFilters();
+}
+
+document.getElementById('f-responsable').addEventListener('change', applyMuFilters);
+document.getElementById('f-municipio').addEventListener('change', applyMuFilters);
+document.getElementById('f-estado').addEventListener('change', applyMuFilters);
+document.getElementById('f-txt').addEventListener('input', applyMuFilters);
+
+// ── Stats ──
+
+function updateMuStats() {
+  var consecs = {};
+  var despachadas = {};
+  var pendientes = {};
+  var totalProd = 0;
+  allMuestras.forEach(function(r) {
+    consecs[r.Consecutivo || r.id] = 1;
+    if (r.Estado === 'Despachada') despachadas[r.Consecutivo || r.id] = 1;
+    else pendientes[r.Consecutivo || r.id] = 1;
+    totalProd += Number(r.Cantidad) || 0;
+  });
+  document.getElementById('s-total').textContent = Object.keys(consecs).length;
+  document.getElementById('s-despachadas').textContent = Object.keys(despachadas).length;
+  document.getElementById('s-pendientes').textContent = Object.keys(pendientes).length;
+  document.getElementById('s-productos').textContent = totalProd;
+}
+
+// ── Sort ──
+
+function sortMuData() {
+  if (!muSortCols.length) return;
+  filteredMu.sort(function(a, b) {
+    for (var i = 0; i < muSortCols.length; i++) {
+      var col = muSortCols[i];
+      var va = a[col.key] == null ? '' : a[col.key];
+      var vb = b[col.key] == null ? '' : b[col.key];
+      if (typeof va === 'string') va = va.toLowerCase();
+      if (typeof vb === 'string') vb = vb.toLowerCase();
+      var cmp = va < vb ? -1 : va > vb ? 1 : 0;
+      if (cmp !== 0) return col.dir === 'desc' ? -cmp : cmp;
+    }
+    return 0;
+  });
+}
+
+function toggleSortMu(key) {
+  var existing = muSortCols.filter(function(c) { return c.key === key; })[0];
+  if (existing) {
+    if (existing.dir === 'asc') existing.dir = 'desc';
+    else muSortCols = muSortCols.filter(function(c) { return c.key !== key; });
+  } else {
+    muSortCols.push({ key: key, dir: 'asc' });
+  }
+  applyMuFilters();
+}
+
+function clearSortMu() {
+  muSortCols = [];
+  applyMuFilters();
+}
+
+// ── Render table ──
+
+function renderMuTable() {
+  // Header
+  var thead = document.getElementById('t-head-mu');
+  thead.innerHTML = MU_COLS.map(function(col, ci) {
+    if (!col.sortable) return '<th>' + col.label + '</th>';
+    var sc = muSortCols.filter(function(c) { return c.key === col.key; })[0];
+    var cls = 'sortable' + (sc ? (sc.dir === 'asc' ? ' sort-asc' : ' sort-desc') : '');
+    var badge = '';
+    if (sc && muSortCols.length > 1) {
+      badge = '<span class="sort-badge">' + (muSortCols.indexOf(sc) + 1) + '</span>';
+    }
+    return '<th class="' + cls + '" onclick="toggleSortMu(\'' + col.key + '\')">' +
+      col.label + '<span class="sort-icon"></span>' + badge + '</th>';
+  }).join('');
+
+  var btnSort = document.getElementById('btn-clear-sort-mu');
+  btnSort.style.display = muSortCols.length ? 'inline-block' : 'none';
+
+  // Body
+  var tbody = document.getElementById('t-body-mu');
+  if (!filteredMu.length) {
+    tbody.innerHTML = '<tr><td colspan="' + MU_COLS.length + '" class="empty">No hay solicitudes de muestras registradas</td></tr>';
+    document.getElementById('row-ct').textContent = '';
+    return;
+  }
+
+  document.getElementById('row-ct').textContent = '(' + filteredMu.length + ' registro' + (filteredMu.length !== 1 ? 's' : '') + ')';
+
+  tbody.innerHTML = filteredMu.map(function(r) {
+    var estadoBadge = r.Estado === 'Despachada'
+      ? '<span class="badge b-ent">Despachada</span>'
+      : '<span class="badge b-rec">Pendiente</span>';
+
+    return '<tr>' +
+      '<td>' + (r.Consecutivo || '—') + '</td>' +
+      '<td>' + fmtDate(r.Fecha_Solicitud) + '</td>' +
+      '<td>' + fmtDate(r.Fecha_Despacho) + '</td>' +
+      '<td>' + (r.Responsable || '—') + '</td>' +
+      '<td>' + (r.Municipio || '—') + '</td>' +
+      '<td>' + (r.Tipo_Cultivo || '—') + '</td>' +
+      '<td>' + (r.Producto || '—') + '</td>' +
+      '<td>' + (r.Presentacion || '—') + '</td>' +
+      '<td class="money">' + (r.Cantidad || 0) + '</td>' +
+      '<td>' + (r.Solicitante || '—') + '</td>' +
+      '<td>' + estadoBadge + '</td>' +
+      '<td style="white-space:nowrap">' +
+        '<button class="btn-ver" onclick="viewMuestra(' + r.id + ')">👁️ Ver</button> ' +
+        '<button class="btn-edit" onclick="editMuestra(' + r.id + ')">✏️</button> ' +
+        '<button class="btn-del" onclick="deleteMuestra(' + r.id + ')">🗑️</button>' +
+      '</td></tr>';
+  }).join('');
+}
+
+// ── View modal ──
+
+function viewMuestra(id) {
+  var rows = allMuestras.filter(function(r) { return r.id === id; });
+  if (!rows.length) return;
+  var r = rows[0];
+
+  var consec = r.Consecutivo || '';
+  var sameConsec = allMuestras.filter(function(x) { return x.Consecutivo === consec && consec; });
+
+  document.getElementById('view-mu-meta').innerHTML =
+    '<span>📋 Consecutivo: ' + (consec || '—') + '</span>' +
+    '<span>📅 ' + fmtDate(r.Fecha_Solicitud) + '</span>' +
+    '<span>👤 ' + (r.Responsable || '—') + '</span>';
+
+  var html = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 24px;margin-bottom:18px;font-size:0.85rem">' +
+    field('Fecha Solicitud', fmtDate(r.Fecha_Solicitud)) +
+    field('Fecha Despacho', fmtDate(r.Fecha_Despacho)) +
+    field('Responsable', r.Responsable) +
+    field('Municipio / Vereda', r.Municipio) +
+    field('Tipo de Cultivo', r.Tipo_Cultivo) +
+    field('N° Remisión', r.Remision) +
+    field('Fecha Aplicación', fmtDate(r.Fecha_Aplicacion)) +
+    field('Fecha Seguimiento', fmtDate(r.Fecha_Seguimiento)) +
+    field('Solicitante', r.Solicitante) +
+    field('Quien Autoriza', r.Autoriza) +
+    field('Estado', r.Estado) +
+    '</div>';
+
+  if (r.Objetivo) {
+    html += '<div style="margin-bottom:14px"><div style="font-weight:700;font-size:0.78rem;color:#4a5568;text-transform:uppercase;margin-bottom:4px">Objetivo</div>' +
+      '<div style="font-size:0.85rem;color:#2d3748;background:#f7fafc;padding:10px 14px;border-radius:6px">' + escHtml(r.Objetivo) + '</div></div>';
+  }
+
+  if (sameConsec.length > 1 || sameConsec.length === 1) {
+    html += '<div style="border-top:1px solid #e2e8f0;padding-top:14px;margin-bottom:10px;font-weight:700;font-size:0.84rem;color:#2d3748">📦 Productos solicitados</div>';
+    html += '<table style="font-size:0.82rem;width:100%"><thead><tr style="background:#f7fafc"><th>Producto</th><th>Presentación</th><th style="text-align:right">Cantidad</th></tr></thead><tbody>';
+    sameConsec.forEach(function(x) {
+      html += '<tr><td>' + (x.Producto || '—') + '</td><td>' + (x.Presentacion || '—') + '</td><td style="text-align:right">' + (x.Cantidad || 0) + '</td></tr>';
+    });
+    html += '</tbody></table>';
+  }
+
+  if (r.Observaciones) {
+    html += '<div style="margin-top:14px"><div style="font-weight:700;font-size:0.78rem;color:#4a5568;text-transform:uppercase;margin-bottom:4px">Observaciones</div>' +
+      '<div style="font-size:0.85rem;color:#2d3748;background:#f7fafc;padding:10px 14px;border-radius:6px">' + escHtml(r.Observaciones) + '</div></div>';
+  }
+
+  document.getElementById('view-mu-body').innerHTML = html;
+  document.getElementById('view-mu-overlay').classList.add('show');
+}
+
+function field(label, val) {
+  return '<div><span style="font-weight:700;color:#4a5568;font-size:0.76rem;text-transform:uppercase">' + label + '</span><br><span style="color:#2d3748">' + (val || '—') + '</span></div>';
+}
+
+function escHtml(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function closeViewMu() {
+  document.getElementById('view-mu-overlay').classList.remove('show');
+}
+document.getElementById('view-mu-overlay').addEventListener('click', function(e) { if (isBackdropClick(e)) closeViewMu(); });
+
+// ── New / Edit modal ──
+
+async function loadProductosCache() {
+  if (productosCache) return;
+  var res = await apiGet('getMaestroProductos');
+  if (res.ok && res.productos) productosCache = res.productos;
+  else productosCache = [];
+}
+
+function openNewMuestra() {
+  muEditId = null;
+  document.getElementById('mu-modal-title').textContent = '🧪 Nueva Solicitud de Muestras';
+  document.getElementById('btn-save-mu').textContent = '✓ Registrar solicitud';
+  document.getElementById('btn-save-mu').disabled = false;
+
+  document.getElementById('mu-consecutivo').value = '';
+  document.getElementById('mu-fecha-solicitud').value = today();
+  document.getElementById('mu-fecha-despacho').value = '';
+  document.getElementById('mu-responsable').value = '';
+  document.getElementById('mu-municipio').value = '';
+  document.getElementById('mu-tipo-cultivo').value = '';
+  document.getElementById('mu-fecha-aplicacion').value = '';
+  document.getElementById('mu-fecha-seguimiento').value = '';
+  document.getElementById('mu-remision').value = '';
+  document.getElementById('mu-solicitante').value = '';
+  document.getElementById('mu-autoriza').value = '';
+  document.getElementById('mu-estado').value = 'Pendiente';
+  document.getElementById('mu-objetivo').value = '';
+  document.getElementById('mu-observaciones').value = '';
+
+  document.getElementById('mu-multi-lines').style.display = '';
+  document.getElementById('mu-edit-single').style.display = 'none';
+
+  muLines = [{ producto: '', presentacion: '', cantidad: 0 }];
+  renderMuLines();
+  document.getElementById('mu-overlay').classList.add('show');
+  loadProductosCache();
+}
+
+function editMuestra(id) {
+  var r = allMuestras.filter(function(x) { return x.id === id; })[0];
+  if (!r) return;
+
+  muEditId = id;
+  document.getElementById('mu-modal-title').textContent = '✏️ Editar Solicitud';
+  document.getElementById('btn-save-mu').textContent = '✓ Guardar cambios';
+  document.getElementById('btn-save-mu').disabled = false;
+
+  document.getElementById('mu-consecutivo').value = r.Consecutivo || '';
+  document.getElementById('mu-fecha-solicitud').value = toDateInput(r.Fecha_Solicitud);
+  document.getElementById('mu-fecha-despacho').value = toDateInput(r.Fecha_Despacho);
+  document.getElementById('mu-responsable').value = r.Responsable || '';
+  document.getElementById('mu-municipio').value = r.Municipio || '';
+  document.getElementById('mu-tipo-cultivo').value = r.Tipo_Cultivo || '';
+  document.getElementById('mu-fecha-aplicacion').value = toDateInput(r.Fecha_Aplicacion);
+  document.getElementById('mu-fecha-seguimiento').value = toDateInput(r.Fecha_Seguimiento);
+  document.getElementById('mu-remision').value = r.Remision || '';
+  document.getElementById('mu-solicitante').value = r.Solicitante || '';
+  document.getElementById('mu-autoriza').value = r.Autoriza || '';
+  document.getElementById('mu-estado').value = r.Estado || 'Pendiente';
+  document.getElementById('mu-objetivo').value = r.Objetivo || '';
+  document.getElementById('mu-observaciones').value = r.Observaciones || '';
+
+  document.getElementById('mu-multi-lines').style.display = 'none';
+  document.getElementById('mu-edit-single').style.display = '';
+  document.getElementById('mu-edit-producto').value = r.Producto || '';
+  document.getElementById('mu-edit-presentacion').value = r.Presentacion || '';
+  document.getElementById('mu-edit-cantidad').value = r.Cantidad || 0;
+
+  document.getElementById('mu-overlay').classList.add('show');
+}
+
+function closeMuModal() {
+  document.getElementById('mu-overlay').classList.remove('show');
+  muEditId = null;
+  muLines = [];
+}
+
+document.getElementById('mu-overlay').addEventListener('click', function(e) { if (isBackdropClick(e)) closeMuModal(); });
+
+// ── Product lines ──
+
+function renderMuLines() {
+  var tbody = document.getElementById('mu-lines');
+  tbody.innerHTML = muLines.map(function(p, i) {
+    var prod = (p.producto || '').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    var pres = (p.presentacion || '').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    return '<tr>' +
+      '<td style="color:#a0aec0;font-size:0.74rem">' + (i + 1) + '</td>' +
+      '<td><input class="ef mu-prod" data-i="' + i + '" type="text" value="' + prod + '" placeholder="Nombre del producto" style="min-width:140px"></td>' +
+      '<td><input class="ef mu-pres" data-i="' + i + '" type="text" value="' + pres + '" placeholder="Ej: 100CC, 1L" style="width:120px"></td>' +
+      '<td><input class="ef mu-cant" data-i="' + i + '" type="number" min="0" value="' + (p.cantidad || '') + '" placeholder="0" style="width:80px;text-align:right"></td>' +
+      '<td style="text-align:center">' +
+        (muLines.length > 1
+          ? '<button onclick="removeMuLine(' + i + ')" style="background:#e74c3c;color:white;border:none;padding:4px 10px;border-radius:5px;cursor:pointer;font-size:0.78rem;font-weight:700">✕</button>'
+          : '') +
+      '</td></tr>';
+  }).join('');
+}
+
+function addMuLine() {
+  syncMuLinesFromDOM();
+  muLines.push({ producto: '', presentacion: '', cantidad: 0 });
+  renderMuLines();
+}
+
+function removeMuLine(i) {
+  syncMuLinesFromDOM();
+  muLines.splice(i, 1);
+  renderMuLines();
+}
+
+function syncMuLinesFromDOM() {
+  var prods = document.querySelectorAll('.mu-prod');
+  var press = document.querySelectorAll('.mu-pres');
+  var cants = document.querySelectorAll('.mu-cant');
+  prods.forEach(function(el) {
+    var idx = Number(el.getAttribute('data-i'));
+    if (muLines[idx]) {
+      muLines[idx].producto = el.value;
+    }
+  });
+  press.forEach(function(el) {
+    var idx = Number(el.getAttribute('data-i'));
+    if (muLines[idx]) {
+      muLines[idx].presentacion = el.value;
+    }
+  });
+  cants.forEach(function(el) {
+    var idx = Number(el.getAttribute('data-i'));
+    if (muLines[idx]) {
+      muLines[idx].cantidad = Number(el.value) || 0;
+    }
+  });
+}
+
+// ── Save ──
+
+async function saveMuestra() {
+  var btn = document.getElementById('btn-save-mu');
+
+  if (muEditId) {
+    var producto = document.getElementById('mu-edit-producto').value.trim();
+    var presentacion = document.getElementById('mu-edit-presentacion').value.trim();
+    var cantidad = Number(document.getElementById('mu-edit-cantidad').value) || 0;
+
+    if (!producto) { showToast('Ingresa el producto', '#e74c3c'); return; }
+
+    btn.disabled = true;
+    btn.textContent = '⏳ Guardando...';
+
+    try {
+      var result = await apiPost({
+        action: 'editarMuestra',
+        row: muEditId,
+        Consecutivo: document.getElementById('mu-consecutivo').value.trim(),
+        Fecha_Solicitud: document.getElementById('mu-fecha-solicitud').value,
+        Fecha_Despacho: document.getElementById('mu-fecha-despacho').value,
+        Responsable: document.getElementById('mu-responsable').value.trim(),
+        Municipio: document.getElementById('mu-municipio').value.trim(),
+        Tipo_Cultivo: document.getElementById('mu-tipo-cultivo').value.trim(),
+        Fecha_Aplicacion: document.getElementById('mu-fecha-aplicacion').value,
+        Fecha_Seguimiento: document.getElementById('mu-fecha-seguimiento').value,
+        Remision: document.getElementById('mu-remision').value.trim(),
+        Solicitante: document.getElementById('mu-solicitante').value.trim(),
+        Autoriza: document.getElementById('mu-autoriza').value.trim(),
+        Estado: document.getElementById('mu-estado').value,
+        Objetivo: document.getElementById('mu-objetivo').value.trim(),
+        Observaciones: document.getElementById('mu-observaciones').value.trim(),
+        Producto: producto,
+        Presentacion: presentacion,
+        Cantidad: cantidad
+      });
+      if (!result.ok) throw new Error(result.error || 'Error al guardar');
+      closeMuModal();
+      showToast('✅ Solicitud actualizada');
+      await loadMuestras();
+    } catch (err) {
+      showToast('❌ Error: ' + err.message, '#e74c3c');
+      btn.disabled = false;
+      btn.textContent = '✓ Guardar cambios';
+    }
+    return;
+  }
+
+  // New mode
+  syncMuLinesFromDOM();
+  var consecutivo = document.getElementById('mu-consecutivo').value.trim();
+  var fechaSol = document.getElementById('mu-fecha-solicitud').value;
+  var responsable = document.getElementById('mu-responsable').value.trim();
+
+  if (!consecutivo) { showToast('Ingresa el consecutivo', '#e74c3c'); return; }
+  if (!fechaSol) { showToast('Selecciona la fecha de solicitud', '#e74c3c'); return; }
+  if (!responsable) { showToast('Ingresa el responsable', '#e74c3c'); return; }
+
+  var productosValidos = muLines.filter(function(p) { return p.producto && p.cantidad > 0; });
+  if (!productosValidos.length) { showToast('Agrega al menos un producto con cantidad', '#e74c3c'); return; }
+
+  btn.disabled = true;
+  btn.textContent = '⏳ Guardando...';
+
+  try {
+    var result = await apiPost({
+      action: 'agregarMuestra',
+      Consecutivo: consecutivo,
+      Fecha_Solicitud: fechaSol,
+      Fecha_Despacho: document.getElementById('mu-fecha-despacho').value,
+      Responsable: responsable,
+      Municipio: document.getElementById('mu-municipio').value.trim(),
+      Tipo_Cultivo: document.getElementById('mu-tipo-cultivo').value.trim(),
+      Fecha_Aplicacion: document.getElementById('mu-fecha-aplicacion').value,
+      Fecha_Seguimiento: document.getElementById('mu-fecha-seguimiento').value,
+      Remision: document.getElementById('mu-remision').value.trim(),
+      Solicitante: document.getElementById('mu-solicitante').value.trim(),
+      Autoriza: document.getElementById('mu-autoriza').value.trim(),
+      Estado: document.getElementById('mu-estado').value,
+      Objetivo: document.getElementById('mu-objetivo').value.trim(),
+      Observaciones: document.getElementById('mu-observaciones').value.trim(),
+      lineas: productosValidos.map(function(p) {
+        return { Producto: p.producto, Presentacion: p.presentacion, Cantidad: p.cantidad };
+      })
+    });
+
+    if (!result.ok) throw new Error(result.error || 'Error al guardar');
+    closeMuModal();
+    showToast('✅ Solicitud creada: ' + (result.added || 0) + ' línea(s)');
+    await loadMuestras();
+  } catch (err) {
+    showToast('❌ Error: ' + err.message, '#e74c3c');
+    btn.disabled = false;
+    btn.textContent = '✓ Registrar solicitud';
+  }
+}
+
+// ── Delete ──
+
+function deleteMuestra(id) {
+  var r = allMuestras.filter(function(x) { return x.id === id; })[0];
+  if (!r) return;
+  muDeleteId = id;
+  document.getElementById('del-mu-msg').textContent = '¿Eliminar esta solicitud de muestra?';
+  document.getElementById('del-mu-detail').textContent =
+    'Consecutivo: ' + (r.Consecutivo || '—') + ' — ' + (r.Producto || 'Sin producto');
+  document.getElementById('btn-del-mu-confirm').disabled = false;
+  document.getElementById('delete-mu-overlay').classList.add('show');
+}
+
+function closeDeleteMu() {
+  document.getElementById('delete-mu-overlay').classList.remove('show');
+  muDeleteId = null;
+}
+document.getElementById('delete-mu-overlay').addEventListener('click', function(e) { if (isBackdropClick(e)) closeDeleteMu(); });
+
+async function confirmDeleteMu() {
+  if (!muDeleteId) return;
+  var btn = document.getElementById('btn-del-mu-confirm');
+  btn.disabled = true;
+  btn.textContent = '⏳ Eliminando...';
+
+  try {
+    var result = await apiPost({ action: 'eliminarMuestra', row: muDeleteId });
+    if (!result.ok) throw new Error(result.error || 'Error al eliminar');
+    closeDeleteMu();
+    showToast('✅ Solicitud eliminada');
+    await loadMuestras();
+  } catch (err) {
+    showToast('❌ Error: ' + err.message, '#e74c3c');
+    btn.disabled = false;
+    btn.textContent = '🗑️ Sí, eliminar';
+  }
+}
+
+// ── Auto-load ──
+loadMuestras();

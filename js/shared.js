@@ -77,6 +77,12 @@ async function apiGet(action) {
         })
       };
     }
+    if (action === 'getMuestras') {
+      var res = await _sb.from('SolicitudMuestras').select('*').order('id');
+      if (res.error) return { ok: false, error: res.error.message };
+      return { ok: true, muestras: _addRow(res.data) };
+    }
+
     return { error: 'Accion no reconocida: ' + action };
   } catch (err) {
     return { ok: false, error: err.message };
@@ -367,6 +373,54 @@ async function apiPost(body) {
 
     if (action === 'eliminarOrdenCompra') {
       var res = await _sb.from('OrdenesCompra').delete().eq('id', body.row);
+      if (res.error) return { ok: false, error: res.error.message };
+      return { ok: true, deleted: 1 };
+    }
+
+    // ── SOLICITUD MUESTRAS ──
+
+    if (action === 'agregarMuestra') {
+      var now = new Date().toISOString().slice(0, 19).replace('T', ' ');
+      var lineas = body.lineas || [];
+      if (!lineas.length && body.Producto) {
+        lineas = [{ Producto: body.Producto, Presentacion: body.Presentacion, Cantidad: body.Cantidad }];
+      }
+      var rows = lineas.map(function(lin) {
+        return {
+          Consecutivo: body.Consecutivo || '', Fecha_Solicitud: body.Fecha_Solicitud || '',
+          Fecha_Despacho: body.Fecha_Despacho || '', Responsable: body.Responsable || '',
+          Municipio: body.Municipio || '', Tipo_Cultivo: body.Tipo_Cultivo || '',
+          Fecha_Aplicacion: body.Fecha_Aplicacion || '', Fecha_Seguimiento: body.Fecha_Seguimiento || '',
+          Remision: body.Remision || '', Objetivo: body.Objetivo || '',
+          Producto: lin.Producto || '', Presentacion: lin.Presentacion || '',
+          Cantidad: Number(lin.Cantidad) || 0, Solicitante: body.Solicitante || '',
+          Autoriza: body.Autoriza || '', Estado: body.Estado || 'Pendiente',
+          Observaciones: body.Observaciones || '', Fecha_Registro: now
+        };
+      });
+      var res = await _sb.from('SolicitudMuestras').insert(rows);
+      if (res.error) return { ok: false, error: res.error.message };
+      return { ok: true, added: rows.length };
+    }
+
+    if (action === 'editarMuestra') {
+      var res = await _sb.from('SolicitudMuestras').update({
+        Consecutivo: body.Consecutivo || '', Fecha_Solicitud: body.Fecha_Solicitud || '',
+        Fecha_Despacho: body.Fecha_Despacho || '', Responsable: body.Responsable || '',
+        Municipio: body.Municipio || '', Tipo_Cultivo: body.Tipo_Cultivo || '',
+        Fecha_Aplicacion: body.Fecha_Aplicacion || '', Fecha_Seguimiento: body.Fecha_Seguimiento || '',
+        Remision: body.Remision || '', Objetivo: body.Objetivo || '',
+        Producto: body.Producto || '', Presentacion: body.Presentacion || '',
+        Cantidad: Number(body.Cantidad) || 0, Solicitante: body.Solicitante || '',
+        Autoriza: body.Autoriza || '', Estado: body.Estado || 'Pendiente',
+        Observaciones: body.Observaciones || ''
+      }).eq('id', body.row);
+      if (res.error) return { ok: false, error: res.error.message };
+      return { ok: true, updated: 1 };
+    }
+
+    if (action === 'eliminarMuestra') {
+      var res = await _sb.from('SolicitudMuestras').delete().eq('id', body.row);
       if (res.error) return { ok: false, error: res.error.message };
       return { ok: true, deleted: 1 };
     }
