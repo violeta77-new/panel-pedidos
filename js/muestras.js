@@ -374,7 +374,8 @@ function viewMuestra(id) {
   var r = rows[0];
 
   var consec = r.Consecutivo || '';
-  var sameConsec = allMuestras.filter(function(x) { return x.Consecutivo === consec && consec; });
+  var emp = r.Empresa || '';
+  var sameConsec = allMuestras.filter(function(x) { return x.Consecutivo === consec && consec && (x.Empresa || '') === emp; });
 
   document.getElementById('view-mu-meta').innerHTML =
     '<span>📋 Consecutivo: ' + (consec || '—') + '</span>' +
