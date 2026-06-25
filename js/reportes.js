@@ -3,6 +3,7 @@ var pedidos = [];
 var ingresos = [];
 var ordenesCompra = [];
 var muestras = [];
+var reenvases = [];
 var aggregated = [];
 var rptSort = { col: 'pendiente', dir: 'desc' };
 
@@ -64,11 +65,13 @@ async function loadReportes() {
     var results = await Promise.all([
       apiGet('getIngresos').catch(function() { return { ok: true, ingresos: [] }; }),
       apiGet('getOrdenesCompra').catch(function() { return { ok: true, ordenes: [] }; }),
-      apiGet('getMuestras').catch(function() { return { ok: true, muestras: [] }; })
+      apiGet('getMuestras').catch(function() { return { ok: true, muestras: [] }; }),
+      apiGet('getReenvases').catch(function() { return { ok: true, reenvases: [] }; })
     ]);
     ingresos = (results[0].ingresos || []);
     ordenesCompra = (results[1].ordenes || []);
     muestras = (results[2].muestras || []);
+    reenvases = (results[3].reenvases || []);
 
     populateRptFilters();
     buildReport();
@@ -416,6 +419,19 @@ function _buildRemisionesInner() {
     totalLineas++;
   });
 
+  // 5. Reenvases — campo Remision
+  reenvases.forEach(function(re) {
+    var rem = String(re.Remision || '').trim();
+    if (!rem) return;
+    var empNombre = re.Empresa || '';
+    if (fEmp && empNombre !== fEmp) return;
+    if (fTxt && rem.toLowerCase().indexOf(fTxt) < 0 && getSigla(empNombre).toLowerCase().indexOf(fTxt) < 0) return;
+    var key = empNombre + '||' + rem + '||Reenvase';
+    _addRemision(map, key, empNombre, rem, 'Reenvase', '', (re.Producto || '') + ' (' + (re.Presentacion || '') + ')', re.Cantidad, re.Fecha);
+    empresasSet[getSigla(empNombre)] = true;
+    totalLineas++;
+  });
+
   remData = Object.values(map).map(function(r) {
     r.referenciasStr = Object.keys(r.referencias).join(', ') || '—';
     r.numDetalles = r.detalles.length;
@@ -467,7 +483,7 @@ function sortedRemData() {
 }
 
 function renderRemTable() {
-  var MOD_COLORS = { 'Pedido': '#2980b9', 'Ingreso': '#27ae60', 'Orden de Compra': '#8e44ad', 'Muestra': '#e67e22' };
+  var MOD_COLORS = { 'Pedido': '#2980b9', 'Ingreso': '#27ae60', 'Orden de Compra': '#8e44ad', 'Muestra': '#e67e22', 'Reenvase': '#d35400' };
   var cols = [
     { id: 'empresa', label: 'Empresa' },
     { id: 'empresaOrigen', label: 'Emp. Origen' },
