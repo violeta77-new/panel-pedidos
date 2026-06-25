@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Reenvases — Sistema de Gestión Logística">
+<meta name="theme-color" content="#1a5276">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏭</text></svg>">
+<title>Reenvases – Sistema de Gestión Logística</title>
+<link rel="stylesheet" href="css/panel.css">
+<style>
+.ac-dropdown{position:fixed;background:white;border:1px solid #cbd5e0;border-radius:0 0 6px 6px;max-height:200px;overflow-y:auto;z-index:10000;box-shadow:0 4px 12px rgba(0,0,0,.15)}
+.ac-item{padding:8px 12px;cursor:pointer;font-size:.84rem;border-bottom:1px solid #f7fafc}
+.ac-item:hover,.ac-item.active{background:#ebf5fb}
+.ac-item strong{color:#1a5276}
+.ac-sub{font-size:.72rem;color:#718096;margin-top:2px}
+</style>
+</head>
+<body>
+
+<!-- HEADER + NAVBAR -->
+<div class="header">
+  <div class="header-top">
+    <div>
+      <h1>📦 Sistema de Gestión Logística</h1>
+      <div class="sub">Holding de empresas</div>
+    </div>
+    <div id="hdr-status"></div>
+  </div>
+  <nav class="navbar">
+    <a href="index.html">🏠 Inicio</a>
+    <a href="pedidos.html">📋 Pedidos</a>
+    <a href="ingresos.html">📥 Ingresos</a>
+    <a href="ordenes.html">🛒 Órdenes</a>
+    <a href="devoluciones.html">🔄 Devoluciones y Cambios</a>
+    <a href="inventario.html">📊 Inventario</a>
+    <a href="muestras.html">🧪 Muestras</a>
+    <a href="reenvases.html" class="active">🏭 Reenvases</a>
+    <a href="reportes.html">📈 Reportes</a>
+  </nav>
+</div>
+
+<!-- LOAD ZONE -->
+<div id="load-zone">
+  <div class="spinner" id="load-spinner"></div>
+  <h2>Conectando con la nube...</h2>
+  <p>Cargando registros de reenvases desde la nube</p>
+  <div id="load-error"></div>
+  <button class="btn-retry" id="btn-retry" style="display:none" onclick="loadReenvases()">Reintentar</button>
+</div>
+
+<!-- MAIN -->
+<div id="main">
+
+  <div id="sync-status">
+    <span id="sync-icon">☁️</span>
+    <span id="sync-msg">Conectado a la nube. Los cambios se guardan automáticamente.</span>
+  </div>
+
+  <div class="stats">
+    <div class="sc total"><div class="num" id="s-total">0</div><div class="lbl">Total registros</div></div>
+    <div class="sc entregado"><div class="num" id="s-con-remision">0</div><div class="lbl">Con remisión</div></div>
+    <div class="sc recibido"><div class="num" id="s-sin-remision">0</div><div class="lbl">Sin remisión</div></div>
+    <div class="sc parcial"><div class="num" id="s-cantidad">0</div><div class="lbl">Unidades totales</div></div>
+  </div>
+
+  <div class="filters">
+    <div class="fg">
+      <label>Empresa</label>
+      <select id="f-empresa"><option value="">Todas</option></select>
+    </div>
+    <div class="fg"><label>Buscar</label><input type="text" id="f-txt" placeholder="producto, remisión…" style="width:175px"></div>
+    <button onclick="clearReenvaseFilters()" style="margin-left:auto;background:none;border:1px solid #cbd5e0;color:#4a5568;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:0.82rem;font-weight:600;transition:background 0.2s" onmouseover="this.style.background='#f7fafc'" onmouseout="this.style.background='none'">✕ Limpiar filtros</button>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <h3>Registros de reenvases <span id="row-ct" style="font-weight:400;color:#718096"></span></h3>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button id="btn-clear-sort-re" onclick="clearSortRe()" title="Quitar ordenamientos" style="display:none;background:none;border:1px solid #cbd5e0;color:#4a5568;padding:5px 11px;border-radius:6px;cursor:pointer;font-size:0.78rem;font-weight:600">✕ Limpiar orden</button>
+        <button class="btn-dl" onclick="openNewReenvase()" style="background:#d35400">🏭 Nuevo Reenvase</button>
+        <button class="btn-dl" onclick="loadReenvases()">🔄 Actualizar datos</button>
+      </div>
+    </div>
+    <div style="overflow-x:auto">
+      <table>
+        <thead>
+          <tr id="t-head-re"></tr>
+        </thead>
+        <tbody id="t-body-re"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- REENVASE FORM MODAL -->
+<div class="overlay" id="re-overlay">
+  <div class="modal-box" style="max-width:680px">
+    <div class="mhdr" style="background:linear-gradient(135deg,#d35400,#e67e22)">
+      <div style="flex:1">
+        <h2 id="re-modal-title">🏭 Nuevo Reenvase</h2>
+        <div style="font-size:0.78rem;opacity:0.85;margin-top:4px">Registra el producto a reenvasar</div>
+      </div>
+      <button class="btn-close" onclick="closeReModal()">✕</button>
+    </div>
+    <div class="mbody">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+        <div>
+          <label class="ef-label">Empresa</label>
+          <select class="ef" id="re-empresa">
+            <option value="">— Seleccionar —</option>
+            <option value="PARCELAR DE COLOMBIA SAS">PARCELAR</option>
+            <option value="GREEN AGROSOLUCIONES DE COLOMBIA SAS">GREEN</option>
+            <option value="SOLUCIONES INTEGRALES RESO SAS">RESO</option>
+            <option value="INSUMOS AGROPECUARIOS SOSTENIBLES SAS">IASO</option>
+            <option value="INSUMOS AGROPECUARIOS DE LA SABANA SAS">IAS</option>
+          </select>
+        </div>
+        <div>
+          <label class="ef-label">Fecha</label>
+          <input class="ef" id="re-fecha" type="date">
+        </div>
+        <div>
+          <label class="ef-label">Producto</label>
+          <input class="ef" id="re-producto" type="text" placeholder="Buscar o escribir producto" autocomplete="off">
+        </div>
+        <div>
+          <label class="ef-label">Presentación</label>
+          <input class="ef" id="re-presentacion" type="text" placeholder="Ej: 100CC, 1L">
+        </div>
+        <div>
+          <label class="ef-label">Cantidad</label>
+          <input class="ef" id="re-cantidad" type="number" min="0" placeholder="0">
+        </div>
+        <div>
+          <label class="ef-label">N° Remisión</label>
+          <input class="ef" id="re-remision" type="text" placeholder="N° remisión">
+        </div>
+        <div style="grid-column:1/-1">
+          <label class="ef-label">Observaciones</label>
+          <textarea class="ef" id="re-observaciones" rows="2" placeholder="Observaciones adicionales" style="resize:vertical"></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="mftr">
+      <div style="font-size:0.8rem;color:#718096">Los datos se guardan directamente en la nube</div>
+      <div class="mftr-btns">
+        <button class="btn-cancel" onclick="closeReModal()">Cancelar</button>
+        <button class="btn-confirm" id="btn-save-re" onclick="saveReenvase()" style="background:#d35400">✓ Registrar reenvase</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- DELETE CONFIRM MODAL -->
+<div class="overlay" id="delete-re-overlay">
+  <div class="modal-box" style="max-width:480px">
+    <div class="mhdr" style="background:linear-gradient(135deg,#c0392b,#e74c3c)">
+      <div style="flex:1">
+        <h2>🗑️ Eliminar Reenvase</h2>
+        <div style="font-size:0.78rem;opacity:0.85;margin-top:4px">Esta acción no se puede deshacer</div>
+      </div>
+      <button class="btn-close" onclick="closeDeleteRe()">✕</button>
+    </div>
+    <div class="mbody" style="text-align:center;padding:28px 24px">
+      <div style="font-size:2.5rem;margin-bottom:12px">⚠️</div>
+      <div style="font-size:0.95rem;font-weight:700;color:#2d3748;margin-bottom:8px" id="del-re-msg">¿Eliminar este registro?</div>
+      <div style="font-size:0.82rem;color:#718096" id="del-re-detail"></div>
+    </div>
+    <div class="mftr" style="justify-content:center;gap:12px">
+      <button class="btn-cancel" onclick="closeDeleteRe()">Cancelar</button>
+      <button class="btn-confirm" id="btn-del-re-confirm" onclick="confirmDeleteRe()" style="background:#e74c3c">🗑️ Sí, eliminar</button>
+    </div>
+  </div>
+</div>
+
+<!-- VIEW MODAL -->
+<div class="overlay" id="view-re-overlay">
+  <div class="modal-box" style="max-width:650px">
+    <div class="mhdr" style="background:linear-gradient(135deg,#d35400,#e67e22)">
+      <div style="flex:1">
+        <h2>🏭 Detalle de Reenvase</h2>
+        <div class="meta" id="view-re-meta"></div>
+      </div>
+      <button class="btn-close" onclick="closeViewRe()">✕</button>
+    </div>
+    <div class="mbody" id="view-re-body"></div>
+    <div class="mftr" style="justify-content:flex-end">
+      <button class="btn-cancel" onclick="closeViewRe()">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="js/shared.js"></script>
+<script src="js/reenvases.js?v=20260625a"></script>
+</body>
+</html>

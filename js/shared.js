@@ -87,6 +87,11 @@ async function apiGet(action) {
       if (res.error) return { ok: false, error: res.error.message };
       return { ok: true, muestras: _addRow(res.data) };
     }
+    if (action === 'getReenvases') {
+      var res = await _sb.from('Reenvases').select('*').order('id');
+      if (res.error) return { ok: false, error: res.error.message };
+      return { ok: true, reenvases: _addRow(res.data) };
+    }
 
     return { error: 'Accion no reconocida: ' + action };
   } catch (err) {
@@ -500,6 +505,38 @@ async function apiPost(body) {
 
     if (action === 'eliminarMuestra') {
       var res = await _sb.from('SolicitudMuestras').delete().eq('id', body.row);
+      if (res.error) return { ok: false, error: res.error.message };
+      return { ok: true, deleted: 1 };
+    }
+
+    // ── REENVASES ──
+
+    if (action === 'agregarReenvase') {
+      var now = new Date().toISOString().slice(0, 19).replace('T', ' ');
+      var row = {
+        Empresa: body.Empresa || '', Producto: body.Producto || '',
+        Presentacion: body.Presentacion || '', Cantidad: Number(body.Cantidad) || 0,
+        Remision: body.Remision || '', Fecha: body.Fecha || '',
+        Observaciones: body.Observaciones || '', Fecha_Registro: now
+      };
+      var res = await _sb.from('Reenvases').insert([row]);
+      if (res.error) return { ok: false, error: res.error.message };
+      return { ok: true, added: 1 };
+    }
+
+    if (action === 'editarReenvase') {
+      var res = await _sb.from('Reenvases').update({
+        Empresa: body.Empresa || '', Producto: body.Producto || '',
+        Presentacion: body.Presentacion || '', Cantidad: Number(body.Cantidad) || 0,
+        Remision: body.Remision || '', Fecha: body.Fecha || '',
+        Observaciones: body.Observaciones || ''
+      }).eq('id', body.row);
+      if (res.error) return { ok: false, error: res.error.message };
+      return { ok: true, updated: 1 };
+    }
+
+    if (action === 'eliminarReenvase') {
+      var res = await _sb.from('Reenvases').delete().eq('id', body.row);
       if (res.error) return { ok: false, error: res.error.message };
       return { ok: true, deleted: 1 };
     }
