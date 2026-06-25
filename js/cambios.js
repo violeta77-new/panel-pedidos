@@ -424,11 +424,31 @@ function readCamLines() {
   });
 }
 
+// ── Auto-consecutivo por empresa ──
+function nextConsecutivoCam(empresa) {
+  if (!empresa) return '';
+  var maxCons = 0;
+  cambios.forEach(function(r) {
+    if (r.Empresa === empresa) {
+      var n = Number(r.Consecutivo) || 0;
+      if (n > maxCons) maxCons = n;
+    }
+  });
+  return String(maxCons + 1);
+}
+
+function onCamEmpresaChange() {
+  if (editCam) return;
+  var empresa = document.getElementById('cam-empresa').value;
+  document.getElementById('cam-consecutivo').value = nextConsecutivoCam(empresa);
+}
+
 // ── New Cambio ──
 function openNewCambio() {
   editCam = null;
   document.getElementById('cam-modal-title').textContent = '🔁 Registrar Cambio de Mercancía';
   document.getElementById('cam-empresa').value = '';
+  document.getElementById('cam-empresa').onchange = onCamEmpresaChange;
   document.getElementById('cam-fecha-solicitud').value = today();
   document.getElementById('cam-fecha-recogida').value = '';
   document.getElementById('cam-consecutivo').value = '';
