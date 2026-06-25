@@ -1037,7 +1037,8 @@ async function showUploadPreview(data) {
       action: 'checkDuplicado',
       consecutivo: data.consecutivo,
       cliente: data.cliente,
-      fecha_pedido: data.fecha_pedido
+      fecha_pedido: data.fecha_pedido,
+      nombre_empresa: data.nombre_empresa
     });
     if (dupResult.ok && dupResult.duplicado) dupWarn.style.display = 'block';
   } catch(e) {}
@@ -1411,7 +1412,8 @@ async function guardarNuevoPedido() {
       action: 'checkDuplicado',
       consecutivo: consecutivo,
       cliente: cliente,
-      fecha_pedido: fecha
+      fecha_pedido: fecha,
+      nombre_empresa: empresa
     });
     if (dupResult.ok && dupResult.duplicado) {
       document.getElementById('nv-dup-warn').style.display = 'block';

@@ -164,12 +164,14 @@ async function apiPost(body) {
       var consec = String(body.consecutivo || '').trim();
       var cliente = String(body.cliente || '').trim();
       var fecha = String(body.fecha_pedido || '').trim();
+      var empresa = String(body.nombre_empresa || '').trim();
       if (!consec || !cliente) return { ok: true, duplicado: false };
-      var res = await _sb.from('Pedidos').select('id')
+      var q = _sb.from('Pedidos').select('id')
         .eq('Consecutivo', consec)
         .eq('Cliente', cliente)
-        .eq('Fecha_Pedido', fecha)
-        .limit(1);
+        .eq('Fecha_Pedido', fecha);
+      if (empresa) q = q.eq('Nombre_Empresa', empresa);
+      var res = await q.limit(1);
       return { ok: true, duplicado: (res.data && res.data.length > 0) };
     }
 
