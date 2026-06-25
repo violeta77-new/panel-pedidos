@@ -2,6 +2,7 @@
 var pedidos = [];
 var ingresos = [];
 var ordenesCompra = [];
+var muestras = [];
 var aggregated = [];
 var rptSort = { col: 'pendiente', dir: 'desc' };
 
@@ -62,10 +63,12 @@ async function loadReportes() {
 
     var results = await Promise.all([
       apiGet('getIngresos').catch(function() { return { ok: true, ingresos: [] }; }),
-      apiGet('getOrdenesCompra').catch(function() { return { ok: true, ordenes: [] }; })
+      apiGet('getOrdenesCompra').catch(function() { return { ok: true, ordenes: [] }; }),
+      apiGet('getMuestras').catch(function() { return { ok: true, muestras: [] }; })
     ]);
     ingresos = (results[0].ingresos || []);
     ordenesCompra = (results[1].ordenes || []);
+    muestras = (results[2].muestras || []);
 
     populateRptFilters();
     buildReport();
@@ -400,6 +403,19 @@ function _buildRemisionesInner() {
     totalLineas++;
   });
 
+  // 4. Muestras — campo Remision
+  muestras.forEach(function(m) {
+    var rem = String(m.Remision || '').trim();
+    if (!rem) return;
+    var empNombre = m.Empresa || '';
+    if (fEmp && empNombre !== fEmp) return;
+    if (fTxt && rem.toLowerCase().indexOf(fTxt) < 0 && getSigla(empNombre).toLowerCase().indexOf(fTxt) < 0) return;
+    var key = empNombre + '||' + rem + '||Muestra';
+    _addRemision(map, key, empNombre, rem, 'Muestra', 'Sol. ' + (m.Consecutivo || ''), (m.Producto || '') + ' (' + (m.Presentacion || '') + ')', m.Cant_Entregada || m.Cantidad, m.Fecha_Entrega || m.Fecha_Solicitud);
+    empresasSet[getSigla(empNombre)] = true;
+    totalLineas++;
+  });
+
   remData = Object.values(map).map(function(r) {
     r.referenciasStr = Object.keys(r.referencias).join(', ') || '—';
     r.numDetalles = r.detalles.length;
@@ -451,7 +467,7 @@ function sortedRemData() {
 }
 
 function renderRemTable() {
-  var MOD_COLORS = { 'Pedido': '#2980b9', 'Ingreso': '#27ae60', 'Orden de Compra': '#8e44ad' };
+  var MOD_COLORS = { 'Pedido': '#2980b9', 'Ingreso': '#27ae60', 'Orden de Compra': '#8e44ad', 'Muestra': '#e67e22' };
   var cols = [
     { id: 'empresa', label: 'Empresa' },
     { id: 'empresaOrigen', label: 'Emp. Origen' },
