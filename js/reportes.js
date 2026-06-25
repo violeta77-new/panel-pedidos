@@ -426,8 +426,8 @@ function _buildRemisionesInner() {
     var empNombre = re.Empresa || '';
     if (fEmp && empNombre !== fEmp) return;
     if (fTxt && rem.toLowerCase().indexOf(fTxt) < 0 && getSigla(empNombre).toLowerCase().indexOf(fTxt) < 0) return;
-    var key = empNombre + '||' + rem + '||Reenvase';
-    _addRemision(map, key, empNombre, rem, 'Reenvase', '', (re.Producto || '') + ' (' + (re.Presentacion || '') + ')', re.Cantidad, re.Fecha);
+    var key = empNombre + '||' + rem + '||Salida a producción';
+    _addRemision(map, key, empNombre, rem, 'Salida a producción', '', (re.Producto || '') + ' (' + (re.Presentacion || '') + ')', re.Cantidad, re.Fecha);
     empresasSet[getSigla(empNombre)] = true;
     totalLineas++;
   });
@@ -483,7 +483,7 @@ function sortedRemData() {
 }
 
 function renderRemTable() {
-  var MOD_COLORS = { 'Pedido': '#2980b9', 'Ingreso': '#27ae60', 'Orden de Compra': '#8e44ad', 'Muestra': '#e67e22', 'Reenvase': '#d35400' };
+  var MOD_COLORS = { 'Pedido': '#2980b9', 'Ingreso': '#27ae60', 'Orden de Compra': '#8e44ad', 'Muestra': '#e67e22', 'Salida a producción': '#d35400' };
   var cols = [
     { id: 'empresa', label: 'Empresa' },
     { id: 'empresaOrigen', label: 'Emp. Origen' },

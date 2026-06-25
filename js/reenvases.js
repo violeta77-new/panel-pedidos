@@ -270,7 +270,7 @@ function renderReTable() {
 
   var tbody = document.getElementById('t-body-re');
   if (!filteredRe.length) {
-    tbody.innerHTML = '<tr><td colspan="' + RE_COLS.length + '" class="empty">No hay registros de reenvases</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="' + RE_COLS.length + '" class="empty">No hay registros de salidas a producción</td></tr>';
     document.getElementById('row-ct').textContent = '';
     return;
   }
@@ -352,8 +352,8 @@ async function loadProductosCache() {
 
 async function openNewReenvase() {
   reEditId = null;
-  document.getElementById('re-modal-title').textContent = '🏭 Nuevo Reenvase';
-  document.getElementById('btn-save-re').textContent = '✓ Registrar reenvase';
+  document.getElementById('re-modal-title').textContent = '🏭 Nueva Salida a producción';
+  document.getElementById('btn-save-re').textContent = '✓ Registrar salida';
   document.getElementById('btn-save-re').disabled = false;
 
   document.getElementById('re-empresa').value = '';
@@ -376,7 +376,7 @@ async function editReenvase(id) {
   if (!r) return;
 
   reEditId = id;
-  document.getElementById('re-modal-title').textContent = '✏️ Editar Reenvase';
+  document.getElementById('re-modal-title').textContent = '✏️ Editar Salida';
   document.getElementById('btn-save-re').textContent = '✓ Guardar cambios';
   document.getElementById('btn-save-re').disabled = false;
 
@@ -492,7 +492,7 @@ async function saveReenvase() {
       });
       if (!result.ok) throw new Error(result.error || 'Error al guardar');
       closeReModal();
-      showToast('✅ Reenvase actualizado');
+      showToast('✅ Salida actualizada');
       await loadReenvases();
     } catch (err) {
       showToast('❌ Error: ' + err.message, '#e74c3c');
@@ -524,12 +524,12 @@ async function saveReenvase() {
       added++;
     }
     closeReModal();
-    showToast('✅ Reenvase registrado: ' + added + ' producto(s)');
+    showToast('✅ Salida registrada: ' + added + ' producto(s)');
     await loadReenvases();
   } catch (err) {
     showToast('❌ Error: ' + err.message, '#e74c3c');
     btn.disabled = false;
-    btn.textContent = '✓ Registrar reenvase';
+    btn.textContent = '✓ Registrar salida';
   }
 }
 
@@ -539,7 +539,7 @@ function deleteReenvase(id) {
   var r = allReenvases.filter(function(x) { return x.id === id; })[0];
   if (!r) return;
   reDeleteId = id;
-  document.getElementById('del-re-msg').textContent = '¿Eliminar este registro de reenvase?';
+  document.getElementById('del-re-msg').textContent = '¿Eliminar este registro de salida a producción?';
   document.getElementById('del-re-detail').textContent =
     'Producto: ' + (r.Producto || 'Sin producto') + ' — Cantidad: ' + (r.Cantidad || 0);
   document.getElementById('btn-del-re-confirm').disabled = false;
