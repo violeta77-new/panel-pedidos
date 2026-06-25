@@ -204,7 +204,7 @@ async function loadFromAPI() {
 function rebuildConsecs() {
   var seen = {};
   pedidos.forEach(function(p) {
-    var k = keyOf(p.Nombre_Empresa, p.Consecutivo);
+    var k = keyOf(p.Nombre_Empresa, p.Consecutivo, p.Cliente);
     if (!seen[k]) seen[k] = {
       Nombre_Empresa: p.Nombre_Empresa, Consecutivo: p.Consecutivo,
       Fecha_Pedido: p.Fecha_Pedido, Cliente: p.Cliente, NIT: p.NIT,
@@ -220,11 +220,11 @@ function rebuildConsecs() {
 }
 
 // ── Helpers ──
-function keyOf(emp, con) { return (emp||'') + '||' + String(con||'').trim(); }
+function keyOf(emp, con, cli) { return (emp||'') + '||' + String(con||'').trim() + '||' + (cli||''); }
 
 function getLinesFor(c) {
-  var k = keyOf(c.Nombre_Empresa, c.Consecutivo);
-  return pedidos.filter(function(p) { return keyOf(p.Nombre_Empresa, p.Consecutivo) === k; });
+  var k = keyOf(c.Nombre_Empresa, c.Consecutivo, c.Cliente);
+  return pedidos.filter(function(p) { return keyOf(p.Nombre_Empresa, p.Consecutivo, p.Cliente) === k; });
 }
 
 function derivedStatus(lines) {
@@ -676,7 +676,7 @@ async function agregarNuevaLinea() {
 function openEdit(idx) {
   editIdx = idx;
   var c = consecs[idx];
-  editKey = keyOf(c.Nombre_Empresa, c.Consecutivo);
+  editKey = keyOf(c.Nombre_Empresa, c.Consecutivo, c.Cliente);
   editWorkingLines = getLinesFor(c).map(function(l) { return Object.assign({}, l); });
 
   document.getElementById('ed-titulo').textContent = '✏️ [' + getSigla(c.Nombre_Empresa) + '] Orden #' + (c.Consecutivo||'');
