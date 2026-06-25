@@ -124,10 +124,6 @@
           <label class="ef-label">N° Remisión</label>
           <input class="ef" id="re-remision" type="text" placeholder="N° remisión">
         </div>
-        <div style="grid-column:1/-1">
-          <label class="ef-label">Observaciones</label>
-          <textarea class="ef" id="re-observaciones" rows="2" placeholder="Observaciones adicionales" style="resize:vertical"></textarea>
-        </div>
       </div>
 
       <!-- Multi-line product entry (new mode) -->
@@ -144,6 +140,7 @@
                 <th>Producto</th>
                 <th style="width:130px">Presentación</th>
                 <th style="width:90px">Cantidad</th>
+                <th>Observaciones</th>
                 <th style="width:50px"></th>
               </tr>
             </thead>
@@ -167,6 +164,10 @@
           <div>
             <label class="ef-label">Cantidad</label>
             <input class="ef" id="re-edit-cantidad" type="number" min="0" placeholder="0">
+          </div>
+          <div style="grid-column:1/-1">
+            <label class="ef-label">Observaciones</label>
+            <input class="ef" id="re-edit-observaciones" type="text" placeholder="Observaciones del producto">
           </div>
         </div>
       </div>
@@ -224,6 +225,6 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="js/shared.js"></script>
-<script src="js/reenvases.js?v=20260625a"></script>
+<script src="js/reenvases.js?v=20260625b"></script>
 </body>
 </html>

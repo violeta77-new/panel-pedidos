@@ -6,7 +6,7 @@ var reSortCols = [];
 var reEditId = null;
 var reDeleteId = null;
 var productosCache = null;
-var reLines = [{ producto: '', presentacion: '', cantidad: 0 }];
+var reLines = [{ producto: '', presentacion: '', cantidad: 0, observaciones: '' }];
 var reProdACs = [];
 var reEditProdAC = null;
 
@@ -364,7 +364,7 @@ async function openNewReenvase() {
   document.getElementById('re-multi-lines').style.display = '';
   document.getElementById('re-edit-single').style.display = 'none';
 
-  reLines = [{ producto: '', presentacion: '', cantidad: 0 }];
+  reLines = [{ producto: '', presentacion: '', cantidad: 0, observaciones: '' }];
   renderReLines();
   document.getElementById('re-overlay').classList.add('show');
   await loadProductosCache();
@@ -383,13 +383,13 @@ async function editReenvase(id) {
   document.getElementById('re-empresa').value = r.Empresa || '';
   document.getElementById('re-fecha').value = toDateInput(r.Fecha);
   document.getElementById('re-remision').value = r.Remision || '';
-  document.getElementById('re-observaciones').value = r.Observaciones || '';
 
   document.getElementById('re-multi-lines').style.display = 'none';
   document.getElementById('re-edit-single').style.display = '';
   document.getElementById('re-edit-producto').value = r.Producto || '';
   document.getElementById('re-edit-presentacion').value = r.Presentacion || '';
   document.getElementById('re-edit-cantidad').value = r.Cantidad || 0;
+  document.getElementById('re-edit-observaciones').value = r.Observaciones || '';
 
   document.getElementById('re-overlay').classList.add('show');
   await loadProductosCache();
@@ -416,11 +416,13 @@ function renderReLines() {
   tbody.innerHTML = reLines.map(function(p, i) {
     var prod = (p.producto || '').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
     var pres = (p.presentacion || '').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    var obs = (p.observaciones || '').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
     return '<tr>' +
       '<td style="color:#a0aec0;font-size:0.74rem">' + (i + 1) + '</td>' +
       '<td><input class="ef re-prod" data-i="' + i + '" type="text" value="' + prod + '" placeholder="Nombre del producto" autocomplete="off" style="min-width:140px"></td>' +
       '<td><input class="ef re-pres" data-i="' + i + '" type="text" value="' + pres + '" placeholder="Ej: 100CC, 1L" style="width:120px"></td>' +
       '<td><input class="ef re-cant" data-i="' + i + '" type="number" min="0" value="' + (p.cantidad || '') + '" placeholder="0" style="width:80px;text-align:right"></td>' +
+      '<td><input class="ef re-obs" data-i="' + i + '" type="text" value="' + obs + '" placeholder="Observación" style="min-width:100px"></td>' +
       '<td style="text-align:center">' +
         (reLines.length > 1
           ? '<button onclick="removeReLine(' + i + ')" style="background:#e74c3c;color:white;border:none;padding:4px 10px;border-radius:5px;cursor:pointer;font-size:0.78rem;font-weight:700">✕</button>'
@@ -432,7 +434,7 @@ function renderReLines() {
 
 function addReLine() {
   syncReLinesFromDOM();
-  reLines.push({ producto: '', presentacion: '', cantidad: 0 });
+  reLines.push({ producto: '', presentacion: '', cantidad: 0, observaciones: '' });
   renderReLines();
 }
 
@@ -446,6 +448,7 @@ function syncReLinesFromDOM() {
   var prods = document.querySelectorAll('.re-prod');
   var press = document.querySelectorAll('.re-pres');
   var cants = document.querySelectorAll('.re-cant');
+  var obss = document.querySelectorAll('.re-obs');
   prods.forEach(function(el) {
     var idx = Number(el.getAttribute('data-i'));
     if (reLines[idx]) reLines[idx].producto = el.value;
@@ -458,6 +461,10 @@ function syncReLinesFromDOM() {
     var idx = Number(el.getAttribute('data-i'));
     if (reLines[idx]) reLines[idx].cantidad = Number(el.value) || 0;
   });
+  obss.forEach(function(el) {
+    var idx = Number(el.getAttribute('data-i'));
+    if (reLines[idx]) reLines[idx].observaciones = el.value;
+  });
 }
 
 // ── Save ──
@@ -467,7 +474,6 @@ async function saveReenvase() {
   var empresa = document.getElementById('re-empresa').value;
   var fecha = document.getElementById('re-fecha').value;
   var remision = document.getElementById('re-remision').value.trim();
-  var observaciones = document.getElementById('re-observaciones').value.trim();
 
   if (!empresa) { showToast('Selecciona la empresa', '#e74c3c'); return; }
   if (!fecha) { showToast('Selecciona la fecha', '#e74c3c'); return; }
@@ -476,6 +482,7 @@ async function saveReenvase() {
     var producto = document.getElementById('re-edit-producto').value.trim();
     var presentacion = document.getElementById('re-edit-presentacion').value.trim();
     var cantidad = Number(document.getElementById('re-edit-cantidad').value) || 0;
+    var observaciones = document.getElementById('re-edit-observaciones').value.trim();
 
     if (!producto) { showToast('Ingresa el producto', '#e74c3c'); return; }
     if (!cantidad) { showToast('Ingresa la cantidad', '#e74c3c'); return; }
@@ -518,7 +525,7 @@ async function saveReenvase() {
         action: 'agregarReenvase',
         Empresa: empresa, Producto: p.producto, Presentacion: p.presentacion,
         Cantidad: p.cantidad, Remision: remision, Fecha: fecha,
-        Observaciones: observaciones
+        Observaciones: (p.observaciones || '').trim()
       });
       if (!result.ok) throw new Error(result.error || 'Error al guardar línea ' + (i + 1));
       added++;
