@@ -4,6 +4,8 @@ var editDev = null;
 var catalogoProductosDev = [];
 var catalogoClientesDev = [];
 var devLineas = [];
+var tramitarDevLines = [];
+var tramitarDevKey = null;
 
 // ── Constants ──
 var EMPRESAS_HOLDING_DEV = [
@@ -235,7 +237,7 @@ function filteredDev() {
     if (fm && r.Motivo !== fm) return false;
     if (fp && r.Producto !== fp) return false;
     if (ft) {
-      var hay = [r.Cliente, r.Vendedor, r.Producto, r.Presentacion, r.Num_Factura, r.Motivo, r.Observaciones, r.Consecutivo, r.NIT].join(' ').toLowerCase();
+      var hay = [r.Cliente, r.Vendedor, r.Producto, r.Presentacion, r.Num_Factura, r.Motivo, r.Observaciones, r.Consecutivo, r.NIT, r.Remision, r.Estado].join(' ').toLowerCase();
       if (hay.indexOf(ft) < 0) return false;
     }
     return true;
@@ -271,6 +273,9 @@ function groupDevoluciones(rows) {
     g.head._totalValor = g.lines.reduce(function(s, l) { return s + (Number(l.Valor_Total)||0); }, 0);
     g.head._totalCant = g.lines.reduce(function(s, l) { return s + (Number(l.Cantidad)||0); }, 0);
     g.head._lineIds = g.lines.map(function(l) { return l.__row || l.id; });
+    g.head._estado = g.lines.every(function(l) { return l.Estado === 'Tramitada'; }) && g.lines[0].Estado ? 'Tramitada' : (g.lines[0].Estado || 'Pendiente');
+    g.head._remision = g.lines[0].Remision || '';
+    g.head._fechaDevolucion = g.lines[0].Fecha_Devolucion || '';
     return g.head;
   });
 }
@@ -289,6 +294,7 @@ function renderDevHeader() {
     { label:'Cant. Total', id:'cantidad' },
     { label:'V. Total', id:'valor_total' },
     { label:'Motivo', id:null },
+    { label:'Estado', id:null },
     { label:'Acción', id:null },
   ];
   document.getElementById('t-head-dev').innerHTML = cols.map(function(col) {
@@ -330,12 +336,20 @@ function renderDevTable() {
 
   var tbody = document.getElementById('t-body-dev');
   if (!grouped.length) {
-    tbody.innerHTML = '<tr><td colspan="12"><div class="empty">No hay devoluciones con los filtros seleccionados.</div></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="13"><div class="empty">No hay devoluciones con los filtros seleccionados.</div></td></tr>';
     return;
   }
 
   tbody.innerHTML = grouped.map(function(r, i) {
     var keyEsc = (r._key || '').replace(/'/g, "\\'");
+    var estado = r._estado || 'Pendiente';
+    var esTramitada = estado === 'Tramitada';
+    var estadoBadge = esTramitada
+      ? '<span style="background:#d4edda;color:#155724;padding:3px 10px;border-radius:10px;font-size:0.74rem;font-weight:700">Tramitada</span>'
+      : '<span style="background:#fff3cd;color:#856404;padding:3px 10px;border-radius:10px;font-size:0.74rem;font-weight:700">Pendiente</span>';
+    var tramitarBtn = esTramitada
+      ? '<button class="btn-edit" onclick="openTramitarDev(\'' + keyEsc + '\')" title="Ver/editar trámite" style="background:#6c757d;font-size:0.72rem;padding:4px 8px;border-radius:5px;color:white;border:none;cursor:pointer;font-weight:700">📝 Editar</button>'
+      : '<button class="btn-edit" onclick="openTramitarDev(\'' + keyEsc + '\')" title="Tramitar devolución" style="background:#27ae60;font-size:0.72rem;padding:4px 8px;border-radius:5px;color:white;border:none;cursor:pointer;font-weight:700">📝 Tramitar</button>';
     return '<tr>' +
       '<td style="color:#718096;font-size:0.78rem">' + (i+1) + '</td>' +
       '<td style="white-space:nowrap;font-size:0.78rem">' + fmtDate(r.Fecha) + '</td>' +
@@ -348,8 +362,10 @@ function renderDevTable() {
       '<td style="text-align:center;font-weight:600">' + (r._totalCant||0) + '</td>' +
       '<td style="text-align:right;font-weight:700;font-size:0.82rem">' + fmtMoney(r._totalValor) + '</td>' +
       '<td style="font-size:0.76rem;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + (r.Motivo||'') + '">' + (r.Motivo||'—') + '</td>' +
+      '<td style="text-align:center">' + estadoBadge + '</td>' +
       '<td><div style="display:flex;gap:6px;align-items:center">' +
         '<button class="btn-edit" onclick="viewDevDetail(\'' + keyEsc + '\')" title="Ver detalle" style="background:#3498db;font-size:0.72rem;padding:4px 8px;border-radius:5px;color:white;border:none;cursor:pointer;font-weight:700">📋 Ver</button>' +
+        tramitarBtn +
         '<button class="btn-del" onclick="openDeleteDevGroup(\'' + keyEsc + '\')" title="Eliminar devolución">🗑️</button>' +
       '</div></td>' +
     '</tr>';
@@ -369,6 +385,10 @@ function viewDevDetail(key) {
       '<span style="font-size:0.85rem;color:#2d3748">' + (val || '—') + '</span></div>';
   }
 
+  var estadoLabel = r.Estado === 'Tramitada'
+    ? '<span style="background:#d4edda;color:#155724;padding:2px 8px;border-radius:8px;font-size:0.82rem;font-weight:700">Tramitada</span>'
+    : '<span style="background:#fff3cd;color:#856404;padding:2px 8px;border-radius:8px;font-size:0.82rem;font-weight:700">Pendiente</span>';
+
   var html = '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px 24px;margin-bottom:18px;font-size:0.85rem">' +
     devField('Empresa', getSiglaDev(r.Empresa)) +
     devField('Fecha', fmtDate(r.Fecha)) +
@@ -382,6 +402,9 @@ function viewDevDetail(key) {
     devField('Teléfono', r.Telefono) +
     devField('N° Factura', r.Num_Factura) +
     devField('Motivo', r.Motivo) +
+    devField('Estado', estadoLabel) +
+    devField('N° Remisión', r.Remision) +
+    devField('Fecha Devolución', r.Fecha_Devolucion ? fmtDate(r.Fecha_Devolucion) : '—') +
     '</div>';
 
   if (r.Observaciones) {
@@ -395,7 +418,7 @@ function viewDevDetail(key) {
 
   html += '<div style="overflow-x:auto"><table style="font-size:0.82rem;width:100%"><thead><tr style="background:#f7fafc">' +
     '<th>Producto</th><th>Presentación</th><th style="text-align:right">Cantidad</th>' +
-    '<th style="text-align:right">Cant. Ent.</th><th style="text-align:right">V. Unitario</th>' +
+    '<th style="text-align:right">Cant. Devuelta</th><th style="text-align:right">V. Unitario</th>' +
     '<th style="text-align:right">V. Total</th><th style="width:80px"></th>' +
     '</tr></thead><tbody>';
 
@@ -1085,6 +1108,83 @@ function prefillDevForm(data) {
       };
     });
     renderDevLines();
+  }
+}
+
+// ── Tramitar Devolución ──
+function openTramitarDev(key) {
+  var lines = devoluciones.filter(function(r) {
+    return ((r.Empresa || '') + '||' + (r.Consecutivo || r.id)) === key;
+  });
+  if (!lines.length) return;
+  tramitarDevKey = key;
+  tramitarDevLines = lines.map(function(l) {
+    return { id: l.__row || l.id, Producto: l.Producto, Presentacion: l.Presentacion, Cantidad: l.Cantidad, Cant_Entregada: l.Cant_Entregada || 0 };
+  });
+
+  var r = lines[0];
+  document.getElementById('tramitar-dev-meta').innerHTML =
+    '<span>📋 Consec: ' + (r.Consecutivo || '—') + '</span>' +
+    '<span>👤 ' + (r.Cliente || '—') + '</span>' +
+    '<span>' + getSiglaDev(r.Empresa) + '</span>';
+
+  document.getElementById('tramitar-remision').value = r.Remision || '';
+  document.getElementById('tramitar-fecha').value = r.Fecha_Devolucion ? toDateInput(r.Fecha_Devolucion) : today();
+
+  var tbody = document.getElementById('tramitar-lines');
+  tbody.innerHTML = tramitarDevLines.map(function(l, i) {
+    return '<tr>' +
+      '<td style="color:#a0aec0;font-size:0.74rem">' + (i+1) + '</td>' +
+      '<td style="font-weight:600">' + (l.Producto || '—') + '</td>' +
+      '<td>' + (l.Presentacion || '—') + '</td>' +
+      '<td style="text-align:right">' + (l.Cantidad || 0) + '</td>' +
+      '<td><input class="ef tramitar-cant" data-line="' + i + '" type="number" min="0" max="' + (l.Cantidad||9999) + '" value="' + (l.Cant_Entregada || '') + '" placeholder="0" style="width:100px;text-align:right"></td>' +
+    '</tr>';
+  }).join('');
+
+  document.getElementById('btn-tramitar-dev').disabled = false;
+  document.getElementById('btn-tramitar-dev').textContent = '✓ Tramitar devolución';
+  document.getElementById('tramitar-dev-overlay').classList.add('show');
+}
+
+function closeTramitarDev() {
+  document.getElementById('tramitar-dev-overlay').classList.remove('show');
+  tramitarDevKey = null;
+  tramitarDevLines = [];
+}
+
+document.getElementById('tramitar-dev-overlay').addEventListener('click', function(e) { if (isBackdropClick(e)) closeTramitarDev(); });
+
+async function saveTramitarDev() {
+  var remision = document.getElementById('tramitar-remision').value.trim();
+  var fecha = document.getElementById('tramitar-fecha').value;
+  if (!remision) { showToast('Ingresa el N° de remisión', '#e74c3c'); return; }
+  if (!fecha) { showToast('Selecciona la fecha de devolución', '#e74c3c'); return; }
+
+  document.querySelectorAll('.tramitar-cant').forEach(function(inp) {
+    var i = Number(inp.dataset.line);
+    if (tramitarDevLines[i]) tramitarDevLines[i].Cant_Entregada = Number(inp.value) || 0;
+  });
+
+  var btn = document.getElementById('btn-tramitar-dev');
+  btn.disabled = true;
+  btn.textContent = '⏳ Guardando...';
+
+  try {
+    var result = await apiPost({
+      action: 'tramitarDevolucion',
+      Remision: remision,
+      Fecha_Devolucion: fecha,
+      lineas: tramitarDevLines.map(function(l) { return { id: l.id, Cant_Entregada: l.Cant_Entregada }; })
+    });
+    if (!result.ok) throw new Error(result.error || 'Error al tramitar');
+    closeTramitarDev();
+    showToast('✅ Devolución tramitada — ' + result.updated + ' línea(s) actualizadas');
+    await loadDevoluciones();
+  } catch (err) {
+    showToast('❌ Error: ' + err.message, '#e74c3c');
+    btn.disabled = false;
+    btn.textContent = '✓ Tramitar devolución';
   }
 }
 

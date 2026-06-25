@@ -249,6 +249,7 @@ async function apiPost(body) {
           Cant_Entregada: Number(lin.Cant_Entregada) || 0, Valor_Unitario: vU,
           Valor_Total: Number(lin.Valor_Total) || (cant * vU),
           Motivo: body.Motivo || '', Observaciones: body.Observaciones || '',
+          Estado: 'Pendiente', Remision: '', Fecha_Devolucion: '',
           Fecha_Registro: now
         };
       });
@@ -260,7 +261,7 @@ async function apiPost(body) {
     if (action === 'editarDevolucion') {
       var cant = Number(body.Cantidad) || 0;
       var vU = Number(body.Valor_Unitario) || 0;
-      var res = await _sb.from('Devoluciones').update({
+      var upd = {
         Fecha: body.Fecha || '', Empresa: body.Empresa || '', Consecutivo: body.Consecutivo || '',
         Vendedor: body.Vendedor || '', Cliente: body.Cliente || '', NIT: body.NIT || '',
         Direccion: body.Direccion || '', Municipio: body.Municipio || '',
@@ -270,9 +271,28 @@ async function apiPost(body) {
         Cant_Entregada: Number(body.Cant_Entregada) || 0, Valor_Unitario: vU,
         Valor_Total: Number(body.Valor_Total) || (cant * vU),
         Motivo: body.Motivo || '', Observaciones: body.Observaciones || ''
-      }).eq('id', body.row);
+      };
+      if (body.Remision !== undefined) upd.Remision = body.Remision;
+      if (body.Fecha_Devolucion !== undefined) upd.Fecha_Devolucion = body.Fecha_Devolucion;
+      if (body.Estado !== undefined) upd.Estado = body.Estado;
+      var res = await _sb.from('Devoluciones').update(upd).eq('id', body.row);
       if (res.error) return { ok: false, error: res.error.message };
       return { ok: true, updated: 1 };
+    }
+
+    if (action === 'tramitarDevolucion') {
+      var lineas = body.lineas || [];
+      for (var i = 0; i < lineas.length; i++) {
+        var lin = lineas[i];
+        var res = await _sb.from('Devoluciones').update({
+          Remision: body.Remision || '',
+          Fecha_Devolucion: body.Fecha_Devolucion || '',
+          Cant_Entregada: Number(lin.Cant_Entregada) || 0,
+          Estado: 'Tramitada'
+        }).eq('id', lin.id);
+        if (res.error) return { ok: false, error: res.error.message };
+      }
+      return { ok: true, updated: lineas.length };
     }
 
     if (action === 'eliminarDevolucion') {
