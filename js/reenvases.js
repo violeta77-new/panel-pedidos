@@ -359,7 +359,6 @@ async function openNewReenvase() {
   document.getElementById('re-empresa').value = '';
   document.getElementById('re-fecha').value = today();
   document.getElementById('re-remision').value = '';
-  document.getElementById('re-observaciones').value = '';
 
   document.getElementById('re-multi-lines').style.display = '';
   document.getElementById('re-edit-single').style.display = 'none';
