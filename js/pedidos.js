@@ -550,6 +550,15 @@ async function guardarTodo() {
   if (hasError) { showToast('Verifica las cantidades en rojo', '#e74c3c'); return; }
   if (entregas.length > 0 && !fecha) { showToast('Selecciona la fecha de entrega', '#e74c3c'); return; }
 
+  if (rem && entregas.length === 0) {
+    detailWorkingLines.forEach(function(l) {
+      if ((Number(l.Cant_Entregada) || 0) > 0) {
+        var prev = (l.Remisiones || '').trim();
+        l.Remisiones = prev ? prev + ', ' + rem : rem;
+      }
+    });
+  }
+
   var btn = document.getElementById('btn-confirmar');
   btn.disabled = true;
   btn.textContent = '⏳ Guardando...';
