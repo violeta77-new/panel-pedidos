@@ -1188,6 +1188,30 @@ async function saveTramitarDev() {
   }
 }
 
+// ── Tab switching ──
+function switchTab(tab) {
+  var devTab = document.getElementById('tab-devoluciones');
+  var camTab = document.getElementById('tab-cambios');
+  var btnDev = document.getElementById('tab-btn-dev');
+  var btnCam = document.getElementById('tab-btn-cam');
+  if (tab === 'cambios') {
+    devTab.style.display = 'none';
+    camTab.style.display = 'block';
+    btnDev.style.borderBottomColor = 'transparent';
+    btnDev.style.color = '#718096';
+    btnCam.style.borderBottomColor = '#8e44ad';
+    btnCam.style.color = '#8e44ad';
+    if (typeof loadCambios === 'function' && !window._cambiosLoaded) { loadCambios(); window._cambiosLoaded = true; }
+  } else {
+    devTab.style.display = 'block';
+    camTab.style.display = 'none';
+    btnDev.style.borderBottomColor = '#e67e22';
+    btnDev.style.color = '#e67e22';
+    btnCam.style.borderBottomColor = 'transparent';
+    btnCam.style.color = '#718096';
+  }
+}
+
 // ── Auto-load ──
 loadDevoluciones();
 loadCatalogoDev();

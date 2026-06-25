@@ -32,6 +32,11 @@ async function apiGet(action) {
       if (res.error) return { ok: false, error: res.error.message };
       return { ok: true, devoluciones: _addRow(res.data) };
     }
+    if (action === 'getCambios') {
+      var res = await _sb.from('CambiosMercancia').select('*').order('id');
+      if (res.error) return { ok: false, error: res.error.message };
+      return { ok: true, cambios: _addRow(res.data) };
+    }
     if (action === 'getInventario') {
       var res = await _sb.from('Inventario').select('*').order('id');
       if (res.error) return { ok: false, error: res.error.message };
@@ -297,6 +302,56 @@ async function apiPost(body) {
 
     if (action === 'eliminarDevolucion') {
       var res = await _sb.from('Devoluciones').delete().eq('id', body.row);
+      if (res.error) return { ok: false, error: res.error.message };
+      return { ok: true, deleted: 1 };
+    }
+
+    // ── CAMBIOS DE MERCANCIA ──
+
+    if (action === 'agregarCambio') {
+      var now = new Date().toISOString().slice(0, 19).replace('T', ' ');
+      var h = body.header || {};
+      var allLines = [];
+      (body.lineasCambiar || []).forEach(function(lin) {
+        allLines.push({
+          Empresa: h.Empresa || '', Fecha_Solicitud: h.Fecha_Solicitud || '',
+          Fecha_Recogida: h.Fecha_Recogida || '', Consecutivo: h.Consecutivo || '',
+          Cliente: h.Cliente || '', NIT: h.NIT || '', Telefono: h.Telefono || '',
+          Correo: h.Correo || '', Num_Factura: h.Num_Factura || '',
+          Fecha_Compra: h.Fecha_Compra || '', Tipo_Linea: 'CAMBIAR',
+          Producto: lin.Producto || '', Cantidad: Number(lin.Cantidad) || 0,
+          Lote_Vencimiento: lin.Lote_Vencimiento || '',
+          Razon_Cambio: lin.Razon_Cambio || '', Fecha_Cambio: '',
+          Valor_Cliente: Number(h.Valor_Cliente) || 0,
+          Valor_Empresa: Number(h.Valor_Empresa) || 0,
+          Observaciones: h.Observaciones || '', Estado: 'Pendiente',
+          Fecha_Registro: now
+        });
+      });
+      (body.lineasEntregar || []).forEach(function(lin) {
+        allLines.push({
+          Empresa: h.Empresa || '', Fecha_Solicitud: h.Fecha_Solicitud || '',
+          Fecha_Recogida: h.Fecha_Recogida || '', Consecutivo: h.Consecutivo || '',
+          Cliente: h.Cliente || '', NIT: h.NIT || '', Telefono: h.Telefono || '',
+          Correo: h.Correo || '', Num_Factura: h.Num_Factura || '',
+          Fecha_Compra: h.Fecha_Compra || '', Tipo_Linea: 'ENTREGAR',
+          Producto: lin.Producto || '', Cantidad: Number(lin.Cantidad) || 0,
+          Lote_Vencimiento: lin.Lote_Vencimiento || '',
+          Razon_Cambio: '', Fecha_Cambio: lin.Fecha_Cambio || '',
+          Valor_Cliente: Number(h.Valor_Cliente) || 0,
+          Valor_Empresa: Number(h.Valor_Empresa) || 0,
+          Observaciones: h.Observaciones || '', Estado: 'Pendiente',
+          Fecha_Registro: now
+        });
+      });
+      if (!allLines.length) return { ok: false, error: 'Sin líneas' };
+      var res = await _sb.from('CambiosMercancia').insert(allLines);
+      if (res.error) return { ok: false, error: res.error.message };
+      return { ok: true, added: allLines.length };
+    }
+
+    if (action === 'eliminarCambio') {
+      var res = await _sb.from('CambiosMercancia').delete().eq('id', body.row);
       if (res.error) return { ok: false, error: res.error.message };
       return { ok: true, deleted: 1 };
     }

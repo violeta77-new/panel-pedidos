@@ -6,7 +6,7 @@
 <meta name="description" content="Devoluciones de Producto — Sistema de Gestión Logística">
 <meta name="theme-color" content="#1a5276">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔄</text></svg>">
-<title>Devoluciones – Sistema de Gestión Logística</title>
+<title>Devoluciones y Cambios – Sistema de Gestión Logística</title>
 <link rel="stylesheet" href="css/panel.css">
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 </head>
@@ -26,7 +26,7 @@
     <a href="pedidos.html">📋 Pedidos</a>
     <a href="ingresos.html">📥 Ingresos</a>
     <a href="ordenes.html">🛒 Órdenes</a>
-    <a href="devoluciones.html" class="active">🔄 Devoluciones</a>
+    <a href="devoluciones.html" class="active">🔄 Devoluciones y Cambios</a>
     <a href="inventario.html">📊 Inventario</a>
     <a href="muestras.html">🧪 Muestras</a>
     <a href="reportes.html">📈 Reportes</a>
@@ -50,6 +50,14 @@
     <span id="sync-msg">Conectado a la nube. Los cambios se guardan automáticamente.</span>
   </div>
 
+  <!-- TAB SWITCHER -->
+  <div style="display:flex;gap:0;margin-bottom:18px;border-bottom:2px solid #e2e8f0">
+    <button id="tab-btn-dev" onclick="switchTab('devoluciones')" style="padding:10px 24px;font-size:0.88rem;font-weight:700;border:none;background:none;cursor:pointer;border-bottom:3px solid #e67e22;color:#e67e22;margin-bottom:-2px;transition:all 0.2s">🔄 Devoluciones</button>
+    <button id="tab-btn-cam" onclick="switchTab('cambios')" style="padding:10px 24px;font-size:0.88rem;font-weight:700;border:none;background:none;cursor:pointer;border-bottom:3px solid transparent;color:#718096;margin-bottom:-2px;transition:all 0.2s">🔁 Cambios de Mercancía</button>
+  </div>
+
+  <!-- ═══ TAB DEVOLUCIONES ═══ -->
+  <div id="tab-devoluciones">
   <div class="stats">
     <div class="sc total"><div class="num" id="s-total">0</div><div class="lbl">Total devoluciones</div></div>
     <div class="sc entregado"><div class="num" id="s-valor">$0</div><div class="lbl">Valor total</div></div>
@@ -104,6 +112,64 @@
       </table>
     </div>
   </div>
+  </div><!-- /tab-devoluciones -->
+
+  <!-- ═══ TAB CAMBIOS ═══ -->
+  <div id="tab-cambios" style="display:none">
+  <div class="stats">
+    <div class="sc total"><div class="num" id="sc-total">0</div><div class="lbl">Total cambios</div></div>
+    <div class="sc parcial"><div class="num" id="sc-mes">0</div><div class="lbl">Este mes</div></div>
+    <div class="sc recibido"><div class="num" id="sc-clientes">0</div><div class="lbl">Clientes</div></div>
+    <div class="sc entregado"><div class="num" id="sc-pendientes">0</div><div class="lbl">Pendientes</div></div>
+  </div>
+
+  <div class="filters">
+    <div class="fg">
+      <label>Empresa</label>
+      <select id="fc-empresa">
+        <option value="">Todas</option>
+        <option value="PARCELAR DE COLOMBIA SAS">PARCELAR</option>
+        <option value="GREEN AGROSOLUCIONES DE COLOMBIA SAS">GREEN</option>
+        <option value="SOLUCIONES INTEGRALES RESO SAS">RESO</option>
+        <option value="INSUMOS AGROPECUARIOS SOSTENIBLES SAS">IASO</option>
+        <option value="INSUMOS AGROPECUARIOS DE LA SABANA SAS">IAS</option>
+      </select>
+    </div>
+    <div class="fg">
+      <label>Cliente</label>
+      <select id="fc-cliente"><option value="">Todos</option></select>
+    </div>
+    <div class="fg">
+      <label>Estado</label>
+      <select id="fc-estado">
+        <option value="">Todos</option>
+        <option value="Pendiente">Pendiente</option>
+        <option value="Completado">Completado</option>
+      </select>
+    </div>
+    <div class="fg"><label>Buscar</label><input type="text" id="fc-txt" placeholder="cliente, producto, factura…" style="width:160px"></div>
+    <button onclick="clearCamFilters()" style="margin-left:auto;background:none;border:1px solid #cbd5e0;color:#4a5568;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:0.82rem;font-weight:600;transition:background 0.2s" onmouseover="this.style.background='#f7fafc'" onmouseout="this.style.background='none'">✕ Limpiar filtros</button>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <h3>Cambios de mercancía registrados <span id="row-ct-cam" style="font-weight:400;color:#718096"></span></h3>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn-dl" onclick="openNewCambio()" style="background:#8e44ad">🔁 Nuevo Cambio</button>
+        <button class="btn-dl" onclick="loadCambios()">🔄 Actualizar</button>
+      </div>
+    </div>
+    <div style="overflow-x:auto">
+      <table>
+        <thead>
+          <tr id="t-head-cam"></tr>
+        </thead>
+        <tbody id="t-body-cam"></tbody>
+      </table>
+    </div>
+  </div>
+  </div><!-- /tab-cambios -->
+
 </div>
 
 <!-- DEVOLUCION FORM MODAL -->
@@ -370,10 +436,198 @@
   </div>
 </div>
 
+<!-- CAMBIO FORM MODAL -->
+<div class="overlay" id="cam-overlay">
+  <div class="modal-box" style="max-width:880px">
+    <div class="mhdr" style="background:linear-gradient(135deg,#8e44ad,#9b59b6)">
+      <div style="flex:1">
+        <h2 id="cam-modal-title">🔁 Registrar Cambio de Mercancía</h2>
+        <div style="font-size:0.78rem;opacity:0.85;margin-top:4px">Solicitud de Cambio — OP-PDC-FO11</div>
+      </div>
+      <button class="btn-close" onclick="closeCamModal()">✕</button>
+    </div>
+    <div class="mbody" style="max-height:72vh;overflow-y:auto">
+      <!-- Empresa y datos generales -->
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:12px;margin-bottom:16px">
+        <div>
+          <label class="ef-label">Empresa</label>
+          <select class="ef" id="cam-empresa">
+            <option value="">— Seleccionar —</option>
+            <option value="PARCELAR DE COLOMBIA SAS">PARCELAR</option>
+            <option value="GREEN AGROSOLUCIONES DE COLOMBIA SAS">GREEN</option>
+            <option value="SOLUCIONES INTEGRALES RESO SAS">RESO</option>
+            <option value="INSUMOS AGROPECUARIOS SOSTENIBLES SAS">IASO</option>
+            <option value="INSUMOS AGROPECUARIOS DE LA SABANA SAS">IAS</option>
+          </select>
+        </div>
+        <div>
+          <label class="ef-label">Fecha Solicitud</label>
+          <input class="ef" id="cam-fecha-solicitud" type="date">
+        </div>
+        <div>
+          <label class="ef-label">Fecha Recogida</label>
+          <input class="ef" id="cam-fecha-recogida" type="date">
+        </div>
+        <div>
+          <label class="ef-label"># Consecutivo</label>
+          <input class="ef" id="cam-consecutivo" type="text" placeholder="N°">
+        </div>
+      </div>
+
+      <!-- Datos del cliente -->
+      <div style="border-top:1px solid #e2e8f0;padding-top:14px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between">
+        <div style="font-weight:700;font-size:0.88rem;color:#2d3748">👤 Datos del cliente solicitante</div>
+        <div style="font-size:0.72rem;color:#718096;font-style:italic">Busca por nombre o NIT</div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:6px">
+        <div style="position:relative">
+          <label class="ef-label">Nombre / Razón Social</label>
+          <input class="ef" id="cam-cliente" type="text" placeholder="Buscar cliente..." autocomplete="off">
+        </div>
+        <div>
+          <label class="ef-label">NIT / Cédula</label>
+          <input class="ef" id="cam-nit" type="text" placeholder="N° identificación">
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:6px">
+        <div>
+          <label class="ef-label">Teléfono</label>
+          <input class="ef" id="cam-telefono" type="text" placeholder="Teléfono de contacto">
+        </div>
+        <div>
+          <label class="ef-label">Correo Electrónico</label>
+          <input class="ef" id="cam-correo" type="email" placeholder="correo@ejemplo.com">
+        </div>
+        <div>
+          <label class="ef-label">N° Factura o Compra</label>
+          <input class="ef" id="cam-num-factura" type="text" placeholder="Ej: FV 3472">
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr;gap:12px;margin-bottom:16px">
+        <div>
+          <label class="ef-label">Fecha de Compra</label>
+          <input class="ef" id="cam-fecha-compra" type="date" style="max-width:200px">
+        </div>
+      </div>
+
+      <!-- Mercancía a CAMBIAR -->
+      <div id="cam-section-cambiar">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;border-top:1px solid #e2e8f0;padding-top:14px">
+          <div style="font-weight:700;font-size:0.88rem;color:#c0392b">📦 Mercancía a cambiar <span style="font-weight:400;font-size:0.76rem;color:#718096">(producto que devuelve el cliente)</span></div>
+          <button onclick="addCamLine('cambiar')" style="background:#c0392b;color:white;border:none;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:0.8rem;font-weight:700">+ Agregar</button>
+        </div>
+        <div style="overflow-x:auto">
+          <table style="font-size:0.82rem;margin-bottom:0">
+            <thead>
+              <tr style="background:#fdf2f2">
+                <th style="width:26px">#</th>
+                <th>Producto</th>
+                <th style="width:75px">Cantidad</th>
+                <th style="width:180px">Lote / Fecha Vencimiento</th>
+                <th style="width:180px">Razón del Cambio</th>
+                <th style="width:40px"></th>
+              </tr>
+            </thead>
+            <tbody id="cam-lines-cambiar"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Mercancía a ENTREGAR -->
+      <div id="cam-section-entregar" style="margin-top:16px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;border-top:1px solid #e2e8f0;padding-top:14px">
+          <div style="font-weight:700;font-size:0.88rem;color:#27ae60">📦 Mercancía a entregar <span style="font-weight:400;font-size:0.76rem;color:#718096">(producto nuevo para el cliente)</span></div>
+          <button onclick="addCamLine('entregar')" style="background:#27ae60;color:white;border:none;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:0.8rem;font-weight:700">+ Agregar</button>
+        </div>
+        <div style="overflow-x:auto">
+          <table style="font-size:0.82rem;margin-bottom:0">
+            <thead>
+              <tr style="background:#f0faf4">
+                <th style="width:26px">#</th>
+                <th>Producto</th>
+                <th style="width:75px">Cantidad</th>
+                <th style="width:180px">Lote / Fecha Vencimiento</th>
+                <th style="width:140px">Fecha del Cambio</th>
+                <th style="width:40px"></th>
+              </tr>
+            </thead>
+            <tbody id="cam-lines-entregar"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Valores y observaciones -->
+      <div style="border-top:1px solid #e2e8f0;padding-top:14px;margin-top:16px;margin-bottom:10px;font-weight:700;font-size:0.88rem;color:#2d3748">💰 Valores</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+        <div>
+          <label class="ef-label">Valor a favor del cliente ($)</label>
+          <input class="ef" id="cam-valor-cliente" type="number" min="0" placeholder="0">
+        </div>
+        <div>
+          <label class="ef-label">Valor a favor de la empresa ($)</label>
+          <input class="ef" id="cam-valor-empresa" type="number" min="0" placeholder="0">
+        </div>
+      </div>
+      <div>
+        <label class="ef-label">Observaciones adicionales</label>
+        <textarea class="ef" id="cam-observaciones" rows="2" placeholder="Notas adicionales" style="resize:vertical"></textarea>
+      </div>
+    </div>
+    <div class="mftr">
+      <div style="font-size:0.8rem;color:#718096">Los datos se guardan directamente en la nube</div>
+      <div class="mftr-btns">
+        <button class="btn-cancel" onclick="closeCamModal()">Cancelar</button>
+        <button class="btn-confirm" id="btn-save-cam" onclick="saveCambio()" style="background:#8e44ad">✓ Registrar cambio</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- CAMBIO DETAIL MODAL -->
+<div class="overlay" id="view-cam-overlay">
+  <div class="modal-box" style="max-width:860px">
+    <div class="mhdr" style="background:linear-gradient(135deg,#2c3e50,#34495e)">
+      <div style="flex:1">
+        <h2>📋 Detalle de Cambio</h2>
+        <div style="font-size:0.78rem;opacity:0.85;margin-top:4px;display:flex;gap:16px" id="view-cam-meta"></div>
+      </div>
+      <button class="btn-close" onclick="closeViewCam()">✕</button>
+    </div>
+    <div class="mbody" id="view-cam-body" style="max-height:70vh;overflow-y:auto"></div>
+    <div class="mftr">
+      <div></div>
+      <button class="btn-cancel" onclick="closeViewCam()">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- CAMBIO DELETE MODAL -->
+<div class="overlay" id="delete-cam-overlay">
+  <div class="modal-box" style="max-width:480px">
+    <div class="mhdr" style="background:linear-gradient(135deg,#c0392b,#e74c3c)">
+      <div style="flex:1">
+        <h2>🗑️ Eliminar Cambio</h2>
+        <div style="font-size:0.78rem;opacity:0.85;margin-top:4px">Esta acción no se puede deshacer</div>
+      </div>
+      <button class="btn-close" onclick="closeDeleteCam()">✕</button>
+    </div>
+    <div class="mbody" style="text-align:center;padding:28px 24px">
+      <div style="font-size:2.5rem;margin-bottom:12px">⚠️</div>
+      <div style="font-size:0.95rem;font-weight:700;color:#2d3748;margin-bottom:8px" id="del-cam-msg">¿Eliminar este cambio?</div>
+      <div style="font-size:0.82rem;color:#718096" id="del-cam-detail"></div>
+    </div>
+    <div class="mftr" style="justify-content:center;gap:12px">
+      <button class="btn-cancel" onclick="closeDeleteCam()">Cancelar</button>
+      <button class="btn-confirm" id="btn-del-cam-confirm" onclick="confirmDeleteCam()" style="background:#e74c3c">🗑️ Sí, eliminar</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="js/shared.js"></script>
 <script src="js/devoluciones.js"></script>
+<script src="js/cambios.js"></script>
 </body>
 </html>
