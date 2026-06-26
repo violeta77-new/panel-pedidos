@@ -115,6 +115,11 @@ async function apiPost(body) {
         p_observaciones: body.observaciones || null
       });
       if (res.error) return { ok: false, error: res.error.message };
+      for (var ei = 0; ei < entregas.length; ei++) {
+        if (entregas[ei].fecha && entregas[ei].row) {
+          await _sb.from('Pedidos').update({ Fecha_Ult_Entrega: entregas[ei].fecha }).eq('id', entregas[ei].row);
+        }
+      }
       return res.data;
     }
 
