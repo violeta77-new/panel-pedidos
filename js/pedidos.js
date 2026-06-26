@@ -504,6 +504,13 @@ async function guardarTodo() {
     l.Cant_Pendiente = Math.max(0, l.Cantidad - l.Cant_Entregada);
   });
 
+  var fechaEntrega = document.getElementById('m-fecha').value || new Date().toISOString().slice(0, 10);
+  detailWorkingLines.forEach(function(l) {
+    if ((Number(l.Cant_Entregada) || 0) > 0 && !(l.Fecha_Ult_Entrega || '').trim()) {
+      l.Fecha_Ult_Entrega = fechaEntrega;
+    }
+  });
+
   var anyDelivery = detailWorkingLines.some(function(l) { return (Number(l.Cant_Entregada)||0) > 0; });
   detailWorkingLines.forEach(function(l) {
     var pedida = Number(l.Cantidad) || 0;
@@ -580,6 +587,13 @@ async function guardarTodo() {
     if (entregas.length > 0) {
       var entResult = await apiPost({ action: 'registrarEntrega', entregas: entregas, observaciones: obs });
       if (!entResult.ok) throw new Error(entResult.error || 'Error al registrar entregas');
+    }
+
+    for (var di = 0; di < detailWorkingLines.length; di++) {
+      var dl = detailWorkingLines[di];
+      if ((Number(dl.Cant_Entregada) || 0) > 0 && dl.__row && dl.Fecha_Ult_Entrega) {
+        await _sb.from('Pedidos').update({ Fecha_Ult_Entrega: dl.Fecha_Ult_Entrega }).eq('id', dl.__row);
+      }
     }
 
     closeModal();
