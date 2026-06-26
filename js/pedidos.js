@@ -1651,5 +1651,43 @@ function exportDetalleCSV() {
   showToast('CSV exportado: ' + rows.length + ' líneas');
 }
 
+// ── Export órdenes a Excel ──
+function exportOrdenesExcel() {
+  var rows = applySort(filtered());
+  if (!rows.length) { showToast('No hay órdenes para exportar', '#e74c3c'); return; }
+
+  var data = rows.map(function(c) {
+    var lines = getLinesFor(c);
+    var est = derivedStatus(lines);
+    var est2 = derivedEstado2(lines);
+    var pct = derivedPct(lines);
+    return {
+      'Empresa': getSigla(c.Nombre_Empresa),
+      'Consecutivo': c.Consecutivo || '',
+      'Cliente': c.Cliente || '',
+      'NIT': c.NIT || '',
+      'Fecha Pedido': c.Fecha_Pedido ? new Date(c.Fecha_Pedido) : '',
+      'Comercial': c.Comercial || '',
+      'Municipio': c.Municipio || '',
+      'Departamento': c.Departamento || '',
+      'Productos': lines.length,
+      'Total Orden': Number(c.Total_Orden) || 0,
+      'Avance %': pct,
+      'Estado': est,
+      'Estado 2': est2
+    };
+  });
+
+  var ws = XLSX.utils.json_to_sheet(data);
+  var colWidths = [
+    {wch:12},{wch:12},{wch:28},{wch:16},{wch:12},{wch:18},{wch:16},{wch:16},{wch:10},{wch:14},{wch:10},{wch:12},{wch:10}
+  ];
+  ws['!cols'] = colWidths;
+  var wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Pedidos');
+  XLSX.writeFile(wb, 'Pedidos_' + today() + '.xlsx');
+  showToast('Excel exportado: ' + rows.length + ' órdenes', '#27ae60');
+}
+
 // ── Auto-load on page open ──
 loadFromAPI();
