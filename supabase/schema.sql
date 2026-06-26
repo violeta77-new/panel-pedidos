@@ -342,6 +342,7 @@ BEGIN
         "Cant_Entregada" = COALESCE((lin->>'Cant_Entregada')::numeric, "Cant_Entregada"),
         "Cant_Pendiente" = COALESCE((lin->>'Cant_Pendiente')::numeric, "Cant_Pendiente"),
         "Estado_Entrega" = COALESCE(lin->>'Estado_Entrega', "Estado_Entrega"),
+        "Fecha_Ult_Entrega" = COALESCE(NULLIF(lin->>'Fecha_Ult_Entrega', ''), "Fecha_Ult_Entrega"),
         "Remisiones" = COALESCE(lin->>'Remisiones', "Remisiones"),
         "Bonificado" = COALESCE(lin->>'Bonificado', "Bonificado")
       WHERE id = v_row;

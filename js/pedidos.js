@@ -547,6 +547,7 @@ async function guardarTodo() {
       var pendiente = Math.max(0, (Number(detailWorkingLines[i] && detailWorkingLines[i].Cantidad)||0) - (Number(detailWorkingLines[i] && detailWorkingLines[i].Cant_Entregada)||0));
       if (cant > pendiente) { inp.classList.add('error'); hasError = true; return; }
       entregas.push({ row: Number(inp.dataset.row), cantidad: cant, fecha: fecha, remision: rem });
+      if (detailWorkingLines[i] && fecha) detailWorkingLines[i].Fecha_Ult_Entrega = fecha;
     }
   });
 
