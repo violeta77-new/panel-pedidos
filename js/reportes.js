@@ -259,11 +259,7 @@ function sortedAggregated() {
 function renderRptTable() {
   var cols = [
     { id: 'producto', label: 'Producto' },
-    { id: 'presentacion', label: 'Presentación' },
-    { id: 'pedida', label: 'Cant. Pedida' },
-    { id: 'entregada', label: 'Entregada' },
     { id: 'pendiente', label: 'Pendiente' },
-    { id: 'ordenes', label: 'Órdenes' },
     { id: 'numClientes', label: 'Clientes' },
     { id: null, label: 'Empresas' },
     { id: null, label: 'Detalle Clientes' },
@@ -281,7 +277,7 @@ function renderRptTable() {
   var tbody = document.getElementById('rpt-body');
 
   if (!rows.length) {
-    tbody.innerHTML = '<tr><td colspan="9"><div class="empty-msg">No hay productos pendientes con los filtros seleccionados.</div></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="5"><div class="empty-msg">No hay productos pendientes con los filtros seleccionados.</div></td></tr>';
     return;
   }
 
@@ -297,11 +293,7 @@ function renderRptTable() {
 
     return '<tr>' +
       '<td style="font-weight:700">' + (r.producto || '—') + '</td>' +
-      '<td>' + (r.presentacion || '—') + '</td>' +
-      '<td class="money">' + r.pedida.toLocaleString('es-CO') + '</td>' +
-      '<td class="money" style="color:#27ae60;font-weight:600">' + r.entregada.toLocaleString('es-CO') + '</td>' +
       '<td class="money" style="color:#e74c3c;font-weight:700;font-size:0.95rem">' + r.pendiente.toLocaleString('es-CO') + '</td>' +
-      '<td class="center">' + r.ordenes + '</td>' +
       '<td class="center">' + cliKeys.length + '</td>' +
       '<td>' + empTags + '</td>' +
       '<td style="max-width:300px">' + cliTags + '</td>' +
@@ -309,34 +301,29 @@ function renderRptTable() {
   }).join('');
 }
 
-// ── Export CSV ──
-function exportCSV() {
+// ── Export Excel ──
+function exportExcel() {
   var rows = sortedAggregated();
   if (!rows.length) { showToast('No hay datos para exportar', '#e74c3c'); return; }
 
-  var lines = ['Producto,Presentacion,Cant_Pedida,Entregada,Pendiente,Ordenes,Num_Clientes,Clientes'];
-  rows.forEach(function(r) {
-    var cliDetail = Object.keys(r.clientes).sort().map(function(c) { return c + ':' + r.clientes[c]; }).join('; ');
-    lines.push([
-      '"' + (r.producto || '').replace(/"/g, '""') + '"',
-      '"' + (r.presentacion || '').replace(/"/g, '""') + '"',
-      r.pedida,
-      r.entregada,
-      r.pendiente,
-      r.ordenes,
-      r.numClientes,
-      '"' + cliDetail.replace(/"/g, '""') + '"'
-    ].join(','));
+  var data = rows.map(function(r) {
+    var cliDetail = Object.keys(r.clientes).sort().map(function(c) { return c + ': ' + r.clientes[c]; }).join('; ');
+    var empDetail = Object.keys(r.empresas).sort().map(function(e) { return e + ': ' + r.empresas[e]; }).join('; ');
+    return {
+      'Producto': r.producto || '',
+      'Pendiente': r.pendiente,
+      'Clientes': r.numClientes,
+      'Empresas': empDetail,
+      'Detalle Clientes': cliDetail
+    };
   });
 
-  var blob = new Blob(['﻿' + lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
-  var url = URL.createObjectURL(blob);
-  var a = document.createElement('a');
-  a.href = url;
-  a.download = 'pendientes_' + today() + '.csv';
-  a.click();
-  URL.revokeObjectURL(url);
-  showToast('CSV exportado: ' + rows.length + ' productos');
+  var ws = XLSX.utils.json_to_sheet(data);
+  ws['!cols'] = [{ wch: 40 }, { wch: 12 }, { wch: 10 }, { wch: 30 }, { wch: 50 }];
+  var wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Pendientes');
+  XLSX.writeFile(wb, 'pendientes_' + today() + '.xlsx');
+  showToast('Excel exportado: ' + rows.length + ' productos');
 }
 
 // ── Tabs ──
