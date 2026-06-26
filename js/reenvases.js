@@ -118,6 +118,7 @@ var EMPRESAS_SIGLA = {
 
 var RE_COLS = [
   { key: 'Empresa', label: 'Empresa', sortable: true },
+  { key: 'Planta', label: 'Planta', sortable: true },
   { key: 'Fecha', label: 'Fecha', sortable: true, fmt: 'date' },
   { key: 'Producto', label: 'Producto', sortable: true },
   { key: 'Presentacion', label: 'Presentación', sortable: true },
@@ -179,7 +180,7 @@ function applyReFilters() {
   filteredRe = allReenvases.filter(function(r) {
     if (fEmp && r.Empresa !== fEmp) return false;
     if (fTxt) {
-      var hay = [r.Empresa, r.Producto, r.Presentacion, r.Remision, r.Observaciones]
+      var hay = [r.Empresa, r.Planta, r.Producto, r.Presentacion, r.Remision, r.Observaciones]
         .join(' ').toLowerCase();
       if (hay.indexOf(fTxt) < 0) return false;
     }
@@ -283,8 +284,11 @@ function renderReTable() {
     var obs = (r.Observaciones || '');
     if (obs.length > 40) obs = obs.substring(0, 40) + '…';
 
+    var plantaShort = (r.Planta || '').replace('Planta ', '');
+
     return '<tr style="cursor:pointer" onclick="viewReenvase(' + r.id + ')">' +
       '<td><span class="sigla-badge ' + siglaCls + '">' + escHtml(sigla) + '</span></td>' +
+      '<td>' + escHtml(plantaShort || '—') + '</td>' +
       '<td>' + fmtDate(r.Fecha) + '</td>' +
       '<td>' + escHtml(r.Producto || '—') + '</td>' +
       '<td>' + escHtml(r.Presentacion || '—') + '</td>' +
@@ -316,11 +320,12 @@ function viewReenvase(id) {
 
   var html = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 24px;margin-bottom:18px;font-size:0.85rem">' +
     field('Empresa', EMPRESAS_SIGLA[r.Empresa] || r.Empresa) +
+    field('Planta de destino', r.Planta) +
     field('Fecha', fmtDate(r.Fecha)) +
+    field('N° Remisión', r.Remision) +
     field('Producto', r.Producto) +
     field('Presentación', r.Presentacion) +
     field('Cantidad', r.Cantidad) +
-    field('N° Remisión', r.Remision) +
     '</div>';
 
   if (r.Observaciones) {
@@ -357,6 +362,7 @@ async function openNewReenvase() {
   document.getElementById('btn-save-re').disabled = false;
 
   document.getElementById('re-empresa').value = '';
+  document.getElementById('re-planta').value = '';
   document.getElementById('re-fecha').value = today();
   document.getElementById('re-remision').value = '';
 
@@ -380,6 +386,7 @@ async function editReenvase(id) {
   document.getElementById('btn-save-re').disabled = false;
 
   document.getElementById('re-empresa').value = r.Empresa || '';
+  document.getElementById('re-planta').value = r.Planta || '';
   document.getElementById('re-fecha').value = toDateInput(r.Fecha);
   document.getElementById('re-remision').value = r.Remision || '';
 
@@ -471,10 +478,12 @@ function syncReLinesFromDOM() {
 async function saveReenvase() {
   var btn = document.getElementById('btn-save-re');
   var empresa = document.getElementById('re-empresa').value;
+  var planta = document.getElementById('re-planta').value;
   var fecha = document.getElementById('re-fecha').value;
   var remision = document.getElementById('re-remision').value.trim();
 
   if (!empresa) { showToast('Selecciona la empresa', '#e74c3c'); return; }
+  if (!planta) { showToast('Selecciona la planta de destino', '#e74c3c'); return; }
   if (!fecha) { showToast('Selecciona la fecha', '#e74c3c'); return; }
 
   if (reEditId) {
@@ -492,7 +501,7 @@ async function saveReenvase() {
     try {
       var result = await apiPost({
         action: 'editarReenvase', row: reEditId,
-        Empresa: empresa, Producto: producto, Presentacion: presentacion,
+        Empresa: empresa, Planta: planta, Producto: producto, Presentacion: presentacion,
         Cantidad: cantidad, Remision: remision, Fecha: fecha,
         Observaciones: observaciones
       });
@@ -522,7 +531,7 @@ async function saveReenvase() {
       var p = productosValidos[i];
       var result = await apiPost({
         action: 'agregarReenvase',
-        Empresa: empresa, Producto: p.producto, Presentacion: p.presentacion,
+        Empresa: empresa, Planta: planta, Producto: p.producto, Presentacion: p.presentacion,
         Cantidad: p.cantidad, Remision: remision, Fecha: fecha,
         Observaciones: (p.observaciones || '').trim()
       });
