@@ -90,6 +90,13 @@
     <button onclick="clearFilters()" style="margin-left:auto;background:none;border:1px solid #cbd5e0;color:#4a5568;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:0.82rem;font-weight:600;transition:background 0.2s" onmouseover="this.style.background='#f7fafc'" onmouseout="this.style.background='none'">✕ Limpiar filtros</button>
   </div>
 
+  <!-- Tabs -->
+  <div style="display:flex;gap:8px;margin-bottom:16px">
+    <button class="btn-export" id="tab-ordenes" onclick="switchPedidoTab('ordenes')" style="background:#1a5276">📋 Órdenes</button>
+    <button class="btn-export" id="tab-detalle" onclick="switchPedidoTab('detalle')" style="background:#718096">📑 Vista detallada</button>
+  </div>
+
+  <div id="panel-ordenes">
   <div class="card">
     <div class="card-head">
       <h3>Órdenes registradas <span id="row-ct" style="font-weight:400;color:#718096"></span></h3>
@@ -110,6 +117,26 @@
       </table>
     </div>
   </div>
+  </div>
+
+  <!-- Panel Vista Detallada (solo lectura) -->
+  <div id="panel-detalle" style="display:none">
+    <div class="card">
+      <div class="card-head">
+        <h3>📑 Vista detallada por línea <span id="det-count" style="font-weight:400;color:#718096"></span></h3>
+        <button class="btn-dl" onclick="exportDetalleCSV()">📥 Exportar CSV</button>
+      </div>
+      <div style="overflow-x:auto">
+        <table>
+          <thead>
+            <tr id="det-head"></tr>
+          </thead>
+          <tbody id="det-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
 </div>
 
 <!-- DETAIL MODAL -->

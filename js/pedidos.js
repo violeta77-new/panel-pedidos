@@ -352,6 +352,9 @@ function renderTable() {
       '</div></td>' +
     '</tr>';
   }).join('');
+
+  var detPanel = document.getElementById('panel-detalle');
+  if (detPanel && detPanel.style.display !== 'none') renderDetalle();
 }
 
 // ── Detail Modal ──
@@ -1463,6 +1466,174 @@ async function guardarNuevoPedido() {
     btn.disabled = false;
     btn.textContent = '✏️ Guardar pedido';
   }
+}
+
+// ── Tab switching ──
+function switchPedidoTab(tab) {
+  document.getElementById('panel-ordenes').style.display = tab === 'ordenes' ? 'block' : 'none';
+  document.getElementById('panel-detalle').style.display = tab === 'detalle' ? 'block' : 'none';
+  document.getElementById('tab-ordenes').style.background = tab === 'ordenes' ? '#1a5276' : '#718096';
+  document.getElementById('tab-detalle').style.background = tab === 'detalle' ? '#1a5276' : '#718096';
+  if (tab === 'detalle') renderDetalle();
+}
+
+// ── Vista Detallada (read-only) ──
+var detSort = [{ col: 'empresa', dir: 'asc' }];
+
+function toggleDetSort(col, e) {
+  var shift = e && e.shiftKey;
+  var idx = detSort.findIndex(function(l) { return l.col === col; });
+  if (shift) {
+    if (idx >= 0) detSort.splice(idx, 1);
+    else detSort.push({ col: col, dir: col === 'cantidad' || col === 'pendiente' ? 'desc' : 'asc' });
+  } else {
+    if (idx >= 0) {
+      if (detSort[idx].dir === 'asc') detSort[idx].dir = 'desc';
+      else detSort.splice(idx, 1);
+    } else {
+      detSort = [{ col: col, dir: col === 'cantidad' || col === 'pendiente' ? 'desc' : 'asc' }];
+    }
+  }
+  renderDetalle();
+}
+
+function renderDetalle() {
+  var fe = document.getElementById('f-emp').value;
+  var fc = document.getElementById('f-cli').value;
+  var fs = document.getElementById('f-est').value;
+  var fs2 = document.getElementById('f-est2').value;
+  var ft = document.getElementById('f-txt').value.toLowerCase();
+
+  var rows = pedidos.filter(function(p) {
+    if (fe && p.Nombre_Empresa !== fe) return false;
+    if (fc && (p.Cliente || '') !== fc) return false;
+    if (fs) {
+      var rawEst = norm(p.Estado_Entrega || 'Recibido');
+      if (rawEst !== norm(fs)) return false;
+    }
+    if (fs2) {
+      var e2 = (p.Estado_2 || 'Abierto').trim();
+      if (e2 !== fs2) return false;
+    }
+    if (ft) {
+      var hay = [p.Cliente, String(p.Consecutivo), getSigla(p.Nombre_Empresa), p.Comercial, p.Producto].join(' ').toLowerCase();
+      if (hay.indexOf(ft) < 0) return false;
+    }
+    return true;
+  });
+
+  if (detSort.length) {
+    rows = [].concat(rows).sort(function(a, b) {
+      for (var s = 0; s < detSort.length; s++) {
+        var col = detSort[s].col, dir = detSort[s].dir;
+        var va, vb;
+        if (col === 'empresa') { va = getSigla(a.Nombre_Empresa); vb = getSigla(b.Nombre_Empresa); }
+        else if (col === 'cliente') { va = (a.Cliente||'').toLowerCase(); vb = (b.Cliente||'').toLowerCase(); }
+        else if (col === 'consecutivo') { va = Number(a.Consecutivo)||0; vb = Number(b.Consecutivo)||0; }
+        else if (col === 'producto') { va = (a.Producto||'').toLowerCase(); vb = (b.Producto||'').toLowerCase(); }
+        else if (col === 'presentacion') { va = (a.Presentacion||'').toLowerCase(); vb = (b.Presentacion||'').toLowerCase(); }
+        else if (col === 'cantidad') { va = Number(a.Cantidad)||0; vb = Number(b.Cantidad)||0; }
+        else if (col === 'pendiente') { va = Number(a.Cant_Pendiente)||0; vb = Number(b.Cant_Pendiente)||0; }
+        else if (col === 'estado') { va = (a.Estado_Entrega||'Recibido'); vb = (b.Estado_Entrega||'Recibido'); }
+        else if (col === 'estado2') { va = (a.Estado_2||'Abierto'); vb = (b.Estado_2||'Abierto'); }
+        else { va = ''; vb = ''; }
+        var cmp = typeof va === 'string' ? va.localeCompare(vb, 'es') : va - vb;
+        if (cmp !== 0) return dir === 'asc' ? cmp : -cmp;
+      }
+      return 0;
+    });
+  }
+
+  document.getElementById('det-count').textContent = '(' + rows.length + ' líneas)';
+
+  var cols = [
+    { id: 'empresa', label: 'Empresa' },
+    { id: 'cliente', label: 'Cliente' },
+    { id: 'consecutivo', label: 'Consecutivo' },
+    { id: 'producto', label: 'Producto' },
+    { id: 'presentacion', label: 'Presentación' },
+    { id: 'cantidad', label: 'Cant. Pedida' },
+    { id: 'pendiente', label: 'Pendiente' },
+    { id: 'estado', label: 'Estado' },
+    { id: 'estado2', label: 'Estado 2' },
+  ];
+
+  document.getElementById('det-head').innerHTML = cols.map(function(c) {
+    var idx = detSort.findIndex(function(l) { return l.col === c.id; });
+    var cls = idx >= 0 ? (detSort[idx].dir === 'asc' ? 'sort-asc' : 'sort-desc') : '';
+    var badge = idx >= 0 && detSort.length > 1 ? '<span style="font-size:0.6rem;vertical-align:super;color:#2980b9">' + (idx+1) + '</span>' : '';
+    return '<th class="sortable ' + cls + '" onclick="toggleDetSort(\'' + c.id + '\',event)">' + c.label + badge + '<span class="sort-icon"></span></th>';
+  }).join('');
+
+  var tbody = document.getElementById('det-body');
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="9"><div class="empty">No hay líneas con los filtros seleccionados.</div></td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = rows.map(function(p) {
+    var est = (p.Estado_Entrega || 'Recibido').trim();
+    var est2 = (p.Estado_2 || 'Abierto').trim();
+    var badgeEst = norm(est) === 'recibido' ? 'b-rec' : norm(est) === 'parcial' ? 'b-par' : 'b-ent';
+    var badgeEst2 = est2 === 'Abierto' ? 'b-abierto' : est2 === 'Cerrado' ? 'b-cerrado' : 'b-anulado';
+    return '<tr>' +
+      '<td><span class="sigla-badge ' + getSiglaClass(p.Nombre_Empresa) + '">' + getSigla(p.Nombre_Empresa) + '</span></td>' +
+      '<td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + (p.Cliente||'') + '">' + (p.Cliente||'—') + '</td>' +
+      '<td style="text-align:center;font-weight:700">' + (p.Consecutivo||'') + '</td>' +
+      '<td style="font-weight:600">' + (p.Producto||'—') + '</td>' +
+      '<td>' + (p.Presentacion||'—') + '</td>' +
+      '<td class="money">' + (Number(p.Cantidad)||0).toLocaleString('es-CO') + '</td>' +
+      '<td class="money" style="color:#e74c3c;font-weight:600">' + (Number(p.Cant_Pendiente)||0).toLocaleString('es-CO') + '</td>' +
+      '<td><span class="badge ' + badgeEst + '">' + est + '</span></td>' +
+      '<td><span class="badge ' + badgeEst2 + '">' + est2 + '</span></td>' +
+    '</tr>';
+  }).join('');
+}
+
+function exportDetalleCSV() {
+  var fe = document.getElementById('f-emp').value;
+  var fc = document.getElementById('f-cli').value;
+  var fs = document.getElementById('f-est').value;
+  var fs2 = document.getElementById('f-est2').value;
+  var ft = document.getElementById('f-txt').value.toLowerCase();
+
+  var rows = pedidos.filter(function(p) {
+    if (fe && p.Nombre_Empresa !== fe) return false;
+    if (fc && (p.Cliente || '') !== fc) return false;
+    if (fs && norm(p.Estado_Entrega || 'Recibido') !== norm(fs)) return false;
+    if (fs2 && (p.Estado_2 || 'Abierto').trim() !== fs2) return false;
+    if (ft) {
+      var hay = [p.Cliente, String(p.Consecutivo), getSigla(p.Nombre_Empresa), p.Comercial, p.Producto].join(' ').toLowerCase();
+      if (hay.indexOf(ft) < 0) return false;
+    }
+    return true;
+  });
+
+  if (!rows.length) { showToast('No hay datos para exportar', '#e74c3c'); return; }
+
+  var lines = ['Empresa,Cliente,Consecutivo,Producto,Presentacion,Cant_Pedida,Pendiente,Estado,Estado_2'];
+  rows.forEach(function(p) {
+    lines.push([
+      '"' + getSigla(p.Nombre_Empresa) + '"',
+      '"' + (p.Cliente||'').replace(/"/g,'""') + '"',
+      '"' + (p.Consecutivo||'') + '"',
+      '"' + (p.Producto||'').replace(/"/g,'""') + '"',
+      '"' + (p.Presentacion||'').replace(/"/g,'""') + '"',
+      Number(p.Cantidad)||0,
+      Number(p.Cant_Pendiente)||0,
+      '"' + (p.Estado_Entrega||'Recibido') + '"',
+      '"' + (p.Estado_2||'Abierto') + '"'
+    ].join(','));
+  });
+
+  var blob = new Blob(['﻿' + lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = 'detalle_pedidos_' + today() + '.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('CSV exportado: ' + rows.length + ' líneas');
 }
 
 // ── Auto-load on page open ──
