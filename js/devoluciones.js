@@ -879,12 +879,13 @@ async function confirmDeleteDev() {
 
   try {
     if (deleteDevGroupIds && deleteDevGroupIds.length) {
+      var count = deleteDevGroupIds.length;
       for (var i = 0; i < deleteDevGroupIds.length; i++) {
         var result = await apiPost({ action: 'eliminarDevolucion', row: deleteDevGroupIds[i] });
         if (!result.ok) throw new Error(result.error || 'Error al eliminar');
       }
       closeDeleteDev();
-      showToast('🗑️ Devolución eliminada (' + deleteDevGroupIds.length + ' líneas)');
+      showToast('🗑️ Devolución eliminada (' + count + ' líneas)');
     } else if (deleteDevRow) {
       var result = await apiPost({ action: 'eliminarDevolucion', row: deleteDevRow });
       if (!result.ok) throw new Error(result.error || 'Error al eliminar');
