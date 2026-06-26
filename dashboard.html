@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Dashboard — Sistema de Gestion Logistica">
+<meta name="theme-color" content="#1a5276">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📊</text></svg>">
+<title>Dashboard – Sistema de Gestion Logistica</title>
+<link rel="stylesheet" href="css/panel.css">
+<style>
+  /* ── KPI GRID ── */
+  .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 22px; }
+  .kpi {
+    background: white; border-radius: 12px; padding: 20px 22px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.07); border-left: 5px solid #1a5276;
+    transition: transform 0.15s;
+  }
+  .kpi:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(0,0,0,0.1); }
+  .kpi .kpi-val { font-size: 2rem; font-weight: 800; color: #1a5276; line-height: 1.1; }
+  .kpi .kpi-lbl { font-size: 0.76rem; color: #718096; text-transform: uppercase; font-weight: 600; margin-top: 4px; letter-spacing: 0.4px; }
+  .kpi .kpi-sub { font-size: 0.78rem; color: #4a5568; margin-top: 6px; }
+  .kpi.green  { border-color: #27ae60; }
+  .kpi.green .kpi-val { color: #27ae60; }
+  .kpi.orange { border-color: #e67e22; }
+  .kpi.orange .kpi-val { color: #e67e22; }
+  .kpi.red    { border-color: #e74c3c; }
+  .kpi.red .kpi-val { color: #e74c3c; }
+  .kpi.purple { border-color: #8e44ad; }
+  .kpi.purple .kpi-val { color: #8e44ad; }
+  .kpi.teal   { border-color: #148f77; }
+  .kpi.teal .kpi-val { color: #148f77; }
+
+  /* ── SECTION ── */
+  .dash-section { margin-bottom: 22px; }
+  .dash-section h3 { font-size: 1rem; color: #2d3748; margin-bottom: 12px; font-weight: 700; }
+
+  /* ── TWO-COL LAYOUT ── */
+  .dash-row { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-bottom: 22px; }
+  @media (max-width: 900px) { .dash-row { grid-template-columns: 1fr; } }
+
+  /* ── DASH CARD ── */
+  .dash-card {
+    background: white; border-radius: 12px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.07); overflow: hidden;
+  }
+  .dash-card-head {
+    padding: 14px 20px; border-bottom: 1px solid #e2e8f0;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .dash-card-head h4 { font-size: 0.92rem; color: #1a5276; font-weight: 700; margin: 0; }
+  .dash-card-head .sub { font-size: 0.76rem; color: #718096; }
+  .dash-card-body { padding: 18px 20px; }
+
+  /* ── BAR CHART (horizontal) ── */
+  .hbar-chart { display: flex; flex-direction: column; gap: 10px; }
+  .hbar-row { display: flex; align-items: center; gap: 10px; }
+  .hbar-label { width: 90px; font-size: 0.8rem; font-weight: 700; color: #4a5568; text-align: right; flex-shrink: 0; }
+  .hbar-track { flex: 1; height: 26px; background: #f0f4f8; border-radius: 6px; overflow: hidden; position: relative; }
+  .hbar-fill {
+    height: 100%; border-radius: 6px; display: flex; align-items: center;
+    padding: 0 10px; font-size: 0.74rem; font-weight: 700; color: white;
+    min-width: 30px; transition: width 0.6s ease;
+  }
+  .hbar-value { width: 70px; font-size: 0.82rem; font-weight: 700; color: #2d3748; text-align: right; flex-shrink: 0; }
+
+  /* ── DONUT SUBSTITUTE (segmented bar) ── */
+  .seg-bar { display: flex; height: 32px; border-radius: 8px; overflow: hidden; margin-bottom: 12px; }
+  .seg-bar .seg { display: flex; align-items: center; justify-content: center; font-size: 0.72rem; font-weight: 700; color: white; transition: width 0.6s ease; min-width: 0; }
+  .seg-legend { display: flex; flex-wrap: wrap; gap: 14px; }
+  .seg-legend-item { display: flex; align-items: center; gap: 6px; font-size: 0.8rem; color: #4a5568; }
+  .seg-legend-dot { width: 10px; height: 10px; border-radius: 3px; }
+  .seg-legend-val { font-weight: 700; }
+
+  /* ── MINI TABLE ── */
+  .mini-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+  .mini-table th {
+    background: #f7fafc; padding: 8px 12px; text-align: left;
+    font-size: 0.72rem; text-transform: uppercase; color: #4a5568;
+    font-weight: 700; border-bottom: 2px solid #e2e8f0;
+  }
+  .mini-table td { padding: 7px 12px; border-bottom: 1px solid #edf2f7; }
+  .mini-table tr:hover { background: #f7fafc; }
+  .mini-table .money { text-align: right; font-variant-numeric: tabular-nums; }
+
+  /* ── EMPRESA COLORS ── */
+  .emp-PARCELAR { background: #2980b9; }
+  .emp-GREEN    { background: #27ae60; }
+  .emp-RESO     { background: #e67e22; }
+  .emp-IASO     { background: #8e44ad; }
+  .emp-IAS      { background: #c0392b; }
+
+  /* ── FILTER BAR ── */
+  .dash-filters {
+    display: flex; flex-wrap: wrap; gap: 12px; align-items: end;
+    margin-bottom: 18px; background: white; border-radius: 10px;
+    padding: 12px 18px; box-shadow: 0 1px 6px rgba(0,0,0,0.07);
+  }
+  .dash-filters .fg { display: flex; flex-direction: column; gap: 3px; }
+  .dash-filters label { font-size: 0.74rem; font-weight: 700; color: #4a5568; text-transform: uppercase; }
+  .dash-filters select { padding: 6px 10px; border: 1px solid #cbd5e0; border-radius: 6px; font-size: 0.84rem; font-family: inherit; }
+
+  .dash-ts { font-size: 0.76rem; color: #718096; text-align: right; margin-top: -14px; margin-bottom: 14px; }
+</style>
+</head>
+<body>
+
+<!-- HEADER + NAVBAR -->
+<div class="header">
+  <div class="header-top">
+    <div>
+      <h1>📦 Sistema de Gestion Logistica</h1>
+      <div class="sub">Holding de empresas</div>
+    </div>
+    <div id="hdr-status"></div>
+  </div>
+  <nav class="navbar">
+    <a href="index.html">🏠 Inicio</a>
+    <a href="dashboard.html" class="active">📊 Dashboard</a>
+    <a href="pedidos.html">📋 Pedidos</a>
+    <a href="ingresos.html">📥 Ingresos</a>
+    <a href="ordenes.html">🛒 Ordenes</a>
+    <a href="devoluciones.html">🔄 Devoluciones y Cambios</a>
+    <a href="inventario.html">📊 Inventario</a>
+    <a href="muestras.html">🧪 Muestras</a>
+    <a href="reenvases.html">🏭 Salidas a produccion</a>
+    <a href="reportes.html">📈 Reportes</a>
+  </nav>
+</div>
+
+<!-- LOAD ZONE -->
+<div id="load-zone">
+  <div class="spinner" id="load-spinner"></div>
+  <h2>Conectando con la nube...</h2>
+  <p>Cargando datos del dashboard</p>
+  <div id="load-error"></div>
+  <button class="btn-retry" id="btn-retry" style="display:none" onclick="loadDashboard()">Reintentar</button>
+</div>
+
+<!-- MAIN -->
+<div id="main">
+  <div id="sync-status">
+    <span id="sync-icon">☁️</span>
+    <span id="sync-msg">Conectado a la nube.</span>
+  </div>
+
+  <!-- Filters -->
+  <div class="dash-filters">
+    <div class="fg"><label>Empresa</label><select id="df-emp"><option value="">Todas</option></select></div>
+    <button onclick="clearDashFilters()" style="margin-left:auto;background:none;border:1px solid #cbd5e0;color:#4a5568;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:0.82rem;font-weight:600">✕ Limpiar</button>
+  </div>
+
+  <div class="dash-ts" id="dash-ts"></div>
+
+  <!-- KPI ROW 1: Main numbers -->
+  <div class="kpi-grid" id="kpi-main"></div>
+
+  <!-- ROW 2: Entregas + Empresa -->
+  <div class="dash-row">
+    <div class="dash-card">
+      <div class="dash-card-head"><h4>📦 Estado de entregas</h4><div class="sub" id="ent-sub"></div></div>
+      <div class="dash-card-body" id="chart-entregas"></div>
+    </div>
+    <div class="dash-card">
+      <div class="dash-card-head"><h4>🏢 Pedidos por empresa</h4><div class="sub" id="emp-sub"></div></div>
+      <div class="dash-card-body" id="chart-empresas"></div>
+    </div>
+  </div>
+
+  <!-- ROW 3: Top productos + Top clientes -->
+  <div class="dash-row">
+    <div class="dash-card">
+      <div class="dash-card-head"><h4>🔴 Top 10 productos pendientes</h4></div>
+      <div class="dash-card-body" style="padding:0">
+        <table class="mini-table" id="tbl-productos">
+          <thead><tr><th>Producto</th><th style="text-align:right">Pendiente</th><th style="text-align:right">Pedido</th><th style="text-align:center">Avance</th></tr></thead>
+          <tbody id="tb-productos"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="dash-card">
+      <div class="dash-card-head"><h4>👥 Top 10 clientes por valor</h4></div>
+      <div class="dash-card-body" style="padding:0">
+        <table class="mini-table" id="tbl-clientes">
+          <thead><tr><th>Cliente</th><th style="text-align:right">Valor total</th><th style="text-align:right">Ordenes</th><th>Empresa</th></tr></thead>
+          <tbody id="tb-clientes"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ROW 4: Devoluciones + Comerciales -->
+  <div class="dash-row">
+    <div class="dash-card">
+      <div class="dash-card-head"><h4>🔄 Devoluciones</h4><div class="sub" id="dev-sub"></div></div>
+      <div class="dash-card-body" id="chart-devoluciones"></div>
+    </div>
+    <div class="dash-card">
+      <div class="dash-card-head"><h4>💼 Top 10 comerciales</h4></div>
+      <div class="dash-card-body" style="padding:0">
+        <table class="mini-table" id="tbl-comerciales">
+          <thead><tr><th>Comercial</th><th style="text-align:right">Ordenes</th><th style="text-align:right">Valor</th><th style="text-align:center">Entrega %</th></tr></thead>
+          <tbody id="tb-comerciales"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ROW 5: Inventario + Actividad reciente -->
+  <div class="dash-row">
+    <div class="dash-card">
+      <div class="dash-card-head"><h4>📦 Resumen inventario</h4></div>
+      <div class="dash-card-body" id="chart-inventario"></div>
+    </div>
+    <div class="dash-card">
+      <div class="dash-card-head"><h4>📋 Resumen modulos</h4></div>
+      <div class="dash-card-body" id="resumen-modulos"></div>
+    </div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="js/shared.js"></script>
+<script src="js/dashboard.js?v=20260626a"></script>
+</body>
+</html>
