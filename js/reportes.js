@@ -4,6 +4,7 @@ var ingresos = [];
 var ordenesCompra = [];
 var muestras = [];
 var reenvases = [];
+var devoluciones = [];
 var aggregated = [];
 var rptSort = { col: 'pendiente', dir: 'desc' };
 
@@ -66,12 +67,14 @@ async function loadReportes() {
       apiGet('getIngresos').catch(function() { return { ok: true, ingresos: [] }; }),
       apiGet('getOrdenesCompra').catch(function() { return { ok: true, ordenes: [] }; }),
       apiGet('getMuestras').catch(function() { return { ok: true, muestras: [] }; }),
-      apiGet('getReenvases').catch(function() { return { ok: true, reenvases: [] }; })
+      apiGet('getReenvases').catch(function() { return { ok: true, reenvases: [] }; }),
+      apiGet('getDevoluciones').catch(function() { return { ok: true, devoluciones: [] }; })
     ]);
     ingresos = (results[0].ingresos || []);
     ordenesCompra = (results[1].ordenes || []);
     muestras = (results[2].muestras || []);
     reenvases = (results[3].reenvases || []);
+    devoluciones = (results[4].devoluciones || []);
 
     populateRptFilters();
     buildReport();
@@ -456,6 +459,19 @@ function _buildRemisionesInner() {
     totalLineas++;
   });
 
+  // 6. Devoluciones — campo Remision
+  devoluciones.forEach(function(d) {
+    var rem = String(d.Remision || '').trim();
+    if (!rem) return;
+    var empNombre = d.Empresa || '';
+    if (fEmp && empNombre !== fEmp) return;
+    if (fTxt && rem.toLowerCase().indexOf(fTxt) < 0 && getSigla(empNombre).toLowerCase().indexOf(fTxt) < 0) return;
+    var key = empNombre + '||' + rem + '||Devolución';
+    _addRemision(map, key, empNombre, rem, 'Devolución', 'Dev. ' + (d.Consecutivo || ''), (d.Producto || '') + ' (' + (d.Presentacion || '') + ')', d.Cantidad, d.Fecha_Devolucion || d.Fecha);
+    empresasSet[getSigla(empNombre)] = true;
+    totalLineas++;
+  });
+
   remData = Object.values(map).map(function(r) {
     r.referenciasStr = Object.keys(r.referencias).join(', ') || '—';
     r.numDetalles = r.detalles.length;
@@ -507,7 +523,7 @@ function sortedRemData() {
 }
 
 function renderRemTable() {
-  var MOD_COLORS = { 'Pedido': '#2980b9', 'Ingreso': '#27ae60', 'Orden de Compra': '#8e44ad', 'Muestra': '#e67e22', 'Salida a producción': '#d35400' };
+  var MOD_COLORS = { 'Pedido': '#2980b9', 'Ingreso': '#27ae60', 'Orden de Compra': '#8e44ad', 'Muestra': '#e67e22', 'Salida a producción': '#d35400', 'Devolución': '#c0392b' };
   var cols = [
     { id: 'empresa', label: 'Empresa' },
     { id: 'empresaOrigen', label: 'Emp. Origen' },
