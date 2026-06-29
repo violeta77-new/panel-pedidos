@@ -853,6 +853,29 @@ async function saveEdit() {
   }
 }
 
+async function agregarProductosNuevosAlMaestro(productos, empresa) {
+  if (!productosCache) return;
+  var nuevos = [];
+  productos.forEach(function(p) {
+    if (!p.producto) return;
+    if (p._normalizado) return;
+    var np = _normTxt(p.producto);
+    var exists = productosCache.some(function(m) { return _normTxt(m.producto) === np; });
+    if (!exists) {
+      var yaAgregado = nuevos.some(function(n) { return _normTxt(n.producto) === np; });
+      if (!yaAgregado) nuevos.push({ producto: p.producto, presentacion: p.presentacion || '', empresa: empresa || '' });
+    }
+  });
+  if (!nuevos.length) return;
+  try {
+    var res = await apiPost({ action: 'addMaestroProductos', items: nuevos });
+    if (res.ok && res.added) {
+      nuevos.forEach(function(n) { productosCache.push(n); });
+      showToast(res.added + ' producto(s) nuevo(s) agregado(s) al maestro', '#2E86C1');
+    }
+  } catch(e) {}
+}
+
 // ── Upload Order from Excel ──
 var uploadData = null;
 
@@ -1193,6 +1216,7 @@ async function confirmUpload() {
       archivo_fuente: uploadData.archivo_fuente,
     });
     if (!result.ok) throw new Error(result.error || 'Error al cargar');
+    await agregarProductosNuevosAlMaestro(uploadData.productos, uploadData.nombre_empresa);
     closeUpload();
     showToast('Pedido cargado: ' + (result.added||0) + ' linea(s) agregadas');
     await loadFromAPI();
@@ -1554,6 +1578,7 @@ async function guardarNuevoPedido() {
 
     if (!result.ok) throw new Error(result.error || 'Error al guardar');
 
+    await agregarProductosNuevosAlMaestro(productosValidos, empresa);
     closeNuevo();
     showToast('✅ Pedido creado: ' + (result.added||0) + ' línea(s) agregadas');
     await loadFromAPI();
