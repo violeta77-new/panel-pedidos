@@ -110,10 +110,11 @@ function buildMovimientos() {
     });
   });
 
-  // Ingresos — dual: ENTRADA para destino, SALIDA para origen
+  // Ingresos — ENTRADA para destino siempre; SALIDA para origen solo si NO es Cachipay
   kxIngresos.forEach(function(ing) {
     var cant = Number(ing.Cantidad) || 0;
     if (cant <= 0) return;
+    var esCachipay = (ing.Origen || '').toLowerCase().indexOf('cachipay') >= 0;
     // ENTRADA destino
     if (ing.Empresa_Destino) {
       kxMovimientos.push({
@@ -129,8 +130,8 @@ function buildMovimientos() {
         _ajusteId: null
       });
     }
-    // SALIDA origen
-    if (ing.Empresa_Origen) {
+    // SALIDA origen — se omite para ingresos desde Cachipay
+    if (ing.Empresa_Origen && !esCachipay) {
       kxMovimientos.push({
         fecha: ing.Fecha || '',
         tipo: 'Salida',
