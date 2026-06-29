@@ -110,40 +110,23 @@ function buildMovimientos() {
     });
   });
 
-  // Ingresos — dual: ENTRADA para destino, SALIDA para origen
+  // Ingresos — solo SALIDA para empresa origen
   kxIngresos.forEach(function(ing) {
     var cant = Number(ing.Cantidad) || 0;
     if (cant <= 0) return;
-    // ENTRADA destino
-    if (ing.Empresa_Destino) {
-      kxMovimientos.push({
-        fecha: ing.Fecha || '',
-        tipo: 'Entrada',
-        modulo: 'Ingresos',
-        remision: ing.Remision_Destino || '',
-        referencia: 'Desde ' + getSiglaKx(ing.Empresa_Origen) + (ing.Origen ? ' — ' + ing.Origen : ''),
-        empresa: ing.Empresa_Destino,
-        producto: ing.Producto || '',
-        presentacion: ing.Presentacion || '',
-        cantidad: cant,
-        _ajusteId: null
-      });
-    }
-    // SALIDA origen
-    if (ing.Empresa_Origen) {
-      kxMovimientos.push({
-        fecha: ing.Fecha || '',
-        tipo: 'Salida',
-        modulo: 'Ingresos',
-        remision: ing.Remision_Origen || '',
-        referencia: 'Hacia ' + getSiglaKx(ing.Empresa_Destino) + (ing.Origen ? ' — ' + ing.Origen : ''),
-        empresa: ing.Empresa_Origen,
-        producto: ing.Producto || '',
-        presentacion: ing.Presentacion || '',
-        cantidad: cant,
-        _ajusteId: null
-      });
-    }
+    if (!ing.Empresa_Origen) return;
+    kxMovimientos.push({
+      fecha: ing.Fecha || '',
+      tipo: 'Salida',
+      modulo: 'Ingresos',
+      remision: ing.Remision_Origen || '',
+      referencia: 'Hacia ' + getSiglaKx(ing.Empresa_Destino) + (ing.Origen ? ' — ' + ing.Origen : ''),
+      empresa: ing.Empresa_Origen,
+      producto: ing.Producto || '',
+      presentacion: ing.Presentacion || '',
+      cantidad: cant,
+      _ajusteId: null
+    });
   });
 
   // Devoluciones — ENTRADA (producto regresa)
