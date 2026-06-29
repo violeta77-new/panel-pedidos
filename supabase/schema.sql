@@ -430,6 +430,21 @@ BEGIN
 END;
 $$;
 
+-- ── KardexAjustes ──
+CREATE TABLE IF NOT EXISTS "KardexAjustes" (
+  id bigint generated always as identity primary key,
+  "Fecha" text,
+  "Empresa" text,
+  "Producto" text,
+  "Presentacion" text default '',
+  "Tipo" text,
+  "Cantidad" numeric default 0,
+  "Observaciones" text default '',
+  "Fecha_Registro" text
+);
+ALTER TABLE "KardexAjustes" ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "anon_full_access" ON "KardexAjustes" FOR ALL TO anon USING (true) WITH CHECK (true);
+
 -- ── get_or_create_cliente ──
 CREATE OR REPLACE FUNCTION get_or_create_cliente(
   p_cliente text,

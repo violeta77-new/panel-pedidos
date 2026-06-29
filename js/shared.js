@@ -103,6 +103,11 @@ async function apiGet(action) {
       if (res.error) return { ok: false, error: res.error.message };
       return { ok: true, reenvases: _addRow(res.data) };
     }
+    if (action === 'getKardexAjustes') {
+      var res = await _sb.from('KardexAjustes').select('*').order('id');
+      if (res.error) return { ok: false, error: res.error.message };
+      return { ok: true, ajustes: _addRow(res.data) };
+    }
 
     return { error: 'Accion no reconocida: ' + action };
   } catch (err) {
@@ -521,6 +526,45 @@ async function apiPost(body) {
 
     if (action === 'eliminarMuestra') {
       var res = await _sb.from('SolicitudMuestras').delete().eq('id', body.row);
+      if (res.error) return { ok: false, error: res.error.message };
+      return { ok: true, deleted: 1 };
+    }
+
+    // ── KARDEX AJUSTES ──
+
+    if (action === 'agregarKardexAjuste') {
+      var now = new Date().toISOString().slice(0, 19).replace('T', ' ');
+      var lineas = body.lineas || [];
+      if (!lineas.length && body.Producto) {
+        lineas = [{ Producto: body.Producto, Presentacion: body.Presentacion, Cantidad: body.Cantidad }];
+      }
+      var rows = lineas.map(function(lin) {
+        return {
+          Fecha: body.Fecha || '', Empresa: body.Empresa || '',
+          Producto: lin.Producto || '', Presentacion: lin.Presentacion || '',
+          Tipo: body.Tipo || 'Ajuste_Sobrante',
+          Cantidad: Number(lin.Cantidad) || 0,
+          Observaciones: body.Observaciones || '', Fecha_Registro: now
+        };
+      });
+      var res = await _sb.from('KardexAjustes').insert(rows);
+      if (res.error) return { ok: false, error: res.error.message };
+      return { ok: true, added: rows.length };
+    }
+
+    if (action === 'editarKardexAjuste') {
+      var res = await _sb.from('KardexAjustes').update({
+        Fecha: body.Fecha || '', Empresa: body.Empresa || '',
+        Producto: body.Producto || '', Presentacion: body.Presentacion || '',
+        Tipo: body.Tipo || '', Cantidad: Number(body.Cantidad) || 0,
+        Observaciones: body.Observaciones || ''
+      }).eq('id', body.row);
+      if (res.error) return { ok: false, error: res.error.message };
+      return { ok: true, updated: 1 };
+    }
+
+    if (action === 'eliminarKardexAjuste') {
+      var res = await _sb.from('KardexAjustes').delete().eq('id', body.row);
       if (res.error) return { ok: false, error: res.error.message };
       return { ok: true, deleted: 1 };
     }
