@@ -110,18 +110,18 @@ function buildMovimientos() {
     });
   });
 
-  // Ingresos — solo SALIDA para empresa origen
+  // Ingresos — solo ENTRADA para empresa destino
   kxIngresos.forEach(function(ing) {
     var cant = Number(ing.Cantidad) || 0;
     if (cant <= 0) return;
-    if (!ing.Empresa_Origen) return;
+    if (!ing.Empresa_Destino) return;
     kxMovimientos.push({
       fecha: ing.Fecha || '',
-      tipo: 'Salida',
+      tipo: 'Entrada',
       modulo: 'Ingresos',
-      remision: ing.Remision_Origen || '',
-      referencia: 'Hacia ' + getSiglaKx(ing.Empresa_Destino) + (ing.Origen ? ' — ' + ing.Origen : ''),
-      empresa: ing.Empresa_Origen,
+      remision: ing.Remision_Destino || '',
+      referencia: 'Desde ' + getSiglaKx(ing.Empresa_Origen) + (ing.Origen ? ' — ' + ing.Origen : ''),
+      empresa: ing.Empresa_Destino,
       producto: ing.Producto || '',
       presentacion: ing.Presentacion || '',
       cantidad: cant,
