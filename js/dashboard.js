@@ -126,6 +126,8 @@ function buildDashboard() {
   document.getElementById('dash-ts').textContent = 'Actualizado: ' + new Date().toLocaleString('es-CO');
 
   buildKPIs(ped, dev, inv, oc);
+  buildTiempos(ped);
+  buildTopDemora(ped);
   buildEntregas(ped);
   buildEmpresas(ped);
   buildTopProductos(ped);
@@ -140,9 +142,14 @@ function buildDashboard() {
 function buildKPIs(ped, dev, inv, oc) {
   var ordSet = {};
   var abiertos = 0;
-  var valorTotal = 0;
   var udsEntregadas = 0;
   var udsPedidas = 0;
+  var today = new Date();
+  today.setHours(0,0,0,0);
+  var deliveryDays = [];
+  var delayDays = [];
+  var ordDel = {};
+  var ordPend = {};
 
   ped.forEach(function(p) {
     var key = (p.Nombre_Empresa || '') + '||' + (p.Consecutivo || '');
@@ -150,24 +157,35 @@ function buildKPIs(ped, dev, inv, oc) {
       ordSet[key] = true;
       if ((p.Estado_2 || 'Abierto') === 'Abierto') abiertos++;
     }
-    valorTotal += Number(p.Valor_Total) || 0;
     udsEntregadas += Number(p.Cant_Entregada) || 0;
     udsPedidas += Number(p.Cantidad) || 0;
+
+    if (p.Fecha_Ult_Entrega && p.Fecha_Pedido && (Number(p.Cant_Entregada) || 0) > 0 && !ordDel[key]) {
+      var dE = new Date(p.Fecha_Ult_Entrega);
+      var dP = new Date(p.Fecha_Pedido);
+      if (!isNaN(dE) && !isNaN(dP)) { var dd = Math.round((dE - dP) / 86400000); if (dd >= 0) { ordDel[key] = dd; deliveryDays.push(dd); } }
+    }
+    var est2 = (p.Estado_2 || 'Abierto').trim();
+    if (est2 === 'Abierto' && (Number(p.Cant_Pendiente) || 0) > 0 && p.Fecha_Pedido && !ordPend[key]) {
+      var dP2 = new Date(p.Fecha_Pedido);
+      if (!isNaN(dP2)) { var dd2 = Math.round((today - dP2) / 86400000); if (dd2 >= 0) { ordPend[key] = dd2; delayDays.push(dd2); } }
+    }
   });
 
   var totalOrdenes = Object.keys(ordSet).length;
   var tasaEntrega = udsPedidas > 0 ? Math.round((udsEntregadas / udsPedidas) * 100) : 0;
-
   var devPendientes = dev.filter(function(d) { return (d.Estado || '') === 'Pendiente'; }).length;
-  var valorDev = dev.reduce(function(s, d) { return s + (Number(d.Valor_Total) || 0); }, 0);
+  var avgDelivery = deliveryDays.length > 0 ? Math.round(deliveryDays.reduce(function(s,v){return s+v;},0) / deliveryDays.length) : 0;
+  var avgDelay = delayDays.length > 0 ? Math.round(delayDays.reduce(function(s,v){return s+v;},0) / delayDays.length) : 0;
 
   var html = '';
-  html += kpiCard('', totalOrdenes.toLocaleString('es-CO'), 'Total ordenes', abiertos + ' abiertas');
-  html += kpiCard('green', fmtMoney(valorTotal), 'Valor total pedidos', ped.length.toLocaleString('es-CO') + ' lineas');
+  html += kpiCard('', totalOrdenes.toLocaleString('es-CO'), 'Total ordenes', abiertos + ' abiertas · ' + ped.length.toLocaleString('es-CO') + ' lineas');
   html += kpiCard('teal', tasaEntrega + '%', 'Tasa de entrega', udsEntregadas.toLocaleString('es-CO') + ' / ' + udsPedidas.toLocaleString('es-CO') + ' uds');
-  html += kpiCard('red', devPendientes.toString(), 'Devoluciones pendientes', fmtMoney(valorDev) + ' total dev.');
+  html += kpiCard('green', avgDelivery + ' dias', 'Tiempo prom. entrega', deliveryDays.length + ' ordenes entregadas');
+  html += kpiCard('orange', avgDelay + ' dias', 'Demora prom. pendientes', delayDays.length + ' ordenes esperando');
+  html += kpiCard('red', devPendientes.toString(), 'Devoluciones pendientes', dev.length + ' total devoluciones');
   html += kpiCard('purple', inv.length.toLocaleString('es-CO'), 'Registros inventario', inv.reduce(function(s, i) { return s + (Number(i.Cantidad) || 0); }, 0).toLocaleString('es-CO') + ' uds en stock');
-  html += kpiCard('orange', oc.filter(function(o) { return (o.Estado || '') === 'Abierta'; }).length.toString(), 'OC abiertas', oc.length + ' ordenes de compra total');
+  html += kpiCard('', oc.filter(function(o) { return (o.Estado || '') === 'Abierta'; }).length.toString(), 'OC abiertas', oc.length + ' ordenes de compra total');
 
   document.getElementById('kpi-main').innerHTML = html;
 }
@@ -243,31 +261,29 @@ function renderSegBar(data, total) {
 // ── 3. Pedidos por Empresa ──
 function buildEmpresas(ped) {
   var empMap = {};
-  var ordSet = {};
   ped.forEach(function(p) {
     var sigla = dGetSigla(p.Nombre_Empresa);
-    if (!empMap[sigla]) empMap[sigla] = { ordenes: 0, valor: 0, lineas: 0, _keys: {} };
-    empMap[sigla].lineas++;
-    empMap[sigla].valor += Number(p.Valor_Total) || 0;
+    if (!empMap[sigla]) empMap[sigla] = { ordenes: 0, uds: 0, _keys: {} };
+    empMap[sigla].uds += Number(p.Cantidad) || 0;
     var key = (p.Nombre_Empresa || '') + '||' + (p.Consecutivo || '');
     if (!empMap[sigla]._keys[key]) { empMap[sigla]._keys[key] = true; empMap[sigla].ordenes++; }
   });
 
-  var empArr = Object.keys(empMap).map(function(s) { return { sigla: s, ordenes: empMap[s].ordenes, valor: empMap[s].valor }; });
-  empArr.sort(function(a, b) { return b.valor - a.valor; });
+  var empArr = Object.keys(empMap).map(function(s) { return { sigla: s, ordenes: empMap[s].ordenes, uds: empMap[s].uds }; });
+  empArr.sort(function(a, b) { return b.uds - a.uds; });
 
-  var maxVal = empArr.length ? empArr[0].valor : 1;
+  var maxVal = empArr.length ? empArr[0].uds : 1;
 
   document.getElementById('emp-sub').textContent = empArr.length + ' empresas';
 
   var html = '<div class="hbar-chart">';
   empArr.forEach(function(e) {
-    var pct = maxVal > 0 ? Math.max(3, (e.valor / maxVal) * 100) : 3;
+    var pct = maxVal > 0 ? Math.max(3, (e.uds / maxVal) * 100) : 3;
     var color = EMP_COLORS[e.sigla] || '#718096';
     html += '<div class="hbar-row">' +
       '<div class="hbar-label">' + e.sigla + '</div>' +
       '<div class="hbar-track"><div class="hbar-fill" style="width:' + pct + '%;background:' + color + '">' + e.ordenes + ' ord</div></div>' +
-      '<div class="hbar-value">' + fmtMoney(e.valor) + '</div>' +
+      '<div class="hbar-value">' + e.uds.toLocaleString('es-CO') + ' uds</div>' +
     '</div>';
   });
   html += '</div>';
@@ -311,14 +327,14 @@ function buildTopProductos(ped) {
   }).join('');
 }
 
-// ── 5. Top Clientes por Valor ──
+// ── 5. Top Clientes por Volumen ──
 function buildTopClientes(ped) {
   var map = {};
   ped.forEach(function(p) {
     var cli = (p.Cliente || '').trim();
     if (!cli) return;
-    if (!map[cli]) map[cli] = { cliente: cli, valor: 0, ordenes: 0, empresas: {}, _keys: {} };
-    map[cli].valor += Number(p.Valor_Total) || 0;
+    if (!map[cli]) map[cli] = { cliente: cli, uds: 0, ordenes: 0, empresas: {}, _keys: {} };
+    map[cli].uds += Number(p.Cantidad) || 0;
     var sigla = dGetSigla(p.Nombre_Empresa);
     map[cli].empresas[sigla] = true;
     var key = (p.Nombre_Empresa || '') + '||' + (p.Consecutivo || '');
@@ -326,7 +342,7 @@ function buildTopClientes(ped) {
   });
 
   var arr = Object.values(map);
-  arr.sort(function(a, b) { return b.valor - a.valor; });
+  arr.sort(function(a, b) { return b.uds - a.uds; });
   arr = arr.slice(0, 10);
 
   var tbody = document.getElementById('tb-clientes');
@@ -342,7 +358,7 @@ function buildTopClientes(ped) {
     }).join(' ');
     return '<tr>' +
       '<td style="font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + r.cliente + '</td>' +
-      '<td class="money" style="font-weight:700;color:#27ae60">' + fmtMoney(r.valor) + '</td>' +
+      '<td class="money" style="font-weight:700;color:#2980b9">' + r.uds.toLocaleString('es-CO') + '</td>' +
       '<td class="money">' + r.ordenes + '</td>' +
       '<td>' + empTags + '</td>' +
     '</tr>';
@@ -351,13 +367,12 @@ function buildTopClientes(ped) {
 
 // ── 6. Devoluciones ──
 function buildDevoluciones(dev) {
-  var pendientes = 0, tramitadas = 0, valorPend = 0, valorTram = 0;
+  var pendientes = 0, tramitadas = 0;
   var motivoMap = {};
 
   dev.forEach(function(d) {
-    var val = Number(d.Valor_Total) || 0;
-    if ((d.Estado || '') === 'Tramitada') { tramitadas++; valorTram += val; }
-    else { pendientes++; valorPend += val; }
+    if ((d.Estado || '') === 'Tramitada') { tramitadas++; }
+    else { pendientes++; }
     var motivo = (d.Motivo || 'Sin motivo').trim();
     if (!motivoMap[motivo]) motivoMap[motivo] = 0;
     motivoMap[motivo]++;
@@ -377,11 +392,6 @@ function buildDevoluciones(dev) {
   ];
 
   var html = renderSegBar(segData, total);
-
-  html += '<div style="display:flex;gap:20px;margin-top:14px;flex-wrap:wrap">';
-  html += '<div style="flex:1;min-width:140px"><div style="font-size:0.76rem;color:#718096;text-transform:uppercase;font-weight:600;margin-bottom:4px">Valor pendientes</div><div style="font-size:1.1rem;font-weight:700;color:#e67e22">' + fmtMoney(valorPend) + '</div></div>';
-  html += '<div style="flex:1;min-width:140px"><div style="font-size:0.76rem;color:#718096;text-transform:uppercase;font-weight:600;margin-bottom:4px">Valor tramitadas</div><div style="font-size:1.1rem;font-weight:700;color:#27ae60">' + fmtMoney(valorTram) + '</div></div>';
-  html += '</div>';
 
   var motivoArr = Object.keys(motivoMap).map(function(m) { return { motivo: m, count: motivoMap[m] }; });
   motivoArr.sort(function(a, b) { return b.count - a.count; });
@@ -410,8 +420,8 @@ function buildTopComerciales(ped) {
   ped.forEach(function(p) {
     var com = (p.Comercial || '').trim();
     if (!com) return;
-    if (!map[com]) map[com] = { comercial: com, ordenes: 0, valor: 0, entregada: 0, pedida: 0, _keys: {} };
-    map[com].valor += Number(p.Valor_Total) || 0;
+    if (!map[com]) map[com] = { comercial: com, ordenes: 0, uds: 0, entregada: 0, pedida: 0, _keys: {} };
+    map[com].uds += Number(p.Cantidad) || 0;
     map[com].entregada += Number(p.Cant_Entregada) || 0;
     map[com].pedida += Number(p.Cantidad) || 0;
     var key = (p.Nombre_Empresa || '') + '||' + (p.Consecutivo || '');
@@ -419,7 +429,7 @@ function buildTopComerciales(ped) {
   });
 
   var arr = Object.values(map);
-  arr.sort(function(a, b) { return b.valor - a.valor; });
+  arr.sort(function(a, b) { return b.ordenes - a.ordenes; });
   arr = arr.slice(0, 10);
 
   var tbody = document.getElementById('tb-comerciales');
@@ -434,7 +444,7 @@ function buildTopComerciales(ped) {
     return '<tr>' +
       '<td style="font-weight:600">' + r.comercial + '</td>' +
       '<td class="money">' + r.ordenes + '</td>' +
-      '<td class="money" style="font-weight:700;color:#27ae60">' + fmtMoney(r.valor) + '</td>' +
+      '<td class="money">' + r.uds.toLocaleString('es-CO') + '</td>' +
       '<td style="text-align:center"><span style="background:' + pctColor + '18;color:' + pctColor + ';padding:2px 10px;border-radius:12px;font-size:0.78rem;font-weight:700">' + pct + '%</span></td>' +
     '</tr>';
   }).join('');
@@ -524,6 +534,159 @@ function buildResumenModulos(ped, dev, ing, inv, oc, mue, ree) {
   });
 
   document.getElementById('resumen-modulos').innerHTML = html;
+}
+
+// ── Tiempos de entrega ──
+function buildTiempos(ped) {
+  var today = new Date();
+  today.setHours(0,0,0,0);
+  var ordDelivered = {};
+  var ordPending = {};
+
+  ped.forEach(function(p) {
+    var key = (p.Nombre_Empresa || '') + '||' + (p.Consecutivo || '');
+    var est2 = (p.Estado_2 || 'Abierto').trim();
+
+    if (p.Fecha_Ult_Entrega && p.Fecha_Pedido && (Number(p.Cant_Entregada) || 0) > 0 && !ordDelivered[key]) {
+      var dE = new Date(p.Fecha_Ult_Entrega);
+      var dP = new Date(p.Fecha_Pedido);
+      if (!isNaN(dE) && !isNaN(dP)) {
+        var days = Math.round((dE - dP) / 86400000);
+        if (days >= 0) ordDelivered[key] = days;
+      }
+    }
+
+    if (est2 === 'Abierto' && (Number(p.Cant_Pendiente) || 0) > 0 && p.Fecha_Pedido && !ordPending[key]) {
+      var dP2 = new Date(p.Fecha_Pedido);
+      if (!isNaN(dP2)) {
+        var dd = Math.round((today - dP2) / 86400000);
+        if (dd >= 0) ordPending[key] = dd;
+      }
+    }
+  });
+
+  var deliveryVals = Object.values(ordDelivered);
+  var pendingVals = Object.values(ordPending);
+
+  var el = document.getElementById('chart-tiempos');
+  document.getElementById('tiempos-sub').textContent = deliveryVals.length + ' entregadas / ' + pendingVals.length + ' pendientes';
+
+  if (!deliveryVals.length && !pendingVals.length) {
+    el.innerHTML = '<div style="color:#a0aec0;text-align:center;padding:20px">Sin datos de tiempos</div>';
+    return;
+  }
+
+  var avgDel = deliveryVals.length ? Math.round(deliveryVals.reduce(function(s,v){return s+v;},0) / deliveryVals.length) : 0;
+  var minDel = deliveryVals.length ? Math.min.apply(null, deliveryVals) : 0;
+  var maxDel = deliveryVals.length ? Math.max.apply(null, deliveryVals) : 0;
+  var avgPend = pendingVals.length ? Math.round(pendingVals.reduce(function(s,v){return s+v;},0) / pendingVals.length) : 0;
+  var minPend = pendingVals.length ? Math.min.apply(null, pendingVals) : 0;
+  var maxPend = pendingVals.length ? Math.max.apply(null, pendingVals) : 0;
+
+  var ranges = [
+    { label: '0-7 dias', min: 0, max: 7, cD: 0, cP: 0 },
+    { label: '8-15 dias', min: 8, max: 15, cD: 0, cP: 0 },
+    { label: '16-30 dias', min: 16, max: 30, cD: 0, cP: 0 },
+    { label: '31-60 dias', min: 31, max: 60, cD: 0, cP: 0 },
+    { label: '61+ dias', min: 61, max: 99999, cD: 0, cP: 0 },
+  ];
+
+  deliveryVals.forEach(function(d) {
+    for (var i = 0; i < ranges.length; i++) { if (d >= ranges[i].min && d <= ranges[i].max) { ranges[i].cD++; break; } }
+  });
+  pendingVals.forEach(function(d) {
+    for (var i = 0; i < ranges.length; i++) { if (d >= ranges[i].min && d <= ranges[i].max) { ranges[i].cP++; break; } }
+  });
+
+  var html = '';
+  html += '<div style="display:flex;gap:16px;margin-bottom:18px;flex-wrap:wrap">';
+  html += '<div style="flex:1;min-width:140px;background:#f0fdf4;border-radius:8px;padding:12px">';
+  html += '<div style="font-size:0.72rem;color:#718096;text-transform:uppercase;font-weight:600">Entregadas</div>';
+  html += '<div style="font-size:1.3rem;font-weight:800;color:#27ae60">' + avgDel + ' dias prom</div>';
+  html += '<div style="font-size:0.74rem;color:#4a5568">Min: ' + minDel + ' / Max: ' + maxDel + ' dias</div>';
+  html += '</div>';
+  html += '<div style="flex:1;min-width:140px;background:#fff7ed;border-radius:8px;padding:12px">';
+  html += '<div style="font-size:0.72rem;color:#718096;text-transform:uppercase;font-weight:600">Pendientes (demora)</div>';
+  html += '<div style="font-size:1.3rem;font-weight:800;color:#e67e22">' + avgPend + ' dias prom</div>';
+  html += '<div style="font-size:0.74rem;color:#4a5568">Min: ' + minPend + ' / Max: ' + maxPend + ' dias</div>';
+  html += '</div>';
+  html += '</div>';
+
+  html += '<div style="font-size:0.76rem;color:#718096;text-transform:uppercase;font-weight:600;margin-bottom:8px">Distribucion por rango</div>';
+  var maxC = 1;
+  ranges.forEach(function(r) { maxC = Math.max(maxC, r.cD, r.cP); });
+
+  html += '<div class="hbar-chart">';
+  ranges.forEach(function(r) {
+    if (r.cD === 0 && r.cP === 0) return;
+    var pD = Math.max(2, (r.cD / maxC) * 100);
+    var pP = Math.max(2, (r.cP / maxC) * 100);
+    html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">';
+    html += '<div style="width:70px;font-size:0.76rem;font-weight:600;color:#4a5568;text-align:right">' + r.label + '</div>';
+    html += '<div style="flex:1;display:flex;gap:3px">';
+    if (r.cD > 0) html += '<div style="height:20px;width:' + pD + '%;background:#27ae60;border-radius:4px;display:flex;align-items:center;padding:0 6px;font-size:0.7rem;font-weight:700;color:white;min-width:24px">' + r.cD + '</div>';
+    if (r.cP > 0) html += '<div style="height:20px;width:' + pP + '%;background:#e67e22;border-radius:4px;display:flex;align-items:center;padding:0 6px;font-size:0.7rem;font-weight:700;color:white;min-width:24px">' + r.cP + '</div>';
+    html += '</div></div>';
+  });
+  html += '</div>';
+
+  html += '<div style="display:flex;gap:14px;margin-top:8px">';
+  html += '<div style="display:flex;align-items:center;gap:5px;font-size:0.74rem;color:#4a5568"><div style="width:10px;height:10px;border-radius:3px;background:#27ae60"></div>Entregadas</div>';
+  html += '<div style="display:flex;align-items:center;gap:5px;font-size:0.74rem;color:#4a5568"><div style="width:10px;height:10px;border-radius:3px;background:#e67e22"></div>Pendientes</div>';
+  html += '</div>';
+
+  el.innerHTML = html;
+}
+
+// ── Top Pedidos con Mayor Demora ──
+function buildTopDemora(ped) {
+  var today = new Date();
+  today.setHours(0,0,0,0);
+  var ordMap = {};
+
+  ped.forEach(function(p) {
+    var est2 = (p.Estado_2 || 'Abierto').trim();
+    if (est2 !== 'Abierto') return;
+    if ((Number(p.Cant_Pendiente) || 0) <= 0) return;
+    if (!p.Fecha_Pedido) return;
+
+    var key = (p.Nombre_Empresa || '') + '||' + (p.Consecutivo || '');
+    if (!ordMap[key]) {
+      var dP = new Date(p.Fecha_Pedido);
+      if (isNaN(dP)) return;
+      ordMap[key] = {
+        consecutivo: p.Consecutivo || '—',
+        cliente: (p.Cliente || '—').trim(),
+        empresa: dGetSigla(p.Nombre_Empresa),
+        dias: Math.round((today - dP) / 86400000),
+        pendiente: 0, pedido: 0
+      };
+    }
+    ordMap[key].pendiente += Number(p.Cant_Pendiente) || 0;
+    ordMap[key].pedido += Number(p.Cantidad) || 0;
+  });
+
+  var arr = Object.values(ordMap);
+  arr.sort(function(a, b) { return b.dias - a.dias; });
+  arr = arr.slice(0, 10);
+
+  var tbody = document.getElementById('tb-demora');
+  if (!arr.length) {
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#a0aec0;padding:20px">Sin pedidos pendientes</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = arr.map(function(r) {
+    var avance = r.pedido > 0 ? Math.round(((r.pedido - r.pendiente) / r.pedido) * 100) : 0;
+    var color = r.dias > 60 ? '#e74c3c' : r.dias > 30 ? '#e67e22' : '#2980b9';
+    var empColor = EMP_COLORS[r.empresa] || '#718096';
+    return '<tr>' +
+      '<td style="font-weight:600"><span class="sigla-badge" style="background:' + empColor + '20;color:' + empColor + ';font-size:0.68rem">' + r.empresa + '</span> ' + r.consecutivo + '</td>' +
+      '<td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + r.cliente + '</td>' +
+      '<td class="money" style="font-weight:700;color:' + color + '">' + r.dias + '</td>' +
+      '<td style="text-align:center"><div class="prog" style="margin:0 auto"><div class="prog-bar"><div class="prog-fill" style="width:' + avance + '%"></div></div><div class="prog-pct">' + avance + '%</div></div></td>' +
+    '</tr>';
+  }).join('');
 }
 
 // ── Init ──

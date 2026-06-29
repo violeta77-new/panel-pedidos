@@ -155,7 +155,24 @@
   <!-- KPI ROW 1: Main numbers -->
   <div class="kpi-grid" id="kpi-main"></div>
 
-  <!-- ROW 2: Entregas + Empresa -->
+  <!-- ROW: Tiempos de entrega -->
+  <div class="dash-row">
+    <div class="dash-card">
+      <div class="dash-card-head"><h4>⏱️ Tiempos de entrega</h4><div class="sub" id="tiempos-sub"></div></div>
+      <div class="dash-card-body" id="chart-tiempos"></div>
+    </div>
+    <div class="dash-card">
+      <div class="dash-card-head"><h4>⚠️ Pedidos con mayor demora</h4></div>
+      <div class="dash-card-body" style="padding:0">
+        <table class="mini-table" id="tbl-demora">
+          <thead><tr><th>Pedido</th><th>Cliente</th><th style="text-align:right">Dias</th><th style="text-align:center">Avance</th></tr></thead>
+          <tbody id="tb-demora"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ROW: Entregas + Empresa -->
   <div class="dash-row">
     <div class="dash-card">
       <div class="dash-card-head"><h4>📦 Estado de entregas</h4><div class="sub" id="ent-sub"></div></div>
@@ -179,10 +196,10 @@
       </div>
     </div>
     <div class="dash-card">
-      <div class="dash-card-head"><h4>👥 Top 10 clientes por valor</h4></div>
+      <div class="dash-card-head"><h4>👥 Top 10 clientes por volumen</h4></div>
       <div class="dash-card-body" style="padding:0">
         <table class="mini-table" id="tbl-clientes">
-          <thead><tr><th>Cliente</th><th style="text-align:right">Valor total</th><th style="text-align:right">Ordenes</th><th>Empresa</th></tr></thead>
+          <thead><tr><th>Cliente</th><th style="text-align:right">Uds pedidas</th><th style="text-align:right">Ordenes</th><th>Empresa</th></tr></thead>
           <tbody id="tb-clientes"></tbody>
         </table>
       </div>
@@ -199,7 +216,7 @@
       <div class="dash-card-head"><h4>💼 Top 10 comerciales</h4></div>
       <div class="dash-card-body" style="padding:0">
         <table class="mini-table" id="tbl-comerciales">
-          <thead><tr><th>Comercial</th><th style="text-align:right">Ordenes</th><th style="text-align:right">Valor</th><th style="text-align:center">Entrega %</th></tr></thead>
+          <thead><tr><th>Comercial</th><th style="text-align:right">Ordenes</th><th style="text-align:right">Uds pedidas</th><th style="text-align:center">Entrega %</th></tr></thead>
           <tbody id="tb-comerciales"></tbody>
         </table>
       </div>
@@ -224,6 +241,6 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="js/shared.js"></script>
-<script src="js/dashboard.js?v=20260626a"></script>
+<script src="js/dashboard.js?v=20260629a"></script>
 </body>
 </html>
