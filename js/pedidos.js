@@ -856,6 +856,66 @@ async function saveEdit() {
 // ── Upload Order from Excel ──
 var uploadData = null;
 
+function _normTxt(s) {
+  if (!s) return '';
+  return s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+}
+
+function normalizarProductosConMaestro(productos) {
+  if (!productosCache || !productosCache.length) return productos;
+  var maestro = {};
+  productosCache.forEach(function(m) {
+    var key = _normTxt(m.producto) + '|' + _normTxt(m.presentacion);
+    if (!maestro[key]) maestro[key] = m;
+  });
+  var maestroKeys = Object.keys(maestro);
+
+  return productos.map(function(p) {
+    var np = _normTxt(p.producto);
+    var nq = _normTxt(p.presentacion);
+    var key = np + '|' + nq;
+
+    if (maestro[key]) {
+      var m = maestro[key];
+      if (m.producto === p.producto && (m.presentacion || '') === (p.presentacion || ''))
+        return p;
+      var r = Object.assign({}, p, { producto: m.producto, presentacion: m.presentacion || p.presentacion, _normalizado: true, _original: p.producto });
+      return r;
+    }
+
+    var candProd = [];
+    maestroKeys.forEach(function(k) { if (k.split('|')[0] === np) candProd.push(maestro[k]); });
+    if (candProd.length === 1) {
+      var m = candProd[0];
+      if (m.producto === p.producto) return p;
+      return Object.assign({}, p, { producto: m.producto, presentacion: m.presentacion || p.presentacion, _normalizado: true, _original: p.producto });
+    }
+
+    var bestScore = 0, bestKey = null;
+    var queryStr = np + ' ' + nq;
+    maestroKeys.forEach(function(k) {
+      var parts = k.split('|');
+      var candStr = parts[0] + ' ' + parts[1];
+      var longer = Math.max(queryStr.length, candStr.length);
+      if (!longer) return;
+      var dp = [];
+      for (var i = 0; i <= queryStr.length; i++) { dp[i] = []; for (var j = 0; j <= candStr.length; j++) dp[i][j] = 0; }
+      for (var i = 1; i <= queryStr.length; i++)
+        for (var j = 1; j <= candStr.length; j++)
+          dp[i][j] = queryStr[i-1] === candStr[j-1] ? dp[i-1][j-1] + 1 : Math.max(dp[i-1][j], dp[i][j-1]);
+      var lcs = dp[queryStr.length][candStr.length];
+      var score = (2 * lcs) / (queryStr.length + candStr.length);
+      if (score > bestScore) { bestScore = score; bestKey = k; }
+    });
+    if (bestScore >= 0.75 && bestKey) {
+      var m = maestro[bestKey];
+      return Object.assign({}, p, { producto: m.producto, presentacion: m.presentacion || p.presentacion, _normalizado: true, _original: p.producto });
+    }
+
+    return p;
+  });
+}
+
 function handleFileUpload(input) {
   var file = input.files[0];
   if (!file) return;
@@ -1021,6 +1081,11 @@ function parseOrderExcel(data, filename) {
 }
 
 async function showUploadPreview(data) {
+  if (!productosCache) {
+    try { var r = await apiGet('getMaestroProductos'); if (r.ok) productosCache = r.productos || []; } catch(e) { productosCache = []; }
+  }
+  data.productos = normalizarProductosConMaestro(data.productos);
+
   document.getElementById('up-archivo').textContent = 'Archivo: ' + data.archivo_fuente;
   document.getElementById('up-empresa').textContent = data.nombre_empresa || '—';
   document.getElementById('up-consecutivo').textContent = data.consecutivo || '—';
@@ -1040,14 +1105,20 @@ async function showUploadPreview(data) {
   }
   document.getElementById('up-total').textContent = fmtMoney(data.total_orden);
 
+  var normCount = data.productos.filter(function(p) { return p._normalizado; }).length;
+
   var tbody = document.getElementById('up-lines');
   if (!data.productos.length) {
     tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#a0aec0;padding:16px">Sin productos</td></tr>';
   } else {
     tbody.innerHTML = data.productos.map(function(p, i) {
+      var normBadge = '';
+      if (p._normalizado) {
+        normBadge = '<span title="Original: ' + escHtml(p._original) + '" style="background:#fff3cd;color:#856404;padding:1px 6px;border-radius:8px;font-size:0.65rem;margin-left:4px;cursor:help">corregido</span>';
+      }
       return '<tr>' +
         '<td style="color:#a0aec0;font-size:0.74rem">' + (i+1) + '</td>' +
-        '<td style="font-weight:700">' + (p.producto||'—') + '</td>' +
+        '<td style="font-weight:700">' + (p.producto||'—') + normBadge + '</td>' +
         '<td>' + (p.presentacion||'') + '</td>' +
         '<td class="money">' + (p.cantidad||0) + '</td>' +
         '<td class="money">' + fmtMoney(p.valor_unitario) + '</td>' +
@@ -1055,6 +1126,16 @@ async function showUploadPreview(data) {
         '<td style="text-align:center">' + (p.bonificado ? '<span style="background:#d5f5e3;color:#1e8449;padding:2px 8px;border-radius:10px;font-size:0.75rem;font-weight:700">Sí</span>' : '<span style="color:#718096;font-size:0.75rem">No</span>') + '</td>' +
         '</tr>';
     }).join('');
+  }
+  var oldBanner = document.querySelector('.norm-banner');
+  if (oldBanner) oldBanner.remove();
+  if (normCount > 0) {
+    var banner = document.createElement('div');
+    banner.className = 'norm-banner';
+    banner.style.cssText = 'background:#fff3cd;color:#856404;padding:8px 12px;border-radius:6px;margin-bottom:8px;font-size:0.85rem';
+    banner.innerHTML = '⚠️ ' + normCount + ' producto(s) corregido(s) segun maestro de productos. Pase el cursor sobre <span style="background:#fff3cd;border:1px solid #856404;padding:0 4px;border-radius:4px;font-size:0.65rem">corregido</span> para ver el nombre original.';
+    var prodWrap = tbody.closest('.prod-wrap');
+    prodWrap.parentElement.insertBefore(banner, prodWrap);
   }
 
   var dupWarn = document.getElementById('up-dup-warn');
