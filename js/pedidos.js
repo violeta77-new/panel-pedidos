@@ -261,8 +261,12 @@ function populateFilters() {
   emps.sort(); clis.sort();
   var fe = document.getElementById('f-emp');
   var fc = document.getElementById('f-cli');
+  var prevEmp = fe.value;
+  var prevCli = fc.value;
   fe.innerHTML = '<option value="">Todas</option>' + emps.map(function(e) { return '<option value="' + e + '">' + getSigla(e) + ' — ' + e + '</option>'; }).join('');
   fc.innerHTML = '<option value="">Todos</option>' + clis.map(function(c) { return '<option value="' + c + '">' + c + '</option>'; }).join('');
+  if (prevEmp) fe.value = prevEmp;
+  if (prevCli) fc.value = prevCli;
   if (!filtersAttached) {
     ['f-emp','f-cli','f-est','f-est2','f-txt'].forEach(function(id) {
       document.getElementById(id).addEventListener('change', renderTable);
