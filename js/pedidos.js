@@ -634,7 +634,8 @@ function resetNewLineForm() {
   document.getElementById('nl-cantidad').value = '';
   document.getElementById('nl-vunitario').value = '';
   document.getElementById('nl-vtotal').value = '';
-  document.getElementById('nl-bonificado').checked = false;
+  var nlBonif = document.getElementById('nl-bonificado');
+  if (nlBonif) nlBonif.checked = false;
   document.getElementById('new-line-form').style.display = 'none';
   document.getElementById('btn-toggle-newline').textContent = 'Mostrar';
 }
@@ -666,7 +667,7 @@ async function agregarNuevaLinea() {
     Estado_Entrega: 'Recibido',
     Estado: 'recibido',
     Estado_2: 'Abierto',
-    Bonificado: document.getElementById('nl-bonificado').checked ? 'Sí' : ''
+    Bonificado: (document.getElementById('nl-bonificado') && document.getElementById('nl-bonificado').checked) ? 'Sí' : ''
   };
 
   var hdr = {
@@ -682,7 +683,6 @@ async function agregarNuevaLinea() {
   btn.textContent = '⏳ Guardando...';
 
   var savedKey = keyOf(c.Nombre_Empresa, c.Consecutivo, c.Cliente);
-  console.log('[agregarNuevaLinea] Enviando:', JSON.stringify({header: hdr, lineas: [newLine]}, null, 2));
 
   try {
     var result = await apiPost({
@@ -691,24 +691,18 @@ async function agregarNuevaLinea() {
       lineas: [newLine],
       deleteRows: []
     });
-    console.log('[agregarNuevaLinea] Respuesta API:', JSON.stringify(result));
+    alert('Respuesta API: ' + JSON.stringify(result));
     if (!result || !result.ok) throw new Error((result && result.error) || 'Error al guardar');
 
     resetNewLineForm();
     showToast('✅ Línea agregada (added=' + (result.added||0) + ')');
     await loadFromAPI();
-    console.log('[agregarNuevaLinea] Después de reload, pedidos totales:', pedidos.length, 'buscando key:', savedKey);
-    var matchingLines = pedidos.filter(function(p) { return keyOf(p.Nombre_Empresa, p.Consecutivo, p.Cliente) === savedKey; });
-    console.log('[agregarNuevaLinea] Líneas para este pedido:', matchingLines.length);
     var newIdx = consecs.findIndex(function(cc) { return keyOf(cc.Nombre_Empresa, cc.Consecutivo, cc.Cliente) === savedKey; });
     if (newIdx >= 0) {
       openDetail(newIdx);
-    } else {
-      showToast('⚠️ Pedido no encontrado tras reload (key=' + savedKey + ')', '#e67e22');
     }
   } catch (err) {
-    console.error('[agregarNuevaLinea] Error:', err);
-    showToast('❌ Error: ' + err.message, '#e74c3c');
+    alert('Error en agregarNuevaLinea: ' + err.message);
     btn.disabled = false;
     btn.textContent = '✓ Agregar línea al pedido';
   }
