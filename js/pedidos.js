@@ -690,10 +690,14 @@ async function agregarNuevaLinea() {
     });
     if (!result.ok) throw new Error(result.error || 'Error al guardar');
 
+    var savedKey = keyOf(c.Nombre_Empresa, c.Consecutivo, c.Cliente);
     resetNewLineForm();
-    closeModal();
     showToast('✅ Línea de producto agregada al pedido');
     await loadFromAPI();
+    var newIdx = consecs.findIndex(function(cc) { return keyOf(cc.Nombre_Empresa, cc.Consecutivo, cc.Cliente) === savedKey; });
+    if (newIdx >= 0) {
+      openDetail(newIdx);
+    }
   } catch (err) {
     showToast('❌ Error: ' + err.message, '#e74c3c');
     btn.disabled = false;
