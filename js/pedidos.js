@@ -955,12 +955,12 @@ function handleFileUpload(input) {
   if (!file) return;
   input.value = '';
   var reader = new FileReader();
-  reader.onload = function(e) {
+  reader.onload = async function(e) {
     try {
       var data = new Uint8Array(e.target.result);
       var parsed = parseOrderExcel(data, file.name);
       uploadData = parsed;
-      showUploadPreview(parsed);
+      await showUploadPreview(parsed);
     } catch (err) {
       showToast('Error al leer el archivo: ' + err.message, '#e74c3c');
     }
