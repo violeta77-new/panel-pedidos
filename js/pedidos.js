@@ -563,9 +563,8 @@ async function guardarTodo() {
 
   if (rem && entregas.length === 0) {
     detailWorkingLines.forEach(function(l) {
-      if ((Number(l.Cant_Entregada) || 0) > 0) {
-        var prev = (l.Remisiones || '').trim();
-        l.Remisiones = prev ? prev + ', ' + rem : rem;
+      if ((Number(l.Cant_Entregada) || 0) > 0 && !(l.Remisiones || '').trim()) {
+        l.Remisiones = rem;
       }
     });
   }
@@ -691,18 +690,17 @@ async function agregarNuevaLinea() {
       lineas: [newLine],
       deleteRows: []
     });
-    alert('Respuesta API: ' + JSON.stringify(result));
     if (!result || !result.ok) throw new Error((result && result.error) || 'Error al guardar');
 
     resetNewLineForm();
-    showToast('✅ Línea agregada (added=' + (result.added||0) + ')');
+    showToast('✅ Línea de producto agregada al pedido');
     await loadFromAPI();
     var newIdx = consecs.findIndex(function(cc) { return keyOf(cc.Nombre_Empresa, cc.Consecutivo, cc.Cliente) === savedKey; });
     if (newIdx >= 0) {
       openDetail(newIdx);
     }
   } catch (err) {
-    alert('Error en agregarNuevaLinea: ' + err.message);
+    showToast('❌ Error: ' + err.message, '#e74c3c');
     btn.disabled = false;
     btn.textContent = '✓ Agregar línea al pedido';
   }
