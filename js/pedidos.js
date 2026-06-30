@@ -681,6 +681,9 @@ async function agregarNuevaLinea() {
   btn.disabled = true;
   btn.textContent = '⏳ Guardando...';
 
+  var savedKey = keyOf(c.Nombre_Empresa, c.Consecutivo, c.Cliente);
+  console.log('[agregarNuevaLinea] Enviando:', JSON.stringify({header: hdr, lineas: [newLine]}, null, 2));
+
   try {
     var result = await apiPost({
       action: 'editarPedido',
@@ -688,17 +691,23 @@ async function agregarNuevaLinea() {
       lineas: [newLine],
       deleteRows: []
     });
-    if (!result.ok) throw new Error(result.error || 'Error al guardar');
+    console.log('[agregarNuevaLinea] Respuesta API:', JSON.stringify(result));
+    if (!result || !result.ok) throw new Error((result && result.error) || 'Error al guardar');
 
-    var savedKey = keyOf(c.Nombre_Empresa, c.Consecutivo, c.Cliente);
     resetNewLineForm();
-    showToast('✅ Línea de producto agregada al pedido');
+    showToast('✅ Línea agregada (added=' + (result.added||0) + ')');
     await loadFromAPI();
+    console.log('[agregarNuevaLinea] Después de reload, pedidos totales:', pedidos.length, 'buscando key:', savedKey);
+    var matchingLines = pedidos.filter(function(p) { return keyOf(p.Nombre_Empresa, p.Consecutivo, p.Cliente) === savedKey; });
+    console.log('[agregarNuevaLinea] Líneas para este pedido:', matchingLines.length);
     var newIdx = consecs.findIndex(function(cc) { return keyOf(cc.Nombre_Empresa, cc.Consecutivo, cc.Cliente) === savedKey; });
     if (newIdx >= 0) {
       openDetail(newIdx);
+    } else {
+      showToast('⚠️ Pedido no encontrado tras reload (key=' + savedKey + ')', '#e67e22');
     }
   } catch (err) {
+    console.error('[agregarNuevaLinea] Error:', err);
     showToast('❌ Error: ' + err.message, '#e74c3c');
     btn.disabled = false;
     btn.textContent = '✓ Agregar línea al pedido';
