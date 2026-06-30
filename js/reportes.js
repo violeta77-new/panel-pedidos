@@ -5,6 +5,7 @@ var ordenesCompra = [];
 var muestras = [];
 var reenvases = [];
 var devoluciones = [];
+var remisionesAnuladas = [];
 var aggregated = [];
 var rptSort = { col: 'pendiente', dir: 'desc' };
 
@@ -68,13 +69,15 @@ async function loadReportes() {
       apiGet('getOrdenesCompra').catch(function() { return { ok: true, ordenes: [] }; }),
       apiGet('getMuestras').catch(function() { return { ok: true, muestras: [] }; }),
       apiGet('getReenvases').catch(function() { return { ok: true, reenvases: [] }; }),
-      apiGet('getDevoluciones').catch(function() { return { ok: true, devoluciones: [] }; })
+      apiGet('getDevoluciones').catch(function() { return { ok: true, devoluciones: [] }; }),
+      apiGet('getRemisionesAnuladas').catch(function() { return { ok: true, remisionesAnuladas: [] }; })
     ]);
     ingresos = (results[0].ingresos || []);
     ordenesCompra = (results[1].ordenes || []);
     muestras = (results[2].muestras || []);
     reenvases = (results[3].reenvases || []);
     devoluciones = (results[4].devoluciones || []);
+    remisionesAnuladas = (results[5].remisionesAnuladas || []);
 
     populateRptFilters();
     buildReport();
@@ -459,6 +462,20 @@ function _buildRemisionesInner() {
     totalLineas++;
   });
 
+  // 7. Remisiones anuladas (registro manual)
+  remisionesAnuladas.forEach(function(ra) {
+    var rem = String(ra.Remision || '').trim();
+    if (!rem) return;
+    var empNombre = ra.Empresa || '';
+    if (fEmp && empNombre !== fEmp) return;
+    if (fTxt && rem.toLowerCase().indexOf(fTxt) < 0 && getSigla(empNombre).toLowerCase().indexOf(fTxt) < 0) return;
+    var key = empNombre + '||' + rem + '||Anulada';
+    _addRemision(map, key, empNombre, rem, 'Anulada', ra.Observaciones || '', (ra.Producto || '') + ' (' + (ra.Presentacion || '') + ')', ra.Cantidad, ra.Fecha);
+    if (map[key]) map[key]._anulada_id = ra.__row || ra.id;
+    empresasSet[getSigla(empNombre)] = true;
+    totalLineas++;
+  });
+
   remData = Object.values(map).map(function(r) {
     r.referenciasStr = Object.keys(r.referencias).join(', ') || '—';
     r.numDetalles = r.detalles.length;
@@ -510,7 +527,7 @@ function sortedRemData() {
 }
 
 function renderRemTable() {
-  var MOD_COLORS = { 'Pedido': '#2980b9', 'Ingreso': '#27ae60', 'Orden de Compra': '#8e44ad', 'Muestra': '#e67e22', 'Salida a producción': '#d35400', 'Devolución': '#c0392b' };
+  var MOD_COLORS = { 'Pedido': '#2980b9', 'Ingreso': '#27ae60', 'Orden de Compra': '#8e44ad', 'Muestra': '#e67e22', 'Salida a producción': '#d35400', 'Devolución': '#c0392b', 'Anulada': '#7f8c8d' };
   var cols = [
     { id: 'empresa', label: 'Empresa' },
     { id: 'empresaOrigen', label: 'Emp. Origen' },
@@ -544,11 +561,12 @@ function renderRemTable() {
     var modColor = MOD_COLORS[r.modulo] || '#718096';
     var empOrigCell = r.empresaOrigen ? '<span class="badge-emp" style="background:#fef9e7;color:#7d6608">' + getSigla(r.empresaOrigen) + '</span>' : '—';
     var empDestCell = r.empresaDestino ? '<span class="badge-emp" style="background:#eafaf1;color:#1e8449">' + getSigla(r.empresaDestino) + '</span>' : '—';
-    return '<tr>' +
+    var deleteBtn = r._anulada_id ? ' <button onclick="deleteRemAnulada(' + r._anulada_id + ')" style="background:none;border:none;color:#c0392b;cursor:pointer;font-size:0.85rem" title="Eliminar">🗑️</button>' : '';
+    return '<tr' + (r.modulo === 'Anulada' ? ' style="background:#fdf2f2"' : '') + '>' +
       '<td><span class="badge-emp" style="background:#ebf5fb;color:#1a5276">' + r.empresa + '</span></td>' +
       '<td>' + empOrigCell + '</td>' +
       '<td>' + empDestCell + '</td>' +
-      '<td style="font-weight:700;color:#2c3e50">' + r.remision + '</td>' +
+      '<td style="font-weight:700;color:#2c3e50">' + r.remision + deleteBtn + '</td>' +
       '<td><span style="background:' + modColor + ';color:white;padding:2px 9px;border-radius:12px;font-size:0.72rem;font-weight:700">' + r.modulo + '</span></td>' +
       '<td style="font-size:0.8rem">' + r.referenciasStr + '</td>' +
       '<td class="center">' + r.numDetalles + '</td>' +
@@ -585,6 +603,65 @@ function exportRemCSV() {
   a.click();
   URL.revokeObjectURL(url);
   showToast('CSV exportado: ' + rows.length + ' remisiones');
+}
+
+// ── Remisiones Anuladas (manual) ──
+function openAddRemAnulada() {
+  document.getElementById('ra-empresa').value = '';
+  document.getElementById('ra-remision').value = '';
+  document.getElementById('ra-producto').value = '';
+  document.getElementById('ra-presentacion').value = '';
+  document.getElementById('ra-cantidad').value = '';
+  document.getElementById('ra-fecha').value = today();
+  document.getElementById('ra-observaciones').value = '';
+  var modal = document.getElementById('modal-rem-anulada');
+  modal.style.display = 'flex';
+}
+
+function closeRemAnulada() {
+  document.getElementById('modal-rem-anulada').style.display = 'none';
+}
+
+async function saveRemAnulada() {
+  var empresa = document.getElementById('ra-empresa').value;
+  var remision = document.getElementById('ra-remision').value.trim();
+  if (!empresa) { showToast('Selecciona una empresa', '#e74c3c'); return; }
+  if (!remision) { showToast('Ingresa el N° de remisión', '#e74c3c'); return; }
+
+  var btn = document.getElementById('ra-btn-save');
+  btn.disabled = true; btn.textContent = 'Guardando...';
+
+  var res = await apiPost({
+    action: 'agregarRemisionAnulada',
+    Empresa: empresa,
+    Remision: remision,
+    Producto: document.getElementById('ra-producto').value.trim(),
+    Presentacion: document.getElementById('ra-presentacion').value.trim(),
+    Cantidad: document.getElementById('ra-cantidad').value,
+    Fecha: document.getElementById('ra-fecha').value,
+    Observaciones: document.getElementById('ra-observaciones').value.trim()
+  });
+
+  btn.disabled = false; btn.textContent = 'Guardar';
+
+  if (res.ok) {
+    closeRemAnulada();
+    showToast('Remisión anulada registrada');
+    loadReportes();
+  } else {
+    showToast('Error: ' + (res.error || 'desconocido'), '#e74c3c');
+  }
+}
+
+async function deleteRemAnulada(id) {
+  if (!confirm('¿Eliminar esta remisión anulada?')) return;
+  var res = await apiPost({ action: 'eliminarRemisionAnulada', row: id });
+  if (res.ok) {
+    showToast('Remisión anulada eliminada');
+    loadReportes();
+  } else {
+    showToast('Error: ' + (res.error || 'desconocido'), '#e74c3c');
+  }
 }
 
 // ── Init ──

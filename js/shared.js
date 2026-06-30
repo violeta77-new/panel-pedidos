@@ -108,6 +108,11 @@ async function apiGet(action) {
       if (res.error) return { ok: false, error: res.error.message };
       return { ok: true, ajustes: _addRow(res.data) };
     }
+    if (action === 'getRemisionesAnuladas') {
+      var res = await _sb.from('RemisionesAnuladas').select('*').order('id');
+      if (res.error) return { ok: false, error: res.error.message };
+      return { ok: true, remisionesAnuladas: _addRow(res.data) };
+    }
 
     return { error: 'Accion no reconocida: ' + action };
   } catch (err) {
@@ -599,6 +604,25 @@ async function apiPost(body) {
 
     if (action === 'eliminarReenvase') {
       var res = await _sb.from('Reenvases').delete().eq('id', body.row);
+      if (res.error) return { ok: false, error: res.error.message };
+      return { ok: true, deleted: 1 };
+    }
+
+    if (action === 'agregarRemisionAnulada') {
+      var now = new Date().toISOString().slice(0, 19).replace('T', ' ');
+      var row = {
+        Empresa: body.Empresa || '', Remision: body.Remision || '',
+        Producto: body.Producto || '', Presentacion: body.Presentacion || '',
+        Cantidad: Number(body.Cantidad) || 0, Fecha: body.Fecha || '',
+        Observaciones: body.Observaciones || '', Fecha_Registro: now
+      };
+      var res = await _sb.from('RemisionesAnuladas').insert([row]);
+      if (res.error) return { ok: false, error: res.error.message };
+      return { ok: true, added: 1 };
+    }
+
+    if (action === 'eliminarRemisionAnulada') {
+      var res = await _sb.from('RemisionesAnuladas').delete().eq('id', body.row);
       if (res.error) return { ok: false, error: res.error.message };
       return { ok: true, deleted: 1 };
     }

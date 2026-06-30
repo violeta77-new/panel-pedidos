@@ -128,7 +128,10 @@
     <div class="rpt-card">
       <div class="rpt-card-head">
         <h3>📄 Remisiones por empresa <span id="rem-count" style="font-weight:400;color:#718096"></span></h3>
-        <button class="btn-export" onclick="exportRemCSV()">📥 Exportar CSV</button>
+        <div style="display:flex;gap:8px">
+          <button class="btn-export" onclick="openAddRemAnulada()" style="background:#c0392b">➕ Remisión anulada</button>
+          <button class="btn-export" onclick="exportRemCSV()">📥 Exportar CSV</button>
+        </div>
       </div>
       <div style="overflow-x:auto">
         <table class="rpt-table">
@@ -143,11 +146,55 @@
 
 </div>
 
+<!-- Modal: Agregar Remisión Anulada -->
+<div id="modal-rem-anulada" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;display:none;align-items:center;justify-content:center">
+  <div style="background:white;border-radius:12px;padding:28px 32px;max-width:520px;width:90%;max-height:90vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.2)">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
+      <h3 style="margin:0;color:#c0392b;font-size:1.1rem">🚫 Registrar remisión anulada</h3>
+      <button onclick="closeRemAnulada()" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:#718096">&times;</button>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div class="fg"><label style="font-size:0.74rem;font-weight:700;color:#4a5568;text-transform:uppercase">Empresa</label>
+        <select id="ra-empresa" style="padding:8px 10px;border:1px solid #cbd5e0;border-radius:6px;font-size:0.84rem;width:100%">
+          <option value="">Seleccionar...</option>
+          <option value="PARCELAR DE COLOMBIA SAS">PARCELAR</option>
+          <option value="GREEN AGROSOLUCIONES DE COLOMBIA SAS">GREEN</option>
+          <option value="SOLUCIONES INTEGRALES RESO SAS">RESO</option>
+          <option value="INSUMOS AGROPECUARIOS SOSTENIBLES SAS">IASO</option>
+          <option value="INSUMOS AGROPECUARIOS DE LA SABANA SAS">IAS</option>
+        </select>
+      </div>
+      <div class="fg"><label style="font-size:0.74rem;font-weight:700;color:#4a5568;text-transform:uppercase">N° Remisión</label>
+        <input type="text" id="ra-remision" placeholder="Ej: 1234" style="padding:8px 10px;border:1px solid #cbd5e0;border-radius:6px;font-size:0.84rem;width:100%;box-sizing:border-box">
+      </div>
+      <div class="fg"><label style="font-size:0.74rem;font-weight:700;color:#4a5568;text-transform:uppercase">Producto</label>
+        <input type="text" id="ra-producto" placeholder="Nombre del producto" style="padding:8px 10px;border:1px solid #cbd5e0;border-radius:6px;font-size:0.84rem;width:100%;box-sizing:border-box">
+      </div>
+      <div class="fg"><label style="font-size:0.74rem;font-weight:700;color:#4a5568;text-transform:uppercase">Presentación</label>
+        <input type="text" id="ra-presentacion" placeholder="Ej: LITRO" style="padding:8px 10px;border:1px solid #cbd5e0;border-radius:6px;font-size:0.84rem;width:100%;box-sizing:border-box">
+      </div>
+      <div class="fg"><label style="font-size:0.74rem;font-weight:700;color:#4a5568;text-transform:uppercase">Cantidad</label>
+        <input type="number" id="ra-cantidad" placeholder="0" min="0" style="padding:8px 10px;border:1px solid #cbd5e0;border-radius:6px;font-size:0.84rem;width:100%;box-sizing:border-box">
+      </div>
+      <div class="fg"><label style="font-size:0.74rem;font-weight:700;color:#4a5568;text-transform:uppercase">Fecha</label>
+        <input type="date" id="ra-fecha" style="padding:8px 10px;border:1px solid #cbd5e0;border-radius:6px;font-size:0.84rem;width:100%;box-sizing:border-box">
+      </div>
+      <div class="fg" style="grid-column:1/-1"><label style="font-size:0.74rem;font-weight:700;color:#4a5568;text-transform:uppercase">Observaciones</label>
+        <input type="text" id="ra-observaciones" placeholder="Motivo de la anulación..." style="padding:8px 10px;border:1px solid #cbd5e0;border-radius:6px;font-size:0.84rem;width:100%;box-sizing:border-box">
+      </div>
+    </div>
+    <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:20px">
+      <button onclick="closeRemAnulada()" style="background:none;border:1px solid #cbd5e0;color:#4a5568;padding:8px 18px;border-radius:6px;cursor:pointer;font-size:0.84rem;font-weight:600">Cancelar</button>
+      <button onclick="saveRemAnulada()" id="ra-btn-save" style="background:#c0392b;color:white;border:none;padding:8px 18px;border-radius:6px;cursor:pointer;font-size:0.84rem;font-weight:600">Guardar</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="js/shared.js"></script>
-<script src="js/reportes.js?v=20260626a"></script>
+<script src="js/reportes.js?v=20260630a"></script>
 </body>
 </html>
