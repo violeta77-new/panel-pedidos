@@ -634,6 +634,7 @@ function resetNewLineForm() {
   document.getElementById('nl-cantidad').value = '';
   document.getElementById('nl-vunitario').value = '';
   document.getElementById('nl-vtotal').value = '';
+  document.getElementById('nl-bonificado').checked = false;
   document.getElementById('new-line-form').style.display = 'none';
   document.getElementById('btn-toggle-newline').textContent = 'Mostrar';
 }
@@ -664,7 +665,8 @@ async function agregarNuevaLinea() {
     Cant_Pendiente: cantidad,
     Estado_Entrega: 'Recibido',
     Estado: 'recibido',
-    Estado_2: 'Abierto'
+    Estado_2: 'Abierto',
+    Bonificado: document.getElementById('nl-bonificado').checked ? 'Sí' : ''
   };
 
   var hdr = {
