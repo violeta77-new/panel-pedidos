@@ -891,8 +891,8 @@ async function agregarProductosNuevosAlMaestro(productos, empresa) {
 var uploadData = null;
 
 function _normTxt(s) {
-  if (!s) return '';
-  return s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+  if (!s && s !== 0) return '';
+  return String(s).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
 }
 
 function normalizarProductosConMaestro(productos) {
