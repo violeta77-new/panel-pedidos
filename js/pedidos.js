@@ -264,7 +264,7 @@ function populateFilters() {
   var prevEmp = fe.value;
   var prevCli = fc.value;
   fe.innerHTML = '<option value="">Todas</option>' + emps.map(function(e) { return '<option value="' + e + '">' + getSigla(e) + ' — ' + e + '</option>'; }).join('');
-  fc.innerHTML = '<option value="">Todos</option>' + clis.map(function(c) { return '<option value="' + c + '">' + c + '</option>'; }).join('');
+  document.getElementById('dl-f-cli').innerHTML = clis.map(function(c) { return '<option value="' + c + '">'; }).join('');
   if (prevEmp) fe.value = prevEmp;
   if (prevCli) fc.value = prevCli;
   if (!filtersAttached) {
@@ -284,7 +284,7 @@ function filtered() {
   var ft = document.getElementById('f-txt').value.toLowerCase();
   return consecs.filter(function(c) {
     if (fe && c.Nombre_Empresa !== fe) return false;
-    if (fc && c.Cliente !== fc) return false;
+    if (fc && (c.Cliente||'').toLowerCase().indexOf(fc.toLowerCase()) < 0) return false;
     var lines = getLinesFor(c);
     var est = derivedStatus(lines);
     if (fs && norm(est) !== norm(fs)) return false;
