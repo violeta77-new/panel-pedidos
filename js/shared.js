@@ -58,17 +58,6 @@ async function apiGet(action) {
         source: 'maestro_productos'
       };
     }
-    if (action === 'addMaestroProductos') {
-      var items = body.items || [];
-      if (!items.length) return { ok: true, added: 0 };
-      var rows = items.map(function(it) {
-        return { Producto: it.producto, Presentacion: it.presentacion || '', Empresa: it.empresa || '' };
-      });
-      var res = await _sb.from('maestro_productos').insert(rows);
-      if (res.error) return { ok: false, error: res.error.message };
-      return { ok: true, added: rows.length };
-    }
-
     if (action === 'getClientesUnicos') {
       var res = await _sb.from('ClientesUnicos').select('*');
       if (res.error) return { ok: true, clientes: [], source: 'error' };
@@ -625,6 +614,17 @@ async function apiPost(body) {
       var res = await _sb.from('RemisionesAnuladas').delete().eq('id', body.row);
       if (res.error) return { ok: false, error: res.error.message };
       return { ok: true, deleted: 1 };
+    }
+
+    if (action === 'addMaestroProductos') {
+      var items = body.items || [];
+      if (!items.length) return { ok: true, added: 0 };
+      var rows = items.map(function(it) {
+        return { Producto: it.producto, Presentacion: it.presentacion || '', Empresa: it.empresa || '' };
+      });
+      var res = await _sb.from('maestro_productos').insert(rows);
+      if (res.error) return { ok: false, error: res.error.message };
+      return { ok: true, added: rows.length };
     }
 
     return { error: 'Accion POST no reconocida: ' + action };
