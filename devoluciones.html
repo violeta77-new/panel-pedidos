@@ -148,6 +148,7 @@
         <option value="">Todos</option>
         <option value="Pendiente">Pendiente</option>
         <option value="Completado">Completado</option>
+        <option value="Cerrado">Cerrado</option>
       </select>
     </div>
     <div class="fg"><label>Buscar</label><input type="text" id="fc-txt" placeholder="cliente, producto, factura…" style="width:160px"></div>
@@ -622,6 +623,41 @@
     <div class="mftr" style="justify-content:center;gap:12px">
       <button class="btn-cancel" onclick="closeDeleteCam()">Cancelar</button>
       <button class="btn-confirm" id="btn-del-cam-confirm" onclick="confirmDeleteCam()" style="background:#e74c3c">🗑️ Sí, eliminar</button>
+    </div>
+  </div>
+</div>
+
+<!-- GESTIONAR CAMBIO MODAL -->
+<div class="overlay" id="gestionar-cam-overlay">
+  <div class="modal-box" style="max-width:520px">
+    <div class="mhdr" style="background:linear-gradient(135deg,#27ae60,#2ecc71)">
+      <div style="flex:1">
+        <h2>📝 Gestionar Cambio</h2>
+        <div style="font-size:0.78rem;opacity:0.85;margin-top:4px;display:flex;gap:16px" id="gestionar-cam-meta"></div>
+      </div>
+      <button class="btn-close" onclick="closeGestionarCam()">✕</button>
+    </div>
+    <div class="mbody">
+      <div style="background:#f0faf4;border:1px solid #c6f6d5;border-radius:8px;padding:14px 16px;margin-bottom:18px;font-size:0.84rem;color:#276749">
+        Registra el número de remisión y la fecha para cerrar este cambio de mercancía.
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div>
+          <label class="ef-label">N° Remisión</label>
+          <input class="ef" id="gestionar-cam-remision" type="text" placeholder="Ej: REM-001">
+        </div>
+        <div>
+          <label class="ef-label">Fecha de Remisión</label>
+          <input class="ef" id="gestionar-cam-fecha" type="date">
+        </div>
+      </div>
+    </div>
+    <div class="mftr">
+      <div style="font-size:0.8rem;color:#718096">El estado cambiará a <strong style="color:#27ae60">Cerrado</strong></div>
+      <div class="mftr-btns">
+        <button class="btn-cancel" onclick="closeGestionarCam()">Cancelar</button>
+        <button class="btn-confirm" id="btn-gestionar-cam" onclick="saveGestionarCam()" style="background:#27ae60">✓ Cerrar cambio</button>
+      </div>
     </div>
   </div>
 </div>

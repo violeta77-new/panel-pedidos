@@ -4,6 +4,7 @@ var editCam = null;
 var camLineasCambiar = [];
 var camLineasEntregar = [];
 var deleteCamGroupIds = null;
+var gestionarCamIds = null;
 var catalogoProductosCam = [];
 var catalogoClientesCam = [];
 
@@ -244,9 +245,13 @@ function renderCamTable() {
   tbody.innerHTML = grouped.map(function(r, i) {
     var keyEsc = (r._key||'').replace(/'/g, "\\'");
     var esPend = r._estado === 'Pendiente';
-    var estadoBadge = esPend
-      ? '<span style="background:#fff3cd;color:#856404;padding:3px 10px;border-radius:10px;font-size:0.74rem;font-weight:700">Pendiente</span>'
-      : '<span style="background:#d4edda;color:#155724;padding:3px 10px;border-radius:10px;font-size:0.74rem;font-weight:700">Completado</span>';
+    var esCerrado = r._estado === 'Cerrado';
+    var estadoBadge = esCerrado
+      ? '<span style="background:#d1ecf1;color:#0c5460;padding:3px 10px;border-radius:10px;font-size:0.74rem;font-weight:700">Cerrado</span>'
+      : esPend
+        ? '<span style="background:#fff3cd;color:#856404;padding:3px 10px;border-radius:10px;font-size:0.74rem;font-weight:700">Pendiente</span>'
+        : '<span style="background:#d4edda;color:#155724;padding:3px 10px;border-radius:10px;font-size:0.74rem;font-weight:700">Completado</span>';
+    var gestionarBtn = esCerrado ? '' : '<button onclick="openGestionarCam(\''+keyEsc+'\')" title="Gestionar cambio" style="background:#27ae60;font-size:0.72rem;padding:4px 8px;border-radius:5px;color:white;border:none;cursor:pointer;font-weight:700">📝 Gestionar</button>';
     return '<tr>' +
       '<td style="color:#718096;font-size:0.78rem">'+(i+1)+'</td>' +
       '<td style="white-space:nowrap;font-size:0.78rem">'+fmtDate(r.Fecha_Solicitud)+'</td>' +
@@ -258,8 +263,9 @@ function renderCamTable() {
       '<td style="text-align:center"><span style="background:#fde8e8;color:#c0392b;padding:2px 8px;border-radius:10px;font-weight:700;font-size:0.8rem">'+(r._nCambiar||0)+'</span></td>' +
       '<td style="text-align:center"><span style="background:#e8f8f0;color:#27ae60;padding:2px 8px;border-radius:10px;font-weight:700;font-size:0.8rem">'+(r._nEntregar||0)+'</span></td>' +
       '<td style="text-align:center">'+estadoBadge+'</td>' +
-      '<td><div style="display:flex;gap:6px;align-items:center">' +
+      '<td><div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">' +
         '<button onclick="viewCamDetail(\''+keyEsc+'\')" title="Ver detalle" style="background:#3498db;font-size:0.72rem;padding:4px 8px;border-radius:5px;color:white;border:none;cursor:pointer;font-weight:700">📋 Ver</button>' +
+        gestionarBtn +
         '<button onclick="openEditCamGroup(\''+keyEsc+'\')" title="Editar" style="background:#8e44ad;font-size:0.72rem;padding:4px 8px;border-radius:5px;color:white;border:none;cursor:pointer;font-weight:700">✏️</button>' +
         '<button class="btn-del" onclick="openDeleteCamGroup(\''+keyEsc+'\')" title="Eliminar">🗑️</button>' +
       '</div></td>' +
@@ -277,9 +283,11 @@ function viewCamDetail(key) {
   function cf(label, val) {
     return '<div><span style="font-weight:700;color:#4a5568;font-size:0.76rem;text-transform:uppercase">'+label+'</span><br><span style="font-size:0.85rem;color:#2d3748">'+(val||'—')+'</span></div>';
   }
-  var estadoLabel = r.Estado === 'Completado'
-    ? '<span style="background:#d4edda;color:#155724;padding:2px 8px;border-radius:8px;font-size:0.82rem;font-weight:700">Completado</span>'
-    : '<span style="background:#fff3cd;color:#856404;padding:2px 8px;border-radius:8px;font-size:0.82rem;font-weight:700">Pendiente</span>';
+  var estadoLabel = r.Estado === 'Cerrado'
+    ? '<span style="background:#d1ecf1;color:#0c5460;padding:2px 8px;border-radius:8px;font-size:0.82rem;font-weight:700">Cerrado</span>'
+    : r.Estado === 'Completado'
+      ? '<span style="background:#d4edda;color:#155724;padding:2px 8px;border-radius:8px;font-size:0.82rem;font-weight:700">Completado</span>'
+      : '<span style="background:#fff3cd;color:#856404;padding:2px 8px;border-radius:8px;font-size:0.82rem;font-weight:700">Pendiente</span>';
 
   var html = '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px 24px;margin-bottom:18px;font-size:0.85rem">' +
     cf('Empresa', getSiglaCam(r.Empresa)) +
@@ -293,6 +301,8 @@ function viewCamDetail(key) {
     cf('N° Factura', r.Num_Factura) +
     cf('Fecha Compra', r.Fecha_Compra ? fmtDate(r.Fecha_Compra) : '—') +
     cf('Estado', estadoLabel) +
+    (r.Remision ? cf('N° Remisión', r.Remision) : '') +
+    (r.Fecha_Remision ? cf('Fecha Remisión', fmtDate(r.Fecha_Remision)) : '') +
     '</div>';
 
   var linesCambiar = lines.filter(function(l) { return l.Tipo_Linea === 'CAMBIAR'; });
@@ -619,6 +629,62 @@ async function confirmDeleteCam() {
     showToast('❌ Error: ' + err.message, '#e74c3c');
     btn.disabled = false;
     btn.textContent = '🗑️ Sí, eliminar';
+  }
+}
+
+// ── Gestionar Cambio ──
+function openGestionarCam(key) {
+  var lines = cambios.filter(function(r) {
+    return ((r.Empresa||'') + '||' + (r.Consecutivo || r.id)) === key;
+  });
+  if (!lines.length) return;
+  var r = lines[0];
+  gestionarCamIds = lines.map(function(l) { return l.__row || l.id; });
+
+  document.getElementById('gestionar-cam-meta').innerHTML =
+    '<span>📋 Consec: '+(r.Consecutivo||'—')+'</span>' +
+    '<span>👤 '+(r.Cliente||'—')+'</span>' +
+    '<span>'+getSiglaCam(r.Empresa)+'</span>';
+
+  document.getElementById('gestionar-cam-remision').value = r.Remision || '';
+  document.getElementById('gestionar-cam-fecha').value = r.Fecha_Remision ? toDateInput(r.Fecha_Remision) : today();
+  document.getElementById('btn-gestionar-cam').disabled = false;
+  document.getElementById('btn-gestionar-cam').textContent = '✓ Cerrar cambio';
+  document.getElementById('gestionar-cam-overlay').classList.add('show');
+}
+
+function closeGestionarCam() {
+  document.getElementById('gestionar-cam-overlay').classList.remove('show');
+  gestionarCamIds = null;
+}
+document.getElementById('gestionar-cam-overlay').addEventListener('click', function(e) { if (isBackdropClick(e)) closeGestionarCam(); });
+
+async function saveGestionarCam() {
+  var remision = document.getElementById('gestionar-cam-remision').value.trim();
+  var fecha = document.getElementById('gestionar-cam-fecha').value;
+  if (!remision) { showToast('Ingresa el N° de remisión', '#e74c3c'); return; }
+  if (!fecha) { showToast('Selecciona la fecha de remisión', '#e74c3c'); return; }
+  if (!gestionarCamIds || !gestionarCamIds.length) return;
+
+  var btn = document.getElementById('btn-gestionar-cam');
+  btn.disabled = true;
+  btn.textContent = '⏳ Guardando...';
+
+  try {
+    var result = await apiPost({
+      action: 'gestionarCambio',
+      Remision: remision,
+      Fecha_Remision: fecha,
+      ids: gestionarCamIds
+    });
+    if (!result.ok) throw new Error(result.error || 'Error al gestionar');
+    closeGestionarCam();
+    showToast('✅ Cambio cerrado — ' + result.updated + ' línea(s) actualizadas');
+    await loadCambios();
+  } catch (err) {
+    showToast('❌ Error: ' + err.message, '#e74c3c');
+    btn.disabled = false;
+    btn.textContent = '✓ Cerrar cambio';
   }
 }
 

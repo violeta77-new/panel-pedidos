@@ -370,6 +370,19 @@ async function apiPost(body) {
       return { ok: true, added: allLines.length };
     }
 
+    if (action === 'gestionarCambio') {
+      var ids = body.ids || [];
+      for (var i = 0; i < ids.length; i++) {
+        var res = await _sb.from('CambiosMercancia').update({
+          Remision: body.Remision || '',
+          Fecha_Remision: body.Fecha_Remision || '',
+          Estado: 'Cerrado'
+        }).eq('id', ids[i]);
+        if (res.error) return { ok: false, error: res.error.message };
+      }
+      return { ok: true, updated: ids.length };
+    }
+
     if (action === 'eliminarCambio') {
       var res = await _sb.from('CambiosMercancia').delete().eq('id', body.row);
       if (res.error) return { ok: false, error: res.error.message };
@@ -543,6 +556,27 @@ async function apiPost(body) {
       });
       var res = await _sb.from('KardexAjustes').insert(rows);
       if (res.error) return { ok: false, error: res.error.message };
+
+      // Register new products in maestro_productos so they appear in search
+      var maestroRes = await _sb.from('maestro_productos').select('Producto,Presentacion,Empresa');
+      var existing = {};
+      if (maestroRes.data) {
+        maestroRes.data.forEach(function(r) {
+          existing[r.Producto + '||' + (r.Presentacion || '') + '||' + (r.Empresa || '')] = true;
+        });
+      }
+      var newProducts = [];
+      lineas.forEach(function(lin) {
+        var key = (lin.Producto || '') + '||' + (lin.Presentacion || '') + '||' + (body.Empresa || '');
+        if (lin.Producto && !existing[key]) {
+          newProducts.push({ Producto: lin.Producto, Presentacion: lin.Presentacion || '', Empresa: body.Empresa || '' });
+          existing[key] = true;
+        }
+      });
+      if (newProducts.length) {
+        await _sb.from('maestro_productos').insert(newProducts);
+      }
+
       return { ok: true, added: rows.length };
     }
 
