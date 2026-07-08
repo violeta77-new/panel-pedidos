@@ -1099,27 +1099,31 @@ function calcularNC() {
   var saldoIni = 0;
   var totalEntradas = 0;
   var totalSalidas = 0;
-  var saldo = 0;
+  var saldosPorProducto = {};
 
   ncFiltered.forEach(function(m) {
+    if (!saldosPorProducto[m.producto]) saldosPorProducto[m.producto] = 0;
     if (m.tipo === 'Entrada') {
-      saldo += m.cantidad;
+      saldosPorProducto[m.producto] += m.cantidad;
       if (m.motivo === 'Saldo_Inicial') {
         saldoIni += m.cantidad;
       } else {
         totalEntradas += m.cantidad;
       }
     } else {
-      saldo -= m.cantidad;
+      saldosPorProducto[m.producto] -= m.cantidad;
       totalSalidas += m.cantidad;
     }
-    m._saldo = saldo;
+    m._saldo = saldosPorProducto[m.producto];
   });
+
+  var saldoTotal = 0;
+  Object.keys(saldosPorProducto).forEach(function(k) { saldoTotal += saldosPorProducto[k]; });
 
   document.getElementById('nc-s-saldo-ini').textContent = saldoIni.toLocaleString('es-CO');
   document.getElementById('nc-s-total').textContent = totalEntradas.toLocaleString('es-CO');
   document.getElementById('nc-s-salidas').textContent = totalSalidas.toLocaleString('es-CO');
-  document.getElementById('nc-s-saldo').textContent = saldo.toLocaleString('es-CO');
+  document.getElementById('nc-s-saldo').textContent = saldoTotal.toLocaleString('es-CO');
 
   renderNCTable();
 }
