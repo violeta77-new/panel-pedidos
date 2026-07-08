@@ -764,5 +764,173 @@ async function confirmDeleteKx() {
   }
 }
 
+// ── Carga masiva saldo inicial PARCELAR ──
+var SALDOS_PARCELAR = [
+  ['AFINADOR CAB X BIDON 20 LITROS', '', 6],
+  ['AFINADOR CAB X 250 ML', '', 20],
+  ['AFINADOR CAB X 500 ML', '', 15],
+  ['AFINADOR CAB X GALON', '', 30],
+  ['AFINADOR CAB X LITRO', '', 337],
+  ['AMETRINA 80WG X KILO', '', 2],
+  ['BORDEL CROP X BIDON 20 LITROS', '', 5],
+  ['BORDEL CROP X 250 ML', '', 76],
+  ['BORDEL CROP X GALON', '', 9],
+  ['BORDEL CROP X LITRO', '', 137],
+  ['BORO 21 X KILO', '', 25],
+  ['CALIMAN X CANECA 10 LITROS', '', 5],
+  ['CALIMAN X GALON', '', 23],
+  ['CALIMAN X LITRO', '', 263],
+  ['CERTUS 70 WS X 100 GR CV', '', 24],
+  ['CERTUS 70 WS X 500 GR CV', '', 1],
+  ['CERTUS 70 WS 50 GM', '', 11],
+  ['CLEAN CROP X 100 ML', '', 90],
+  ['CLEAN CROP X 250 ML', '', 75],
+  ['CLEAN CROP X LITRO', '', 196],
+  ['CONTRA 200 SC X 200 ML', '', 24],
+  ['CUFIGA 80 WP X 500 GR CV', '', 643],
+  ['DESESTRES P X 100 ML', '', 73],
+  ['DESESTRES P X GALON', '', 9],
+  ['DESESTRES P X 20 LITROS', '', 6],
+  ['DESESTRES P X 250 ML', '', 37],
+  ['DESESTRES P X 500 ML', '', 19],
+  ['DESESTRES P X LITRO', '', 154],
+  ['DIRVO 60% WG X 20 GR CV', '', 45],
+  ['DIRVO 60% WG X KILO ( METSULFURON) CV', '', 60],
+  ['ENGORDE K X 100 ML', '', 54],
+  ['ENGORDE K X 20 LITROS', '', 2],
+  ['ENGORDE K X 4 LITROS', '', 9],
+  ['ENGORDE K X LITRO', '', 312],
+  ['ESPAIDER CROP X 20 LITROS', '', 5],
+  ['ESPAIDER CROP X 250 ML', '', 155],
+  ['ESPAIDER CROP X LITRO', '', 85],
+  ['FERTI-HUMI 16 X GALON', '', 9],
+  ['FERTI-HUMI 16 X LITRO', '', 86],
+  ['FERTI-HUMI 16 X 20 LITROS', '', 10],
+  ['FERTILASER PRODUMLION X KILO', '', 17],
+  ['FICLORAM SL X GALON', '', 1],
+  ['FICLORAM LITRO', '', 11],
+  ['FOSTAL 80 WP X 500 GR CV', '', 22],
+  ['GRADUS 43 SC X LITRO CV', '', 12],
+  ['GRADUS 43 X 500 ML CV', '', 29],
+  ['HEXAZINONA 300 GR', '', 4],
+  ['JABOLAN X 20 LITROS', '', 2],
+  ['JABOLAN X 250 ML', '', 19],
+  ['JABOLAN X GALON', '', 3],
+  ['JABOLAN X LITRO', '', 5],
+  ['LAMBDA CIHALOTRINA X 100 ML', '', 28],
+  ['LAMBDA CIHALOTRINA X 500 ML', '', 101],
+  ['LAMBDA CIHALOTRINA X LITRO', '', 38],
+  ['MAXI PASTO X LITRO', '', 15],
+  ['MERO BRIO X 250 ML', '', 229],
+  ['MERO BRIO X GALON', '', 6],
+  ['MERO BRIO X LITRO', '', 88],
+  ['MICROZUL FZ&V LOMBRI-CROP  X GALON', '', 33],
+  ['MICROZUL FZ&V LOMBRI-CROP  X LITRO', '', 288],
+  ['NEMATO CROP X 500 ML', '', 29],
+  ['NEMATO CROP X LITRO', '', 13],
+  ['NEMATO CROP X 250 ML', '', 163],
+  ['NOI-1 X 250 ML', '', 5],
+  ['OXICLORURO DE COBRE X KILO', '', 30],
+  ['PEGASSO OIL X 100 ML', '', 35],
+  ['PEGASSO OIL X 20 LITROS', '', 39],
+  ['PEGASSO OIL X 200 LITROS', '', 5],
+  ['PEGASSO OIL X 250 ML', '', 173],
+  ['PEGASSO OIL X 60 LITROS', '', 5],
+  ['PEGASSO OIL X GALON', '', 52],
+  ['PEGASSO OIL X LITRO', '', 171],
+  ['PEGASSO PH X CANECA 200 LITROS', '', 5],
+  ['PEGASSO PH X 20 LITROS', '', 37],
+  ['PEGASSO PH X 250 ML', '', 3],
+  ['PEGASSO PH X 60 LITROS', '', 4],
+  ['PEGASSO PH X GALON', '', 44],
+  ['PEGASSO PH X LITRO', '', 128],
+  ['RUDOWN X1KG', '', 3],
+  ['RUDOWN X50GR', '', 378],
+  ['SAGUM 25 SC X 500 ML CV', '', 30],
+  ['SAGUM X LITRO CV', '', 72],
+  ['SHOCK UPI 36 EG X 500G', '', 6],
+  ['TABUS 50 WG X 40 GR CV', '', 100],
+  ['TRIP-CROP X 250 ML', '', 122],
+  ['TRIP-CROP X LITRO', '', 29],
+  ['YODO X LITRO', '', 7],
+  ['YODO X 250 ML', '', 118]
+];
+
+function openCargaMasivaModal() {
+  var total = SALDOS_PARCELAR.reduce(function(s, r) { return s + r[2]; }, 0);
+  document.getElementById('cm-count').textContent = SALDOS_PARCELAR.length;
+  document.getElementById('cm-total').textContent = total.toLocaleString('es-CO');
+  document.getElementById('cm-fecha').value = today();
+  document.getElementById('btn-cm-confirm').disabled = false;
+  document.getElementById('btn-cm-confirm').textContent = '✓ Cargar ' + SALDOS_PARCELAR.length + ' productos';
+  document.getElementById('cm-progress').style.display = 'none';
+
+  var tbody = document.getElementById('cm-preview');
+  tbody.innerHTML = SALDOS_PARCELAR.map(function(r, i) {
+    return '<tr><td style="color:#a0aec0;font-size:0.74rem">' + (i + 1) + '</td>' +
+      '<td style="font-size:0.82rem;font-weight:600">' + r[0] + '</td>' +
+      '<td style="text-align:right;font-weight:700;color:#27ae60">' + r[2].toLocaleString('es-CO') + '</td></tr>';
+  }).join('');
+
+  document.getElementById('carga-masiva-overlay').classList.add('show');
+}
+
+function closeCargaMasivaModal() {
+  document.getElementById('carga-masiva-overlay').classList.remove('show');
+}
+document.getElementById('carga-masiva-overlay').addEventListener('click', function(e) { if (isBackdropClick(e)) closeCargaMasivaModal(); });
+
+async function ejecutarCargaMasiva() {
+  var fecha = document.getElementById('cm-fecha').value;
+  if (!fecha) { showToast('Selecciona la fecha de corte', '#e74c3c'); return; }
+
+  var btn = document.getElementById('btn-cm-confirm');
+  btn.disabled = true;
+  btn.textContent = '⏳ Cargando...';
+  var progress = document.getElementById('cm-progress');
+  progress.style.display = 'block';
+
+  var BATCH = 20;
+  var total = SALDOS_PARCELAR.length;
+  var loaded = 0;
+  var errors = [];
+
+  for (var i = 0; i < total; i += BATCH) {
+    var batch = SALDOS_PARCELAR.slice(i, i + BATCH);
+    var lineas = batch.map(function(r) {
+      return { Producto: r[0], Presentacion: r[1], Cantidad: r[2] };
+    });
+
+    try {
+      var result = await apiPost({
+        action: 'agregarKardexAjuste',
+        Fecha: fecha,
+        Empresa: 'PARCELAR DE COLOMBIA SAS',
+        Tipo: 'Saldo_Inicial',
+        Observaciones: 'Saldo inicial carga masiva desde inventario fisico',
+        lineas: lineas
+      });
+      if (!result.ok) {
+        errors.push('Lote ' + (Math.floor(i / BATCH) + 1) + ': ' + (result.error || 'Error'));
+      } else {
+        loaded += lineas.length;
+      }
+    } catch (err) {
+      errors.push('Lote ' + (Math.floor(i / BATCH) + 1) + ': ' + err.message);
+    }
+
+    progress.textContent = 'Cargados: ' + loaded + ' / ' + total + ' productos...';
+  }
+
+  if (errors.length) {
+    showToast('⚠️ Cargados ' + loaded + ' con ' + errors.length + ' errores', '#e67e22');
+  } else {
+    showToast('✅ ' + loaded + ' saldos iniciales cargados exitosamente');
+  }
+
+  closeCargaMasivaModal();
+  await loadKardex();
+}
+
 // ── Auto-load ──
 loadKardex();
