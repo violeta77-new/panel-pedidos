@@ -335,11 +335,13 @@ function calcularKardex() {
   document.getElementById('kx-no-filter').style.display = 'none';
   document.getElementById('kx-table-wrap').style.display = 'block';
 
-  // Filter movements
+  // Filter movements (corte desde 2026-07-01)
+  var fechaCorte = '2026-07-01';
   kxFiltered = kxMovimientos.filter(function(m) {
     if (m.empresa !== fEmp) return false;
     if (fProd && m.producto !== fProd) return false;
-    if (fDesde && m.fecha < fDesde) return false;
+    var desde = fDesde || fechaCorte;
+    if (m.fecha < desde) return false;
     if (fHasta && m.fecha > fHasta) return false;
     return true;
   });
@@ -1087,10 +1089,12 @@ function calcularNC() {
   document.getElementById('nc-no-filter').style.display = 'none';
   document.getElementById('nc-table-wrap').style.display = 'block';
 
+  var fechaCorte = '2026-07-01';
   ncFiltered = ncMovimientos.filter(function(m) {
     if (m.empresa !== fEmp) return false;
     if (fProd && m.producto !== fProd) return false;
-    if (fDesde && m.fecha < fDesde) return false;
+    var desde = fDesde || fechaCorte;
+    if (m.fecha < desde) return false;
     if (fHasta && m.fecha > fHasta) return false;
     return true;
   });
