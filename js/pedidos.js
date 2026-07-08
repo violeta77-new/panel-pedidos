@@ -514,6 +514,37 @@ async function guardarTodo() {
     l.Cant_Pendiente = Math.max(0, l.Cantidad - l.Cant_Entregada);
   });
 
+  var fecha = document.getElementById('m-fecha').value;
+  var rem = document.getElementById('m-remision').value.trim();
+  var qtyInputs = document.querySelectorAll('#m-lines input.qty-input');
+  var entregas = [];
+  var hasError = false;
+  qtyInputs.forEach(function(inp, i) {
+    inp.classList.remove('error');
+    var cant = Number(inp.value) || 0;
+    if (cant > 0) {
+      var pendiente = Math.max(0, (Number(detailWorkingLines[i] && detailWorkingLines[i].Cantidad)||0) - (Number(detailWorkingLines[i] && detailWorkingLines[i].Cant_Entregada)||0));
+      if (cant > pendiente) { inp.classList.add('error'); hasError = true; return; }
+      entregas.push({ row: Number(inp.dataset.row), cantidad: cant, fecha: fecha, remision: rem, _idx: i });
+    }
+  });
+
+  if (hasError) { showToast('Verifica las cantidades en rojo', '#e74c3c'); return; }
+  if (entregas.length > 0 && !fecha) { showToast('Selecciona la fecha de entrega', '#e74c3c'); return; }
+
+  entregas.forEach(function(ent) {
+    var dl = detailWorkingLines[ent._idx];
+    if (dl) {
+      dl.Cant_Entregada = (Number(dl.Cant_Entregada) || 0) + (Number(ent.cantidad) || 0);
+      dl.Cant_Pendiente = Math.max(0, (Number(dl.Cantidad) || 0) - dl.Cant_Entregada);
+      if (ent.remision) {
+        var prevRem = (dl.Remisiones || '').trim();
+        dl.Remisiones = prevRem ? prevRem + ', ' + ent.remision : ent.remision;
+      }
+      if (ent.fecha) dl.Fecha_Ult_Entrega = ent.fecha;
+    }
+  });
+
   var fechaEntrega = document.getElementById('m-fecha').value || new Date().toISOString().slice(0, 10);
   detailWorkingLines.forEach(function(l) {
     if ((Number(l.Cant_Entregada) || 0) > 0 && !(l.Fecha_Ult_Entrega || '').trim()) {
@@ -536,6 +567,14 @@ async function guardarTodo() {
     }
   });
 
+  if (rem && entregas.length === 0) {
+    detailWorkingLines.forEach(function(l) {
+      if ((Number(l.Cant_Entregada) || 0) > 0 && !(l.Remisiones || '').trim()) {
+        l.Remisiones = rem;
+      }
+    });
+  }
+
   var hdr = {
     Cliente: document.getElementById('md-cliente').value.trim(),
     NIT: document.getElementById('md-nit').value.trim(),
@@ -552,33 +591,6 @@ async function guardarTodo() {
     Consecutivo: c.Consecutivo
   };
 
-  var fecha = document.getElementById('m-fecha').value;
-  var rem = document.getElementById('m-remision').value.trim();
-  var qtyInputs = document.querySelectorAll('#m-lines input.qty-input');
-  var entregas = [];
-  var hasError = false;
-  qtyInputs.forEach(function(inp, i) {
-    inp.classList.remove('error');
-    var cant = Number(inp.value) || 0;
-    if (cant > 0) {
-      var pendiente = Math.max(0, (Number(detailWorkingLines[i] && detailWorkingLines[i].Cantidad)||0) - (Number(detailWorkingLines[i] && detailWorkingLines[i].Cant_Entregada)||0));
-      if (cant > pendiente) { inp.classList.add('error'); hasError = true; return; }
-      entregas.push({ row: Number(inp.dataset.row), cantidad: cant, fecha: fecha, remision: rem });
-      if (detailWorkingLines[i] && fecha) detailWorkingLines[i].Fecha_Ult_Entrega = fecha;
-    }
-  });
-
-  if (hasError) { showToast('Verifica las cantidades en rojo', '#e74c3c'); return; }
-  if (entregas.length > 0 && !fecha) { showToast('Selecciona la fecha de entrega', '#e74c3c'); return; }
-
-  if (rem && entregas.length === 0) {
-    detailWorkingLines.forEach(function(l) {
-      if ((Number(l.Cant_Entregada) || 0) > 0 && !(l.Remisiones || '').trim()) {
-        l.Remisiones = rem;
-      }
-    });
-  }
-
   var btn = document.getElementById('btn-confirmar');
   btn.disabled = true;
   btn.textContent = '⏳ Guardando...';
@@ -593,15 +605,19 @@ async function guardarTodo() {
     });
     if (!editResult.ok) throw new Error(editResult.error || 'Error al guardar edición');
 
-    if (entregas.length > 0) {
-      var entResult = await apiPost({ action: 'registrarEntrega', entregas: entregas, observaciones: obs });
-      if (!entResult.ok) throw new Error(entResult.error || 'Error al registrar entregas');
-    }
-
     for (var di = 0; di < detailWorkingLines.length; di++) {
       var dl = detailWorkingLines[di];
-      if ((Number(dl.Cant_Entregada) || 0) > 0 && dl.__row && dl.Fecha_Ult_Entrega) {
-        await _sb.from('Pedidos').update({ Fecha_Ult_Entrega: dl.Fecha_Ult_Entrega }).eq('id', dl.__row);
+      if (dl.__row) {
+        var upd = {};
+        if (dl.Estado_Entrega) upd.Estado_Entrega = dl.Estado_Entrega;
+        if (dl.Fecha_Ult_Entrega) upd.Fecha_Ult_Entrega = dl.Fecha_Ult_Entrega;
+        if (obs) upd.Observaciones = obs;
+        var pedida = Number(dl.Cantidad) || 0;
+        var entregada = Number(dl.Cant_Entregada) || 0;
+        if (pedida > 0 && entregada >= pedida) upd.Estado_2 = 'Cerrado';
+        if (Object.keys(upd).length > 0) {
+          await _sb.from('Pedidos').update(upd).eq('id', dl.__row);
+        }
       }
     }
 
