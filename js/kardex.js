@@ -1016,6 +1016,7 @@ function buildNCMovimientos() {
       fecha: a.Fecha || '',
       tipo: esTipo,
       motivo: motivo,
+      remision: a.Remision || '',
       referencia: a.Observaciones || '',
       empresa: a.Empresa || '',
       producto: a.Producto || '',
@@ -1174,7 +1175,7 @@ var NC_MOTIVO_COLORS = {
 };
 
 function renderNCTable() {
-  var cols = ['#', 'Fecha', 'Tipo', 'Motivo', 'Producto', 'Presentación', 'Entrada', 'Salida', 'Saldo', 'Observaciones', ''];
+  var cols = ['#', 'Fecha', 'Tipo', 'Motivo', 'Producto', 'Presentación', 'N° Remisión', 'Entrada', 'Salida', 'Saldo', 'Observaciones', ''];
   document.getElementById('t-head-nc').innerHTML = cols.map(function(c) {
     return '<th>' + c + '</th>';
   }).join('');
@@ -1183,7 +1184,7 @@ function renderNCTable() {
 
   var tbody = document.getElementById('t-body-nc');
   if (!ncFiltered.length) {
-    tbody.innerHTML = '<tr><td colspan="11"><div class="empty-msg" style="text-align:center;padding:32px;color:#718096">No hay movimientos en la bodega NC con los filtros seleccionados.</div></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="12"><div class="empty-msg" style="text-align:center;padding:32px;color:#718096">No hay movimientos en la bodega NC con los filtros seleccionados.</div></td></tr>';
     return;
   }
 
@@ -1202,6 +1203,7 @@ function renderNCTable() {
       '<td><span style="background:' + motivoColor + ';color:white;padding:2px 9px;border-radius:12px;font-size:0.72rem;font-weight:700">' + motivoLabel + '</span></td>' +
       '<td style="font-size:0.82rem;font-weight:600">' + (m.producto || '—') + '</td>' +
       '<td style="font-size:0.78rem">' + (m.presentacion || '—') + '</td>' +
+      '<td style="font-size:0.78rem">' + (m.remision || '—') + '</td>' +
       '<td style="text-align:right">' + entradaStr + '</td>' +
       '<td style="text-align:right">' + salidaStr + '</td>' +
       '<td style="text-align:right;font-weight:800;color:' + saldoColor + '">' + m._saldo.toLocaleString('es-CO') + '</td>' +
@@ -1225,6 +1227,7 @@ function exportNCExcel() {
       'Motivo': NC_MOTIVO_LABELS[m.motivo] || m.motivo || '',
       'Producto': m.producto,
       'Presentación': m.presentacion,
+      'N° Remisión': m.remision || '',
       'Entrada': m.tipo === 'Entrada' ? m.cantidad : '',
       'Salida': m.tipo === 'Salida' ? m.cantidad : '',
       'Saldo': m._saldo,
@@ -1235,7 +1238,7 @@ function exportNCExcel() {
   var ws = XLSX.utils.json_to_sheet(data);
   ws['!cols'] = [
     { wch: 5 }, { wch: 12 }, { wch: 12 }, { wch: 18 }, { wch: 30 },
-    { wch: 15 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 35 }
+    { wch: 15 }, { wch: 15 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 35 }
   ];
   var wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Bodega NC');
@@ -1262,6 +1265,7 @@ function openNCModal(tipo) {
   document.getElementById('nc-fecha').value = today();
   document.getElementById('nc-empresa').value = document.getElementById('nc-f-empresa').value || '';
   document.getElementById('nc-motivo').value = isIngreso ? 'Vencimiento' : 'Disposicion_final';
+  document.getElementById('nc-remision').value = '';
   document.getElementById('nc-observaciones').value = '';
   document.getElementById('btn-save-nc').disabled = false;
   ncLineas = [{ Producto: '', Presentacion: '', Cantidad: '' }];
@@ -1323,6 +1327,7 @@ async function saveNC() {
   var fecha = document.getElementById('nc-fecha').value;
   var empresa = document.getElementById('nc-empresa').value;
   var motivo = document.getElementById('nc-motivo').value;
+  var remision = document.getElementById('nc-remision').value.trim();
   var obs = document.getElementById('nc-observaciones').value.trim();
 
   if (!fecha) { showToast('Selecciona la fecha', '#e74c3c'); return; }
@@ -1343,6 +1348,7 @@ async function saveNC() {
       Empresa: empresa,
       Tipo: ncModalTipo,
       Motivo: motivo,
+      Remision: remision,
       Observaciones: obs,
       lineas: validLines
     });

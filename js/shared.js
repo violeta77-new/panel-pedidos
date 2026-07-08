@@ -617,7 +617,7 @@ async function apiPost(body) {
           Producto: lin.Producto || '', Presentacion: lin.Presentacion || '',
           Tipo: body.Tipo || 'Ingreso_NC',
           Cantidad: Number(lin.Cantidad) || 0,
-          Motivo: body.Motivo || '',
+          Motivo: body.Motivo || '', Remision: body.Remision || '',
           Observaciones: body.Observaciones || '', Fecha_Registro: now
         };
       });
