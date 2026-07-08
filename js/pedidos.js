@@ -431,11 +431,17 @@ function openDetail(idx) {
 
   resetNewLineForm();
   document.getElementById('overlay').classList.add('show');
+  destroyGeoAC('md');
+  geoACs.md = setupGeoAutocomplete(
+    document.getElementById('md-departamento'),
+    document.getElementById('md-municipio')
+  );
 }
 
 function closeModal() {
   document.getElementById('overlay').classList.remove('show');
   activeIdx = null;
+  destroyGeoAC('md');
 }
 
 document.getElementById('overlay').addEventListener('click', function(e) { if (isBackdropClick(e)) closeModal(); });
@@ -733,11 +739,17 @@ function openEdit(idx) {
 
   renderEditLines();
   document.getElementById('edit-overlay').classList.add('show');
+  destroyGeoAC('ed');
+  geoACs.ed = setupGeoAutocomplete(
+    document.getElementById('ed-departamento'),
+    document.getElementById('ed-municipio')
+  );
 }
 
 function closeEdit() {
   document.getElementById('edit-overlay').classList.remove('show');
   editIdx = null; editKey = null; editWorkingLines = [];
+  destroyGeoAC('ed');
 }
 
 document.getElementById('edit-overlay').addEventListener('click', function(e) { if (isBackdropClick(e)) closeEdit(); });
@@ -1295,6 +1307,15 @@ var clientesCache = null;
 var productosCache = null;
 var clienteAC = null;
 var productoACs = [];
+var geoACs = { nv: null, md: null, ed: null };
+
+function destroyGeoAC(key) {
+  if (geoACs[key]) {
+    if (geoACs[key].deptAC) geoACs[key].deptAC.destroy();
+    if (geoACs[key].muniAC) geoACs[key].muniAC.destroy();
+    geoACs[key] = null;
+  }
+}
 
 async function loadAutocompleteData() {
   if (!clientesCache) {
@@ -1447,6 +1468,11 @@ async function openNuevoPedido() {
     }
   });
   setupProductoAutocomplete();
+  destroyGeoAC('nv');
+  geoACs.nv = setupGeoAutocomplete(
+    document.getElementById('nv-departamento'),
+    document.getElementById('nv-municipio')
+  );
 }
 
 function closeNuevo() {
@@ -1454,6 +1480,7 @@ function closeNuevo() {
   nuevoProductos = [];
   if (clienteAC) { clienteAC.destroy(); clienteAC = null; }
   destroyProductoACs();
+  destroyGeoAC('nv');
 }
 
 document.getElementById('nuevo-overlay').addEventListener('click', function(e) { if (isBackdropClick(e)) closeNuevo(); });
