@@ -97,6 +97,11 @@ async function apiGet(action) {
       if (res.error) return { ok: false, error: res.error.message };
       return { ok: true, ajustes: _addRow(res.data) };
     }
+    if (action === 'getKardexNC') {
+      var res = await _sb.from('KardexNC').select('*').order('id');
+      if (res.error) return { ok: false, error: res.error.message };
+      return { ok: true, ajustesNC: _addRow(res.data) };
+    }
     if (action === 'getRemisionesAnuladas') {
       var res = await _sb.from('RemisionesAnuladas').select('*').order('id');
       if (res.error) return { ok: false, error: res.error.message };
@@ -596,6 +601,33 @@ async function apiPost(body) {
 
     if (action === 'eliminarKardexAjuste') {
       var res = await _sb.from('KardexAjustes').delete().eq('id', body.row);
+      if (res.error) return { ok: false, error: res.error.message };
+      return { ok: true, deleted: 1 };
+    }
+
+    if (action === 'agregarKardexNC') {
+      var now = new Date().toISOString().slice(0, 19).replace('T', ' ');
+      var lineas = body.lineas || [];
+      if (!lineas.length && body.Producto) {
+        lineas = [{ Producto: body.Producto, Presentacion: body.Presentacion, Cantidad: body.Cantidad }];
+      }
+      var rows = lineas.map(function(lin) {
+        return {
+          Fecha: body.Fecha || '', Empresa: body.Empresa || '',
+          Producto: lin.Producto || '', Presentacion: lin.Presentacion || '',
+          Tipo: body.Tipo || 'Ingreso_NC',
+          Cantidad: Number(lin.Cantidad) || 0,
+          Motivo: body.Motivo || '',
+          Observaciones: body.Observaciones || '', Fecha_Registro: now
+        };
+      });
+      var res = await _sb.from('KardexNC').insert(rows);
+      if (res.error) return { ok: false, error: res.error.message };
+      return { ok: true, added: rows.length };
+    }
+
+    if (action === 'eliminarKardexNC') {
+      var res = await _sb.from('KardexNC').delete().eq('id', body.row);
       if (res.error) return { ok: false, error: res.error.message };
       return { ok: true, deleted: 1 };
     }

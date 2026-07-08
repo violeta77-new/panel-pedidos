@@ -10,6 +10,12 @@ var kxCatalogo = [];
 var kxMovimientos = [];
 var kxFiltered = [];
 
+// NC State
+var ncAjustes = [];
+var ncMovimientos = [];
+var ncFiltered = [];
+var activeTab = 'kardex';
+
 var EMPRESAS_HOLDING = [
   { value: 'PARCELAR DE COLOMBIA SAS', sigla: 'PARCELAR' },
   { value: 'GREEN AGROSOLUCIONES DE COLOMBIA SAS', sigla: 'GREEN' },
@@ -51,7 +57,8 @@ async function loadKardex() {
       apiGet('getReenvases').catch(function() { return { ok: true, reenvases: [] }; }),
       apiGet('getDevoluciones').catch(function() { return { ok: true, devoluciones: [] }; }),
       apiGet('getKardexAjustes').catch(function() { return { ok: true, ajustes: [] }; }),
-      apiGet('getMaestroProductos').catch(function() { return { ok: true, productos: [] }; })
+      apiGet('getMaestroProductos').catch(function() { return { ok: true, productos: [] }; }),
+      apiGet('getKardexNC').catch(function() { return { ok: true, ajustesNC: [] }; })
     ]);
 
     kxPedidos = (results[0].pedidos || []).filter(function(p) {
@@ -64,10 +71,14 @@ async function loadKardex() {
     kxDevoluciones = results[5].devoluciones || [];
     kxAjustes = results[6].ajustes || [];
     kxCatalogo = results[7].productos || [];
+    ncAjustes = results[8].ajustesNC || [];
 
     buildMovimientos();
+    buildNCMovimientos();
     populateKxFilters();
+    populateNCFilters();
     calcularKardex();
+    calcularNC();
 
     loadZone.style.display = 'none';
     mainEl.style.display = 'block';
@@ -466,7 +477,8 @@ function buildKxProductSearch(prefix, lineIdx) {
 
   inp.addEventListener('input', function() {
     var q = this.value.toLowerCase().trim();
-    var empSel = document.getElementById(prefix === 'aj' ? 'aj-empresa' : 'si-empresa').value;
+    var empId = prefix === 'aj' ? 'aj-empresa' : prefix === 'nc' ? 'nc-empresa' : 'si-empresa';
+    var empSel = document.getElementById(empId).value;
     closeAllAutocompleteKx();
     if (q.length < 1) return;
 
@@ -933,6 +945,422 @@ async function ejecutarCargaMasiva() {
 
   closeCargaMasivaModal();
   await loadKardex();
+}
+
+// ══════════════════════════════════════════
+// ── TAB SWITCHING ──
+// ══════════════════════════════════════════
+
+function switchKardexTab(tab) {
+  activeTab = tab;
+  var tabKardex = document.getElementById('tab-kardex');
+  var tabNC = document.getElementById('tab-nc');
+  var panelKardex = document.getElementById('panel-kardex');
+  var panelNC = document.getElementById('panel-nc');
+
+  if (tab === 'kardex') {
+    tabKardex.style.background = '#0e6655';
+    tabKardex.style.color = 'white';
+    tabNC.style.background = '#f7fafc';
+    tabNC.style.color = '#718096';
+    panelKardex.style.display = 'block';
+    panelNC.style.display = 'none';
+  } else {
+    tabNC.style.background = '#e67e22';
+    tabNC.style.color = 'white';
+    tabKardex.style.background = '#f7fafc';
+    tabKardex.style.color = '#718096';
+    panelKardex.style.display = 'none';
+    panelNC.style.display = 'block';
+  }
+}
+
+// ══════════════════════════════════════════
+// ── NC: BUILD MOVEMENTS ──
+// ══════════════════════════════════════════
+
+function buildNCMovimientos() {
+  ncMovimientos = [];
+  ncAjustes.forEach(function(a) {
+    var cant = Number(a.Cantidad) || 0;
+    if (cant <= 0) return;
+    var tipo = a.Tipo || '';
+    var esTipo;
+    if (tipo === 'Ingreso_NC') {
+      esTipo = 'Entrada';
+    } else if (tipo === 'Salida_NC') {
+      esTipo = 'Salida';
+    } else {
+      return;
+    }
+    ncMovimientos.push({
+      fecha: a.Fecha || '',
+      tipo: esTipo,
+      motivo: a.Motivo || '',
+      referencia: a.Observaciones || '',
+      empresa: a.Empresa || '',
+      producto: a.Producto || '',
+      presentacion: a.Presentacion || '',
+      cantidad: cant,
+      _ajusteId: a.__row || a.id || null
+    });
+  });
+}
+
+// ── NC Filters ──
+var ncFiltersAttached = false;
+
+function populateNCFilters() {
+  if (!ncFiltersAttached) {
+    document.getElementById('nc-f-empresa').addEventListener('change', function() {
+      populateNCProductFilter();
+      calcularNC();
+    });
+    document.getElementById('nc-f-prod').addEventListener('change', calcularNC);
+    document.getElementById('nc-f-desde').addEventListener('change', calcularNC);
+    document.getElementById('nc-f-hasta').addEventListener('change', calcularNC);
+    ncFiltersAttached = true;
+  }
+  populateNCProductFilter();
+}
+
+function populateNCProductFilter() {
+  var fEmp = document.getElementById('nc-f-empresa').value;
+  var productos = {};
+  ncMovimientos.forEach(function(m) {
+    if (fEmp && m.empresa !== fEmp) return;
+    if (m.producto) productos[m.producto] = true;
+  });
+  var sorted = Object.keys(productos).sort();
+  var fp = document.getElementById('nc-f-prod');
+  var current = fp.value;
+  fp.innerHTML = '<option value="">— Todos —</option>' + sorted.map(function(p) {
+    return '<option value="' + p.replace(/"/g, '&quot;') + '">' + p + '</option>';
+  }).join('');
+  if (current && sorted.indexOf(current) >= 0) fp.value = current;
+}
+
+function clearNCFilters() {
+  document.getElementById('nc-f-empresa').value = '';
+  document.getElementById('nc-f-prod').value = '';
+  document.getElementById('nc-f-desde').value = '';
+  document.getElementById('nc-f-hasta').value = '';
+  populateNCProductFilter();
+  calcularNC();
+}
+
+// ── NC Calculate & Render ──
+function calcularNC() {
+  var fEmp = document.getElementById('nc-f-empresa').value;
+  var fProd = document.getElementById('nc-f-prod').value;
+  var fDesde = document.getElementById('nc-f-desde').value;
+  var fHasta = document.getElementById('nc-f-hasta').value;
+
+  if (!fEmp) {
+    document.getElementById('nc-no-filter').style.display = 'block';
+    document.getElementById('nc-table-wrap').style.display = 'none';
+    document.getElementById('nc-s-total').textContent = '0';
+    document.getElementById('nc-s-salidas').textContent = '0';
+    document.getElementById('nc-s-saldo').textContent = '0';
+    document.getElementById('nc-s-productos').textContent = '0';
+    document.getElementById('row-ct-nc').textContent = '';
+    return;
+  }
+
+  document.getElementById('nc-no-filter').style.display = 'none';
+  document.getElementById('nc-table-wrap').style.display = 'block';
+
+  ncFiltered = ncMovimientos.filter(function(m) {
+    if (m.empresa !== fEmp) return false;
+    if (fProd && m.producto !== fProd) return false;
+    if (fDesde && m.fecha < fDesde) return false;
+    if (fHasta && m.fecha > fHasta) return false;
+    return true;
+  });
+
+  ncFiltered.sort(function(a, b) {
+    var da = a.fecha || '';
+    var db = b.fecha || '';
+    if (da !== db) return da < db ? -1 : 1;
+    var ea = a.tipo === 'Entrada' ? 0 : 1;
+    var eb = b.tipo === 'Entrada' ? 0 : 1;
+    return ea - eb;
+  });
+
+  var totalEntradas = 0;
+  var totalSalidas = 0;
+  var saldo = 0;
+  var productosUnicos = {};
+
+  ncFiltered.forEach(function(m) {
+    if (m.tipo === 'Entrada') {
+      saldo += m.cantidad;
+      totalEntradas += m.cantidad;
+    } else {
+      saldo -= m.cantidad;
+      totalSalidas += m.cantidad;
+    }
+    m._saldo = saldo;
+    productosUnicos[m.producto] = true;
+  });
+
+  document.getElementById('nc-s-total').textContent = totalEntradas.toLocaleString('es-CO');
+  document.getElementById('nc-s-salidas').textContent = totalSalidas.toLocaleString('es-CO');
+  document.getElementById('nc-s-saldo').textContent = saldo.toLocaleString('es-CO');
+  document.getElementById('nc-s-productos').textContent = Object.keys(productosUnicos).length;
+
+  renderNCTable();
+}
+
+var NC_MOTIVO_LABELS = {
+  'Vencimiento': 'Vencimiento',
+  'Daño': 'Daño',
+  'Calidad': 'Calidad',
+  'Devolucion_cliente': 'Dev. cliente',
+  'Etiquetado': 'Etiquetado',
+  'Contaminacion': 'Contaminación',
+  'Disposicion_final': 'Disposición final',
+  'Devolucion_proveedor': 'Dev. proveedor',
+  'Reacondicionamiento': 'Reacondicionamiento',
+  'Retorno_conforme': 'Retorno conforme',
+  'Otro': 'Otro'
+};
+
+var NC_MOTIVO_COLORS = {
+  'Vencimiento': '#e74c3c',
+  'Daño': '#d35400',
+  'Calidad': '#8e44ad',
+  'Devolucion_cliente': '#2980b9',
+  'Etiquetado': '#f39c12',
+  'Contaminacion': '#c0392b',
+  'Disposicion_final': '#7f8c8d',
+  'Devolucion_proveedor': '#1abc9c',
+  'Reacondicionamiento': '#27ae60',
+  'Retorno_conforme': '#0e6655',
+  'Otro': '#718096'
+};
+
+function renderNCTable() {
+  var cols = ['#', 'Fecha', 'Tipo', 'Motivo', 'Producto', 'Presentación', 'Entrada', 'Salida', 'Saldo', 'Observaciones', ''];
+  document.getElementById('t-head-nc').innerHTML = cols.map(function(c) {
+    return '<th>' + c + '</th>';
+  }).join('');
+
+  document.getElementById('row-ct-nc').textContent = '(' + ncFiltered.length + ' movimientos)';
+
+  var tbody = document.getElementById('t-body-nc');
+  if (!ncFiltered.length) {
+    tbody.innerHTML = '<tr><td colspan="11"><div class="empty-msg" style="text-align:center;padding:32px;color:#718096">No hay movimientos en la bodega NC con los filtros seleccionados.</div></td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = ncFiltered.map(function(m, i) {
+    var motivoLabel = NC_MOTIVO_LABELS[m.motivo] || m.motivo || '—';
+    var motivoColor = NC_MOTIVO_COLORS[m.motivo] || '#718096';
+    var entradaStr = m.tipo === 'Entrada' ? '<span style="color:#e67e22;font-weight:700">+' + m.cantidad.toLocaleString('es-CO') + '</span>' : '';
+    var salidaStr = m.tipo === 'Salida' ? '<span style="color:#27ae60;font-weight:700">−' + m.cantidad.toLocaleString('es-CO') + '</span>' : '';
+    var saldoColor = m._saldo < 0 ? '#e74c3c' : '#c0392b';
+    var deleteBtn = m._ajusteId ? '<button class="btn-del" onclick="openDeleteNC(' + m._ajusteId + ',\'' + (m.tipo || '').replace(/'/g, "\\'") + '\',' + m.cantidad + ')" title="Eliminar registro" style="font-size:0.72rem;padding:3px 8px">🗑️</button>' : '';
+
+    return '<tr>' +
+      '<td style="color:#718096;font-size:0.78rem">' + (i + 1) + '</td>' +
+      '<td style="white-space:nowrap;font-size:0.8rem">' + fmtDate(m.fecha) + '</td>' +
+      '<td><span style="display:inline-block;padding:2px 10px;border-radius:12px;font-size:0.72rem;font-weight:700;color:white;background:' + (m.tipo === 'Entrada' ? '#e67e22' : '#27ae60') + '">' + (m.tipo === 'Entrada' ? 'Ingreso' : 'Salida') + '</span></td>' +
+      '<td><span style="background:' + motivoColor + ';color:white;padding:2px 9px;border-radius:12px;font-size:0.72rem;font-weight:700">' + motivoLabel + '</span></td>' +
+      '<td style="font-size:0.82rem;font-weight:600">' + (m.producto || '—') + '</td>' +
+      '<td style="font-size:0.78rem">' + (m.presentacion || '—') + '</td>' +
+      '<td style="text-align:right">' + entradaStr + '</td>' +
+      '<td style="text-align:right">' + salidaStr + '</td>' +
+      '<td style="text-align:right;font-weight:800;color:' + saldoColor + '">' + m._saldo.toLocaleString('es-CO') + '</td>' +
+      '<td style="font-size:0.78rem;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + (m.referencia || '').replace(/"/g, '&quot;') + '">' + (m.referencia || '—') + '</td>' +
+      '<td>' + deleteBtn + '</td>' +
+    '</tr>';
+  }).join('');
+}
+
+// ── NC Export Excel ──
+function exportNCExcel() {
+  if (!ncFiltered.length) { showToast('No hay datos para exportar. Selecciona una empresa.', '#e74c3c'); return; }
+
+  var fEmp = document.getElementById('nc-f-empresa').value;
+
+  var data = ncFiltered.map(function(m, i) {
+    return {
+      '#': i + 1,
+      'Fecha': m.fecha || '',
+      'Tipo': m.tipo === 'Entrada' ? 'Ingreso NC' : 'Salida NC',
+      'Motivo': NC_MOTIVO_LABELS[m.motivo] || m.motivo || '',
+      'Producto': m.producto,
+      'Presentación': m.presentacion,
+      'Entrada': m.tipo === 'Entrada' ? m.cantidad : '',
+      'Salida': m.tipo === 'Salida' ? m.cantidad : '',
+      'Saldo': m._saldo,
+      'Observaciones': m.referencia || ''
+    };
+  });
+
+  var ws = XLSX.utils.json_to_sheet(data);
+  ws['!cols'] = [
+    { wch: 5 }, { wch: 12 }, { wch: 12 }, { wch: 18 }, { wch: 30 },
+    { wch: 15 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 35 }
+  ];
+  var wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Bodega NC');
+  var filename = 'BodegaNC_' + getSiglaKx(fEmp) + '_' + today() + '.xlsx';
+  XLSX.writeFile(wb, filename);
+  showToast('Excel exportado: ' + ncFiltered.length + ' movimientos');
+}
+
+// ══════════════════════════════════════════
+// ── NC MODAL (Ingreso / Salida) ──
+// ══════════════════════════════════════════
+
+var ncLineas = [];
+var ncModalTipo = 'Ingreso_NC';
+
+function openNCModal(tipo) {
+  ncModalTipo = tipo;
+  var isIngreso = tipo === 'Ingreso_NC';
+  document.getElementById('nc-modal-title').textContent = isIngreso ? '📥 Ingreso a Bodega No Conforme' : '📤 Salida de Bodega No Conforme';
+  document.getElementById('nc-modal-sub').textContent = isIngreso ? 'Registra producto que ingresa a la bodega NC' : 'Registra producto que sale de la bodega NC';
+  document.getElementById('nc-modal-hdr').style.background = isIngreso ? 'linear-gradient(135deg,#e67e22,#f39c12)' : 'linear-gradient(135deg,#27ae60,#2ecc71)';
+  document.getElementById('btn-save-nc').style.background = isIngreso ? '#e67e22' : '#27ae60';
+  document.getElementById('btn-save-nc').textContent = isIngreso ? '✓ Registrar ingreso' : '✓ Registrar salida';
+  document.getElementById('nc-fecha').value = today();
+  document.getElementById('nc-empresa').value = document.getElementById('nc-f-empresa').value || '';
+  document.getElementById('nc-motivo').value = isIngreso ? 'Vencimiento' : 'Disposicion_final';
+  document.getElementById('nc-observaciones').value = '';
+  document.getElementById('btn-save-nc').disabled = false;
+  ncLineas = [{ Producto: '', Presentacion: '', Cantidad: '' }];
+  renderNCLines();
+  document.getElementById('nc-overlay').classList.add('show');
+}
+
+function closeNCModal() {
+  document.getElementById('nc-overlay').classList.remove('show');
+  closeAllAutocompleteKx();
+}
+document.getElementById('nc-overlay').addEventListener('click', function(e) { if (isBackdropClick(e)) closeNCModal(); });
+
+function renderNCLines() {
+  var tbody = document.getElementById('nc-lines');
+  tbody.innerHTML = ncLineas.map(function(l, i) {
+    return '<tr>' +
+      '<td style="color:#a0aec0;font-size:0.74rem">' + (i + 1) + '</td>' +
+      '<td style="position:relative"><div style="position:relative"><input class="ef nc-prod-search" data-line="' + i + '" type="text" value="' + ((l.Producto || '').replace(/"/g, '&quot;')) + '" placeholder="Buscar producto..." autocomplete="off"></div></td>' +
+      '<td><input class="ef nc-pres" data-line="' + i + '" type="text" value="' + ((l.Presentacion || '').replace(/"/g, '&quot;')) + '" placeholder="Pres." style="width:100px"></td>' +
+      '<td><input class="ef nc-cant" data-line="' + i + '" type="number" min="0" value="' + (l.Cantidad || '') + '" placeholder="0" style="width:80px;text-align:right"></td>' +
+      '<td style="text-align:center">' +
+        '<button onclick="removeNCLine(' + i + ')" style="background:#e74c3c;color:white;border:none;padding:4px 10px;border-radius:5px;cursor:pointer;font-size:0.78rem;font-weight:700">✕</button>' +
+      '</td>' +
+    '</tr>';
+  }).join('');
+  ncLineas.forEach(function(l, i) { buildKxProductSearch('nc', i); });
+}
+
+function addNCLine() {
+  ncLineas.push({ Producto: '', Presentacion: '', Cantidad: '' });
+  renderNCLines();
+  var lastInput = document.querySelector('.nc-prod-search[data-line="' + (ncLineas.length - 1) + '"]');
+  if (lastInput) lastInput.focus();
+}
+
+function removeNCLine(i) {
+  if (ncLineas.length <= 1) { showToast('Debe haber al menos una línea', '#e67e22'); return; }
+  ncLineas.splice(i, 1);
+  renderNCLines();
+}
+
+function readNCLines() {
+  document.querySelectorAll('.nc-prod-search').forEach(function(inp) {
+    var i = Number(inp.dataset.line);
+    if (ncLineas[i]) ncLineas[i].Producto = inp.value.trim();
+  });
+  document.querySelectorAll('.nc-pres').forEach(function(inp) {
+    var i = Number(inp.dataset.line);
+    if (ncLineas[i]) ncLineas[i].Presentacion = inp.value.trim();
+  });
+  document.querySelectorAll('.nc-cant').forEach(function(inp) {
+    var i = Number(inp.dataset.line);
+    if (ncLineas[i]) ncLineas[i].Cantidad = Number(inp.value) || 0;
+  });
+}
+
+async function saveNC() {
+  var fecha = document.getElementById('nc-fecha').value;
+  var empresa = document.getElementById('nc-empresa').value;
+  var motivo = document.getElementById('nc-motivo').value;
+  var obs = document.getElementById('nc-observaciones').value.trim();
+
+  if (!fecha) { showToast('Selecciona la fecha', '#e74c3c'); return; }
+  if (!empresa) { showToast('Selecciona la empresa', '#e74c3c'); return; }
+
+  readNCLines();
+  var validLines = ncLineas.filter(function(l) { return l.Producto && l.Cantidad > 0; });
+  if (!validLines.length) { showToast('Agrega al menos un producto con cantidad', '#e74c3c'); return; }
+
+  var btn = document.getElementById('btn-save-nc');
+  btn.disabled = true;
+  btn.textContent = '⏳ Guardando...';
+
+  try {
+    var result = await apiPost({
+      action: 'agregarKardexNC',
+      Fecha: fecha,
+      Empresa: empresa,
+      Tipo: ncModalTipo,
+      Motivo: motivo,
+      Observaciones: obs,
+      lineas: validLines
+    });
+    if (!result.ok) throw new Error(result.error || 'Error al guardar');
+    closeNCModal();
+    showToast('✅ ' + result.added + ' registro(s) NC guardado(s)');
+    await loadKardex();
+  } catch (err) {
+    showToast('❌ Error: ' + err.message, '#e74c3c');
+    btn.disabled = false;
+    btn.textContent = ncModalTipo === 'Ingreso_NC' ? '✓ Registrar ingreso' : '✓ Registrar salida';
+  }
+}
+
+// ── NC Delete ──
+var deleteNCRow = null;
+
+function openDeleteNC(row, tipo, cantidad) {
+  deleteNCRow = row;
+  document.getElementById('del-nc-msg').textContent = '¿Eliminar este registro de la bodega NC?';
+  document.getElementById('del-nc-detail').innerHTML =
+    'Tipo: <strong>' + tipo + '</strong> · Cantidad: ' + Number(cantidad).toLocaleString('es-CO') + '<br><br>' +
+    '<span style="color:#e74c3c;font-weight:700">Se eliminará este registro de la base de datos.</span>';
+  document.getElementById('btn-del-nc-confirm').disabled = false;
+  document.getElementById('btn-del-nc-confirm').textContent = '🗑️ Sí, eliminar';
+  document.getElementById('delete-nc-overlay').classList.add('show');
+}
+
+function closeDeleteNC() {
+  document.getElementById('delete-nc-overlay').classList.remove('show');
+  deleteNCRow = null;
+}
+document.getElementById('delete-nc-overlay').addEventListener('click', function(e) { if (isBackdropClick(e)) closeDeleteNC(); });
+
+async function confirmDeleteNC() {
+  if (!deleteNCRow) return;
+  var btn = document.getElementById('btn-del-nc-confirm');
+  btn.disabled = true;
+  btn.textContent = '⏳ Eliminando...';
+
+  try {
+    var result = await apiPost({ action: 'eliminarKardexNC', row: deleteNCRow });
+    if (!result.ok) throw new Error(result.error || 'Error al eliminar');
+    closeDeleteNC();
+    showToast('🗑️ Registro NC eliminado');
+    await loadKardex();
+  } catch (err) {
+    showToast('❌ Error: ' + err.message, '#e74c3c');
+    btn.disabled = false;
+    btn.textContent = '🗑️ Sí, eliminar';
+  }
 }
 
 // ── Auto-load ──

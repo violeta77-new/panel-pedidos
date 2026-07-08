@@ -52,6 +52,15 @@
     <span id="sync-msg">Conectado a la nube. Los cambios se guardan automáticamente.</span>
   </div>
 
+  <!-- TABS -->
+  <div style="display:flex;gap:0;margin-bottom:0;border-bottom:2px solid #e2e8f0">
+    <button id="tab-kardex" onclick="switchKardexTab('kardex')" style="padding:10px 24px;font-size:0.88rem;font-weight:700;border:none;cursor:pointer;background:#0e6655;color:white;border-radius:8px 8px 0 0;transition:all 0.2s">📋 Kardex General</button>
+    <button id="tab-nc" onclick="switchKardexTab('nc')" style="padding:10px 24px;font-size:0.88rem;font-weight:700;border:none;cursor:pointer;background:#f7fafc;color:#718096;border-radius:8px 8px 0 0;transition:all 0.2s">⚠️ Bodega No Conforme</button>
+  </div>
+
+  <!-- ═══ TAB: KARDEX GENERAL ═══ -->
+  <div id="panel-kardex">
+
   <div class="stats">
     <div class="sc" style="border-color:#0e6655"><div class="num" id="s-saldo-ini">0</div><div class="lbl">Saldo Inicial</div></div>
     <div class="sc" style="border-color:#27ae60"><div class="num" id="s-entradas" style="color:#27ae60">0</div><div class="lbl">Total Entradas</div></div>
@@ -103,6 +112,168 @@
         </thead>
         <tbody id="t-body-kx"></tbody>
       </table>
+    </div>
+  </div>
+
+  </div><!-- /panel-kardex -->
+
+  <!-- ═══ TAB: BODEGA NO CONFORME ═══ -->
+  <div id="panel-nc" style="display:none">
+
+  <div class="stats">
+    <div class="sc" style="border-color:#e67e22"><div class="num" id="nc-s-total" style="color:#e67e22">0</div><div class="lbl">Total Ingresos NC</div></div>
+    <div class="sc" style="border-color:#27ae60"><div class="num" id="nc-s-salidas" style="color:#27ae60">0</div><div class="lbl">Total Salidas NC</div></div>
+    <div class="sc" style="border-color:#c0392b"><div class="num" id="nc-s-saldo" style="font-weight:800;color:#c0392b">0</div><div class="lbl">Saldo en Bodega NC</div></div>
+    <div class="sc" style="border-color:#8e44ad"><div class="num" id="nc-s-productos" style="color:#8e44ad">0</div><div class="lbl">Productos NC</div></div>
+  </div>
+
+  <div class="filters">
+    <div class="fg">
+      <label>Empresa</label>
+      <select id="nc-f-empresa">
+        <option value="">— Seleccionar —</option>
+        <option value="PARCELAR DE COLOMBIA SAS">PARCELAR</option>
+        <option value="GREEN AGROSOLUCIONES DE COLOMBIA SAS">GREEN</option>
+        <option value="SOLUCIONES INTEGRALES RESO SAS">RESO</option>
+        <option value="INSUMOS AGROPECUARIOS SOSTENIBLES SAS">IASO</option>
+        <option value="INSUMOS AGROPECUARIOS DE LA SABANA SAS">IAS</option>
+      </select>
+    </div>
+    <div class="fg">
+      <label>Producto</label>
+      <select id="nc-f-prod"><option value="">— Todos —</option></select>
+    </div>
+    <div class="fg"><label>Desde</label><input type="date" id="nc-f-desde"></div>
+    <div class="fg"><label>Hasta</label><input type="date" id="nc-f-hasta"></div>
+    <button onclick="clearNCFilters()" style="margin-left:auto;background:none;border:1px solid #cbd5e0;color:#4a5568;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:0.82rem;font-weight:600;transition:background 0.2s" onmouseover="this.style.background='#f7fafc'" onmouseout="this.style.background='none'">✕ Limpiar filtros</button>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <h3>⚠️ Kardex Bodega No Conforme <span id="row-ct-nc" style="font-weight:400;color:#718096"></span></h3>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <button class="btn-dl" onclick="openNCModal('Ingreso_NC')" style="background:#e67e22">📥 Ingreso a Bodega NC</button>
+        <button class="btn-dl" onclick="openNCModal('Salida_NC')" style="background:#27ae60">📤 Salida de Bodega NC</button>
+        <button class="btn-dl" onclick="exportNCExcel()">📥 Exportar Excel</button>
+        <button class="btn-dl" onclick="loadKardex()">🔄 Actualizar datos</button>
+      </div>
+    </div>
+    <div id="nc-no-filter" style="text-align:center;padding:48px 24px;color:#718096">
+      <div style="font-size:2.5rem;margin-bottom:12px">⚠️</div>
+      <div style="font-size:1rem;font-weight:700;color:#2d3748;margin-bottom:8px">Selecciona una empresa</div>
+      <div style="font-size:0.88rem">Usa los filtros de arriba para consultar la bodega de producto no conforme.</div>
+    </div>
+    <div id="nc-table-wrap" style="overflow-x:auto;display:none">
+      <table>
+        <thead>
+          <tr id="t-head-nc"></tr>
+        </thead>
+        <tbody id="t-body-nc"></tbody>
+      </table>
+    </div>
+  </div>
+
+  </div><!-- /panel-nc -->
+
+</div>
+
+<!-- NC INGRESO/SALIDA MODAL -->
+<div class="overlay" id="nc-overlay">
+  <div class="modal-box" style="max-width:650px">
+    <div class="mhdr" id="nc-modal-hdr" style="background:linear-gradient(135deg,#e67e22,#f39c12)">
+      <div style="flex:1">
+        <h2 id="nc-modal-title">📥 Ingreso a Bodega No Conforme</h2>
+        <div id="nc-modal-sub" style="font-size:0.78rem;opacity:0.85;margin-top:4px">Registra producto que ingresa a la bodega NC</div>
+      </div>
+      <button class="btn-close" onclick="closeNCModal()">✕</button>
+    </div>
+    <div class="mbody">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+        <div>
+          <label class="ef-label">Fecha</label>
+          <input class="ef" id="nc-fecha" type="date">
+        </div>
+        <div>
+          <label class="ef-label">Empresa</label>
+          <select class="ef" id="nc-empresa">
+            <option value="">— Seleccionar —</option>
+            <option value="PARCELAR DE COLOMBIA SAS">PARCELAR</option>
+            <option value="GREEN AGROSOLUCIONES DE COLOMBIA SAS">GREEN</option>
+            <option value="SOLUCIONES INTEGRALES RESO SAS">RESO</option>
+            <option value="INSUMOS AGROPECUARIOS SOSTENIBLES SAS">IASO</option>
+            <option value="INSUMOS AGROPECUARIOS DE LA SABANA SAS">IAS</option>
+          </select>
+        </div>
+        <div>
+          <label class="ef-label">Motivo</label>
+          <select class="ef" id="nc-motivo">
+            <option value="Vencimiento">Vencimiento</option>
+            <option value="Daño">Daño en producto</option>
+            <option value="Calidad">Problema de calidad</option>
+            <option value="Devolucion_cliente">Devolución de cliente</option>
+            <option value="Etiquetado">Error de etiquetado</option>
+            <option value="Contaminacion">Contaminación</option>
+            <option value="Disposicion_final">Disposición final</option>
+            <option value="Devolucion_proveedor">Devolución a proveedor</option>
+            <option value="Reacondicionamiento">Reacondicionamiento</option>
+            <option value="Retorno_conforme">Retorno a bodega conforme</option>
+            <option value="Otro">Otro</option>
+          </select>
+        </div>
+      </div>
+      <div style="border-top:1px solid #e2e8f0;padding-top:14px;margin-bottom:10px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <div style="font-weight:700;font-size:0.88rem;color:#2d3748">📦 Productos</div>
+          <button onclick="addNCLine()" style="background:#e67e22;color:white;border:none;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:0.8rem;font-weight:700">+ Agregar línea</button>
+        </div>
+        <div style="overflow-x:auto">
+          <table style="font-size:0.82rem;margin-bottom:0">
+            <thead>
+              <tr style="background:#fef5e7">
+                <th style="width:30px">#</th>
+                <th>Producto (buscar)</th>
+                <th style="width:110px">Presentación</th>
+                <th style="width:90px">Cantidad</th>
+                <th style="width:50px"></th>
+              </tr>
+            </thead>
+            <tbody id="nc-lines"></tbody>
+          </table>
+        </div>
+      </div>
+      <div style="margin-top:12px">
+        <label class="ef-label">Observaciones (opcional)</label>
+        <textarea class="ef" id="nc-observaciones" rows="2" placeholder="Detalle del producto no conforme" style="resize:vertical"></textarea>
+      </div>
+    </div>
+    <div class="mftr">
+      <div style="font-size:0.8rem;color:#718096">Los datos se guardan directamente en la nube</div>
+      <div class="mftr-btns">
+        <button class="btn-cancel" onclick="closeNCModal()">Cancelar</button>
+        <button class="btn-confirm" id="btn-save-nc" onclick="saveNC()" style="background:#e67e22">✓ Registrar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- NC DELETE CONFIRM MODAL -->
+<div class="overlay" id="delete-nc-overlay">
+  <div class="modal-box" style="max-width:480px">
+    <div class="mhdr" style="background:linear-gradient(135deg,#c0392b,#e74c3c)">
+      <div style="flex:1">
+        <h2>🗑️ Eliminar Registro NC</h2>
+        <div style="font-size:0.78rem;opacity:0.85;margin-top:4px">Esta acción no se puede deshacer</div>
+      </div>
+      <button class="btn-close" onclick="closeDeleteNC()">✕</button>
+    </div>
+    <div class="mbody" style="text-align:center;padding:28px 24px">
+      <div style="font-size:2.5rem;margin-bottom:12px">⚠️</div>
+      <div style="font-size:0.95rem;font-weight:700;color:#2d3748;margin-bottom:8px" id="del-nc-msg">¿Eliminar este registro?</div>
+      <div style="font-size:0.82rem;color:#718096" id="del-nc-detail"></div>
+    </div>
+    <div class="mftr" style="justify-content:center;gap:12px">
+      <button class="btn-cancel" onclick="closeDeleteNC()">Cancelar</button>
+      <button class="btn-confirm" id="btn-del-nc-confirm" onclick="confirmDeleteNC()" style="background:#e74c3c">🗑️ Sí, eliminar</button>
     </div>
   </div>
 </div>
