@@ -6,6 +6,7 @@ var muestras = [];
 var reenvases = [];
 var devoluciones = [];
 var remisionesAnuladas = [];
+var cambiosMerc = [];
 var aggregated = [];
 var rptSort = { col: 'pendiente', dir: 'desc' };
 
@@ -70,7 +71,8 @@ async function loadReportes() {
       apiGet('getMuestras').catch(function() { return { ok: true, muestras: [] }; }),
       apiGet('getReenvases').catch(function() { return { ok: true, reenvases: [] }; }),
       apiGet('getDevoluciones').catch(function() { return { ok: true, devoluciones: [] }; }),
-      apiGet('getRemisionesAnuladas').catch(function() { return { ok: true, remisionesAnuladas: [] }; })
+      apiGet('getRemisionesAnuladas').catch(function() { return { ok: true, remisionesAnuladas: [] }; }),
+      apiGet('getCambios').catch(function() { return { ok: true, cambios: [] }; })
     ]);
     ingresos = (results[0].ingresos || []);
     ordenesCompra = (results[1].ordenes || []);
@@ -78,6 +80,7 @@ async function loadReportes() {
     reenvases = (results[3].reenvases || []);
     devoluciones = (results[4].devoluciones || []);
     remisionesAnuladas = (results[5].remisionesAnuladas || []);
+    cambiosMerc = (results[6].cambios || []);
 
     populateRptFilters();
     buildReport();
@@ -462,7 +465,33 @@ function _buildRemisionesInner() {
     totalLineas++;
   });
 
-  // 7. Remisiones anuladas (registro manual)
+  // 7. Cambios de Mercancía — remisión extraída de Observaciones
+  var cambiosGrouped = {};
+  cambiosMerc.forEach(function(c) {
+    var key = (c.Empresa||'') + '||' + (c.Consecutivo || c.id);
+    if (!cambiosGrouped[key]) cambiosGrouped[key] = [];
+    cambiosGrouped[key].push(c);
+  });
+  Object.keys(cambiosGrouped).forEach(function(gKey) {
+    var lines = cambiosGrouped[gKey];
+    var r = lines[0];
+    if (r.Estado !== 'Cerrado') return;
+    var m = (r.Observaciones||'').match(/\[Remisión:\s*(.+?)\s*\|\s*Fecha:\s*(.+?)\]/);
+    if (!m) return;
+    var numRem = m[1];
+    var fechaRem = m[2];
+    var empNombre = r.Empresa || '';
+    if (fEmp && empNombre !== fEmp) return;
+    if (fTxt && numRem.toLowerCase().indexOf(fTxt) < 0 && getSigla(empNombre).toLowerCase().indexOf(fTxt) < 0) return;
+    var key = empNombre + '||' + numRem + '||Cambio';
+    lines.forEach(function(l) {
+      _addRemision(map, key, empNombre, numRem, 'Cambio', 'Cambio ' + (r.Consecutivo || ''), (l.Producto || '') + ' (' + (l.Tipo_Linea || '') + ')', l.Cantidad, fechaRem);
+      totalLineas++;
+    });
+    empresasSet[getSigla(empNombre)] = true;
+  });
+
+  // 8. Remisiones anuladas (registro manual)
   remisionesAnuladas.forEach(function(ra) {
     var rem = String(ra.Remision || '').trim();
     if (!rem) return;
@@ -527,7 +556,7 @@ function sortedRemData() {
 }
 
 function renderRemTable() {
-  var MOD_COLORS = { 'Pedido': '#2980b9', 'Ingreso': '#27ae60', 'Orden de Compra': '#8e44ad', 'Muestra': '#e67e22', 'Salida a producción': '#d35400', 'Devolución': '#c0392b', 'Anulada': '#7f8c8d' };
+  var MOD_COLORS = { 'Pedido': '#2980b9', 'Ingreso': '#27ae60', 'Orden de Compra': '#8e44ad', 'Muestra': '#e67e22', 'Salida a producción': '#d35400', 'Devolución': '#c0392b', 'Cambio': '#16a085', 'Anulada': '#7f8c8d' };
   var cols = [
     { id: 'empresa', label: 'Empresa' },
     { id: 'empresaOrigen', label: 'Emp. Origen' },
