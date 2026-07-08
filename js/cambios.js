@@ -301,8 +301,11 @@ function viewCamDetail(key) {
     cf('N° Factura', r.Num_Factura) +
     cf('Fecha Compra', r.Fecha_Compra ? fmtDate(r.Fecha_Compra) : '—') +
     cf('Estado', estadoLabel) +
-    (r.Remision ? cf('N° Remisión', r.Remision) : '') +
-    (r.Fecha_Remision ? cf('Fecha Remisión', fmtDate(r.Fecha_Remision)) : '') +
+    (function() {
+      var m = (r.Observaciones||'').match(/\[Remisión:\s*(.+?)\s*\|\s*Fecha:\s*(.+?)\]/);
+      if (!m) return '';
+      return cf('N° Remisión', m[1]) + cf('Fecha Remisión', fmtDate(m[2]));
+    })() +
     '</div>';
 
   var linesCambiar = lines.filter(function(l) { return l.Tipo_Linea === 'CAMBIAR'; });
@@ -646,8 +649,9 @@ function openGestionarCam(key) {
     '<span>👤 '+(r.Cliente||'—')+'</span>' +
     '<span>'+getSiglaCam(r.Empresa)+'</span>';
 
-  document.getElementById('gestionar-cam-remision').value = r.Remision || '';
-  document.getElementById('gestionar-cam-fecha').value = r.Fecha_Remision ? toDateInput(r.Fecha_Remision) : today();
+  var remMatch = (r.Observaciones||'').match(/\[Remisión:\s*(.+?)\s*\|\s*Fecha:\s*(.+?)\]/);
+  document.getElementById('gestionar-cam-remision').value = remMatch ? remMatch[1] : '';
+  document.getElementById('gestionar-cam-fecha').value = remMatch ? toDateInput(remMatch[2]) : today();
   document.getElementById('btn-gestionar-cam').disabled = false;
   document.getElementById('btn-gestionar-cam').textContent = '✓ Cerrar cambio';
   document.getElementById('gestionar-cam-overlay').classList.add('show');
