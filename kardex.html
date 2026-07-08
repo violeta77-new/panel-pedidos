@@ -86,7 +86,7 @@
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
         <button class="btn-dl" onclick="openAjusteModal()" style="background:#0e6655">➕ Ajuste manual</button>
         <button class="btn-dl" onclick="openSaldoInicialModal()" style="background:#1a5276">📦 Saldo inicial</button>
-        <button class="btn-dl" onclick="openCargaMasivaModal()" style="background:#8e44ad">📥 Carga masiva Parcelar</button>
+        <button class="btn-dl" onclick="openCargaMasivaModal()" style="background:#8e44ad">📥 Carga Masiva</button>
         <button class="btn-dl" onclick="exportKardexExcel()">📥 Exportar Excel</button>
         <button class="btn-dl" onclick="loadKardex()">🔄 Actualizar datos</button>
       </div>
@@ -267,20 +267,31 @@
   <div class="modal-box" style="max-width:680px">
     <div class="mhdr" style="background:linear-gradient(135deg,#8e44ad,#9b59b6)">
       <div style="flex:1">
-        <h2>📥 Carga Masiva Saldo Inicial — PARCELAR</h2>
+        <h2>📥 Carga Masiva Saldo Inicial</h2>
         <div style="font-size:0.78rem;opacity:0.85;margin-top:4px">Datos del inventario físico normalizados con maestro de productos</div>
       </div>
       <button class="btn-close" onclick="closeCargaMasivaModal()">✕</button>
     </div>
     <div class="mbody">
-      <div style="display:flex;gap:16px;margin-bottom:16px;align-items:center;flex-wrap:wrap">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+        <div>
+          <label class="ef-label">Empresa</label>
+          <select class="ef" id="cm-empresa">
+            <option value="">— Seleccionar —</option>
+            <option value="PARCELAR DE COLOMBIA SAS">PARCELAR</option>
+            <option value="GREEN AGROSOLUCIONES DE COLOMBIA SAS">GREEN</option>
+            <option value="SOLUCIONES INTEGRALES RESO SAS">RESO</option>
+            <option value="INSUMOS AGROPECUARIOS SOSTENIBLES SAS">IASO</option>
+            <option value="INSUMOS AGROPECUARIOS DE LA SABANA SAS">IAS</option>
+          </select>
+        </div>
         <div>
           <label class="ef-label">Fecha de corte</label>
           <input class="ef" id="cm-fecha" type="date">
         </div>
-        <div style="background:#f0e6f6;padding:10px 16px;border-radius:8px;font-size:0.85rem;flex:1">
-          <strong id="cm-count">0</strong> productos · <strong id="cm-total">0</strong> unidades totales
-        </div>
+      </div>
+      <div style="background:#f0e6f6;padding:10px 16px;border-radius:8px;font-size:0.85rem;margin-bottom:16px">
+        <strong id="cm-count">0</strong> productos · <strong id="cm-total">0</strong> unidades totales
       </div>
       <div style="border-top:1px solid #e2e8f0;padding-top:14px">
         <div style="font-weight:700;font-size:0.88rem;color:#2d3748;margin-bottom:10px">📦 Vista previa de productos a cargar</div>

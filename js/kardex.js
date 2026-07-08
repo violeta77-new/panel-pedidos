@@ -861,6 +861,7 @@ function openCargaMasivaModal() {
   document.getElementById('cm-count').textContent = SALDOS_PARCELAR.length;
   document.getElementById('cm-total').textContent = total.toLocaleString('es-CO');
   document.getElementById('cm-fecha').value = today();
+  document.getElementById('cm-empresa').value = document.getElementById('f-empresa').value || '';
   document.getElementById('btn-cm-confirm').disabled = false;
   document.getElementById('btn-cm-confirm').textContent = '✓ Cargar ' + SALDOS_PARCELAR.length + ' productos';
   document.getElementById('cm-progress').style.display = 'none';
@@ -881,7 +882,9 @@ function closeCargaMasivaModal() {
 document.getElementById('carga-masiva-overlay').addEventListener('click', function(e) { if (isBackdropClick(e)) closeCargaMasivaModal(); });
 
 async function ejecutarCargaMasiva() {
+  var empresa = document.getElementById('cm-empresa').value;
   var fecha = document.getElementById('cm-fecha').value;
+  if (!empresa) { showToast('Selecciona la empresa', '#e74c3c'); return; }
   if (!fecha) { showToast('Selecciona la fecha de corte', '#e74c3c'); return; }
 
   var btn = document.getElementById('btn-cm-confirm');
@@ -905,7 +908,7 @@ async function ejecutarCargaMasiva() {
       var result = await apiPost({
         action: 'agregarKardexAjuste',
         Fecha: fecha,
-        Empresa: 'PARCELAR DE COLOMBIA SAS',
+        Empresa: empresa,
         Tipo: 'Saldo_Inicial',
         Observaciones: 'Saldo inicial carga masiva desde inventario fisico',
         lineas: lineas
