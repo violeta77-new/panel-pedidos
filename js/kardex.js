@@ -299,7 +299,7 @@ function populateProductFilter() {
   var sorted = Object.keys(productos).sort();
   var fp = document.getElementById('f-prod');
   var current = fp.value;
-  fp.innerHTML = '<option value="">— Seleccionar —</option>' + sorted.map(function(p) {
+  fp.innerHTML = '<option value="">— Todos —</option>' + sorted.map(function(p) {
     return '<option value="' + p.replace(/"/g, '&quot;') + '">' + p + '</option>';
   }).join('');
   if (current && sorted.indexOf(current) >= 0) fp.value = current;
@@ -321,7 +321,7 @@ function calcularKardex() {
   var fDesde = document.getElementById('f-desde').value;
   var fHasta = document.getElementById('f-hasta').value;
 
-  if (!fEmp || !fProd) {
+  if (!fEmp) {
     document.getElementById('kx-no-filter').style.display = 'block';
     document.getElementById('kx-table-wrap').style.display = 'none';
     document.getElementById('s-saldo-ini').textContent = '0';
@@ -338,7 +338,7 @@ function calcularKardex() {
   // Filter movements
   kxFiltered = kxMovimientos.filter(function(m) {
     if (m.empresa !== fEmp) return false;
-    if (m.producto !== fProd) return false;
+    if (fProd && m.producto !== fProd) return false;
     if (fDesde && m.fecha < fDesde) return false;
     if (fHasta && m.fecha > fHasta) return false;
     return true;
@@ -357,37 +357,46 @@ function calcularKardex() {
     return ea - eb;
   });
 
-  // Calculate running balance and stats
+  // Calculate running balance and stats (per product)
   var saldoIni = 0;
   var totalEntradas = 0;
   var totalSalidas = 0;
-  var saldo = 0;
+  var saldosPorProducto = {};
 
   kxFiltered.forEach(function(m) {
+    if (!saldosPorProducto[m.producto]) saldosPorProducto[m.producto] = 0;
     if (m.tipo === 'Entrada') {
-      saldo += m.cantidad;
+      saldosPorProducto[m.producto] += m.cantidad;
       if (m.modulo === 'Saldo Inicial') {
         saldoIni += m.cantidad;
       } else {
         totalEntradas += m.cantidad;
       }
     } else {
-      saldo -= m.cantidad;
+      saldosPorProducto[m.producto] -= m.cantidad;
       totalSalidas += m.cantidad;
     }
-    m._saldo = saldo;
+    m._saldo = saldosPorProducto[m.producto];
   });
+
+  var saldoTotal = 0;
+  Object.keys(saldosPorProducto).forEach(function(k) { saldoTotal += saldosPorProducto[k]; });
 
   document.getElementById('s-saldo-ini').textContent = saldoIni.toLocaleString('es-CO');
   document.getElementById('s-entradas').textContent = totalEntradas.toLocaleString('es-CO');
   document.getElementById('s-salidas').textContent = totalSalidas.toLocaleString('es-CO');
-  document.getElementById('s-saldo-act').textContent = saldo.toLocaleString('es-CO');
+  document.getElementById('s-saldo-act').textContent = saldoTotal.toLocaleString('es-CO');
 
   renderKardexTable();
 }
 
 function renderKardexTable() {
-  var cols = ['#', 'Fecha', 'Tipo', 'Módulo', 'N° Remisión', 'Referencia', 'Entrada', 'Salida', 'Saldo', ''];
+  var fProd = document.getElementById('f-prod').value;
+  var showProd = !fProd;
+  var cols = showProd
+    ? ['#', 'Fecha', 'Tipo', 'Módulo', 'Producto', 'N° Remisión', 'Referencia', 'Entrada', 'Salida', 'Saldo', '']
+    : ['#', 'Fecha', 'Tipo', 'Módulo', 'N° Remisión', 'Referencia', 'Entrada', 'Salida', 'Saldo', ''];
+  var colSpan = cols.length;
   document.getElementById('t-head-kx').innerHTML = cols.map(function(c) {
     return '<th>' + c + '</th>';
   }).join('');
@@ -396,7 +405,7 @@ function renderKardexTable() {
 
   var tbody = document.getElementById('t-body-kx');
   if (!kxFiltered.length) {
-    tbody.innerHTML = '<tr><td colspan="10"><div class="empty-msg" style="text-align:center;padding:32px;color:#718096">No hay movimientos para este producto con los filtros seleccionados.</div></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="' + colSpan + '"><div class="empty-msg" style="text-align:center;padding:32px;color:#718096">No hay movimientos con los filtros seleccionados.</div></td></tr>';
     return;
   }
 
@@ -417,12 +426,14 @@ function renderKardexTable() {
     var salidaStr = m.tipo === 'Salida' ? '<span style="color:#e74c3c;font-weight:700">−' + m.cantidad.toLocaleString('es-CO') + '</span>' : '';
     var saldoColor = m._saldo < 0 ? '#e74c3c' : '#2c3e50';
     var deleteBtn = m._ajusteId ? '<button class="btn-del" onclick="openDeleteKx(' + m._ajusteId + ',\'' + (m.modulo || '').replace(/'/g, "\\'") + '\',' + m.cantidad + ')" title="Eliminar ajuste" style="font-size:0.72rem;padding:3px 8px">🗑️</button>' : '';
+    var prodCol = showProd ? '<td style="font-size:0.78rem;font-weight:600;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + (m.producto || '').replace(/"/g, '&quot;') + '">' + (m.producto || '—') + '</td>' : '';
 
     return '<tr' + (m.modulo === 'Saldo Inicial' ? ' style="background:#f0f9ff"' : '') + '>' +
       '<td style="color:#718096;font-size:0.78rem">' + (i + 1) + '</td>' +
       '<td style="white-space:nowrap;font-size:0.8rem">' + fmtDate(m.fecha) + '</td>' +
       '<td><span style="display:inline-block;padding:2px 10px;border-radius:12px;font-size:0.72rem;font-weight:700;color:white;background:' + (m.tipo === 'Entrada' ? '#27ae60' : '#e74c3c') + '">' + m.tipo + '</span></td>' +
       '<td><span style="background:' + modColor + ';color:white;padding:2px 9px;border-radius:12px;font-size:0.72rem;font-weight:700">' + m.modulo + '</span></td>' +
+      prodCol +
       '<td style="font-size:0.8rem;font-weight:600">' + (m.remision || '—') + '</td>' +
       '<td style="font-size:0.78rem;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + (m.referencia || '').replace(/"/g, '&quot;') + '">' + (m.referencia || '—') + '</td>' +
       '<td style="text-align:right">' + entradaStr + '</td>' +
@@ -435,7 +446,7 @@ function renderKardexTable() {
 
 // ── Export Excel ──
 function exportKardexExcel() {
-  if (!kxFiltered.length) { showToast('No hay datos para exportar. Selecciona empresa y producto.', '#e74c3c'); return; }
+  if (!kxFiltered.length) { showToast('No hay datos para exportar. Selecciona una empresa.', '#e74c3c'); return; }
 
   var fEmp = document.getElementById('f-empresa').value;
   var fProd = document.getElementById('f-prod').value;
