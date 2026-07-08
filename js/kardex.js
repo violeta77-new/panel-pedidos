@@ -477,7 +477,7 @@ function buildKxProductSearch(prefix, lineIdx) {
 
   inp.addEventListener('input', function() {
     var q = this.value.toLowerCase().trim();
-    var empId = prefix === 'aj' ? 'aj-empresa' : prefix === 'nc' ? 'nc-empresa' : 'si-empresa';
+    var empId = prefix === 'aj' ? 'aj-empresa' : prefix === 'nc' ? 'nc-empresa' : prefix === 'ncsi' ? 'ncsi-empresa' : 'si-empresa';
     var empSel = document.getElementById(empId).value;
     closeAllAutocompleteKx();
     if (q.length < 1) return;
@@ -986,17 +986,23 @@ function buildNCMovimientos() {
     if (cant <= 0) return;
     var tipo = a.Tipo || '';
     var esTipo;
-    if (tipo === 'Ingreso_NC') {
+    var motivo;
+    if (tipo === 'Saldo_Inicial_NC') {
       esTipo = 'Entrada';
+      motivo = 'Saldo_Inicial';
+    } else if (tipo === 'Ingreso_NC') {
+      esTipo = 'Entrada';
+      motivo = a.Motivo || '';
     } else if (tipo === 'Salida_NC') {
       esTipo = 'Salida';
+      motivo = a.Motivo || '';
     } else {
       return;
     }
     ncMovimientos.push({
       fecha: a.Fecha || '',
       tipo: esTipo,
-      motivo: a.Motivo || '',
+      motivo: motivo,
       referencia: a.Observaciones || '',
       empresa: a.Empresa || '',
       producto: a.Producto || '',
@@ -1059,10 +1065,10 @@ function calcularNC() {
   if (!fEmp) {
     document.getElementById('nc-no-filter').style.display = 'block';
     document.getElementById('nc-table-wrap').style.display = 'none';
+    document.getElementById('nc-s-saldo-ini').textContent = '0';
     document.getElementById('nc-s-total').textContent = '0';
     document.getElementById('nc-s-salidas').textContent = '0';
     document.getElementById('nc-s-saldo').textContent = '0';
-    document.getElementById('nc-s-productos').textContent = '0';
     document.getElementById('row-ct-nc').textContent = '';
     return;
   }
@@ -1082,37 +1088,44 @@ function calcularNC() {
     var da = a.fecha || '';
     var db = b.fecha || '';
     if (da !== db) return da < db ? -1 : 1;
+    var pa = a.motivo === 'Saldo_Inicial' ? 0 : 1;
+    var pb = b.motivo === 'Saldo_Inicial' ? 0 : 1;
+    if (pa !== pb) return pa - pb;
     var ea = a.tipo === 'Entrada' ? 0 : 1;
     var eb = b.tipo === 'Entrada' ? 0 : 1;
     return ea - eb;
   });
 
+  var saldoIni = 0;
   var totalEntradas = 0;
   var totalSalidas = 0;
   var saldo = 0;
-  var productosUnicos = {};
 
   ncFiltered.forEach(function(m) {
     if (m.tipo === 'Entrada') {
       saldo += m.cantidad;
-      totalEntradas += m.cantidad;
+      if (m.motivo === 'Saldo_Inicial') {
+        saldoIni += m.cantidad;
+      } else {
+        totalEntradas += m.cantidad;
+      }
     } else {
       saldo -= m.cantidad;
       totalSalidas += m.cantidad;
     }
     m._saldo = saldo;
-    productosUnicos[m.producto] = true;
   });
 
+  document.getElementById('nc-s-saldo-ini').textContent = saldoIni.toLocaleString('es-CO');
   document.getElementById('nc-s-total').textContent = totalEntradas.toLocaleString('es-CO');
   document.getElementById('nc-s-salidas').textContent = totalSalidas.toLocaleString('es-CO');
   document.getElementById('nc-s-saldo').textContent = saldo.toLocaleString('es-CO');
-  document.getElementById('nc-s-productos').textContent = Object.keys(productosUnicos).length;
 
   renderNCTable();
 }
 
 var NC_MOTIVO_LABELS = {
+  'Saldo_Inicial': 'Saldo Inicial',
   'Vencimiento': 'Vencimiento',
   'Daño': 'Daño',
   'Calidad': 'Calidad',
@@ -1127,6 +1140,7 @@ var NC_MOTIVO_LABELS = {
 };
 
 var NC_MOTIVO_COLORS = {
+  'Saldo_Inicial': '#1a5276',
   'Vencimiento': '#e74c3c',
   'Daño': '#d35400',
   'Calidad': '#8e44ad',
@@ -1162,7 +1176,7 @@ function renderNCTable() {
     var saldoColor = m._saldo < 0 ? '#e74c3c' : '#c0392b';
     var deleteBtn = m._ajusteId ? '<button class="btn-del" onclick="openDeleteNC(' + m._ajusteId + ',\'' + (m.tipo || '').replace(/'/g, "\\'") + '\',' + m.cantidad + ')" title="Eliminar registro" style="font-size:0.72rem;padding:3px 8px">🗑️</button>' : '';
 
-    return '<tr>' +
+    return '<tr' + (m.motivo === 'Saldo_Inicial' ? ' style="background:#f0f9ff"' : '') + '>' +
       '<td style="color:#718096;font-size:0.78rem">' + (i + 1) + '</td>' +
       '<td style="white-space:nowrap;font-size:0.8rem">' + fmtDate(m.fecha) + '</td>' +
       '<td><span style="display:inline-block;padding:2px 10px;border-radius:12px;font-size:0.72rem;font-weight:700;color:white;background:' + (m.tipo === 'Entrada' ? '#e67e22' : '#27ae60') + '">' + (m.tipo === 'Entrada' ? 'Ingreso' : 'Salida') + '</span></td>' +
@@ -1360,6 +1374,110 @@ async function confirmDeleteNC() {
     showToast('❌ Error: ' + err.message, '#e74c3c');
     btn.disabled = false;
     btn.textContent = '🗑️ Sí, eliminar';
+  }
+}
+
+// ══════════════════════════════════════════
+// ── NC SALDO INICIAL MODAL ──
+// ══════════════════════════════════════════
+
+var ncsiLineas = [];
+
+function openNCSaldoModal() {
+  document.getElementById('ncsi-fecha').value = today();
+  document.getElementById('ncsi-empresa').value = document.getElementById('nc-f-empresa').value || '';
+  document.getElementById('ncsi-observaciones').value = '';
+  document.getElementById('btn-save-ncsi').disabled = false;
+  document.getElementById('btn-save-ncsi').textContent = '✓ Cargar saldo inicial';
+  ncsiLineas = [{ Producto: '', Presentacion: '', Cantidad: '' }];
+  renderNCSiLines();
+  document.getElementById('nc-saldo-overlay').classList.add('show');
+}
+
+function closeNCSaldoModal() {
+  document.getElementById('nc-saldo-overlay').classList.remove('show');
+  closeAllAutocompleteKx();
+}
+document.getElementById('nc-saldo-overlay').addEventListener('click', function(e) { if (isBackdropClick(e)) closeNCSaldoModal(); });
+
+function renderNCSiLines() {
+  var tbody = document.getElementById('ncsi-lines');
+  tbody.innerHTML = ncsiLineas.map(function(l, i) {
+    return '<tr>' +
+      '<td style="color:#a0aec0;font-size:0.74rem">' + (i + 1) + '</td>' +
+      '<td style="position:relative"><div style="position:relative"><input class="ef ncsi-prod-search" data-line="' + i + '" type="text" value="' + ((l.Producto || '').replace(/"/g, '&quot;')) + '" placeholder="Buscar producto..." autocomplete="off"></div></td>' +
+      '<td><input class="ef ncsi-pres" data-line="' + i + '" type="text" value="' + ((l.Presentacion || '').replace(/"/g, '&quot;')) + '" placeholder="Pres." style="width:100px"></td>' +
+      '<td><input class="ef ncsi-cant" data-line="' + i + '" type="number" min="0" value="' + (l.Cantidad || '') + '" placeholder="0" style="width:80px;text-align:right"></td>' +
+      '<td style="text-align:center">' +
+        '<button onclick="removeNCSiLine(' + i + ')" style="background:#e74c3c;color:white;border:none;padding:4px 10px;border-radius:5px;cursor:pointer;font-size:0.78rem;font-weight:700">✕</button>' +
+      '</td>' +
+    '</tr>';
+  }).join('');
+  ncsiLineas.forEach(function(l, i) { buildKxProductSearch('ncsi', i); });
+}
+
+function addNCSaldoLine() {
+  ncsiLineas.push({ Producto: '', Presentacion: '', Cantidad: '' });
+  renderNCSiLines();
+  var lastInput = document.querySelector('.ncsi-prod-search[data-line="' + (ncsiLineas.length - 1) + '"]');
+  if (lastInput) lastInput.focus();
+}
+
+function removeNCSiLine(i) {
+  if (ncsiLineas.length <= 1) { showToast('Debe haber al menos una línea', '#e67e22'); return; }
+  ncsiLineas.splice(i, 1);
+  renderNCSiLines();
+}
+
+function readNCSiLines() {
+  document.querySelectorAll('.ncsi-prod-search').forEach(function(inp) {
+    var i = Number(inp.dataset.line);
+    if (ncsiLineas[i]) ncsiLineas[i].Producto = inp.value.trim();
+  });
+  document.querySelectorAll('.ncsi-pres').forEach(function(inp) {
+    var i = Number(inp.dataset.line);
+    if (ncsiLineas[i]) ncsiLineas[i].Presentacion = inp.value.trim();
+  });
+  document.querySelectorAll('.ncsi-cant').forEach(function(inp) {
+    var i = Number(inp.dataset.line);
+    if (ncsiLineas[i]) ncsiLineas[i].Cantidad = Number(inp.value) || 0;
+  });
+}
+
+async function saveNCSaldo() {
+  var fecha = document.getElementById('ncsi-fecha').value;
+  var empresa = document.getElementById('ncsi-empresa').value;
+  var obs = document.getElementById('ncsi-observaciones').value.trim();
+
+  if (!fecha) { showToast('Selecciona la fecha de corte', '#e74c3c'); return; }
+  if (!empresa) { showToast('Selecciona la empresa', '#e74c3c'); return; }
+
+  readNCSiLines();
+  var validLines = ncsiLineas.filter(function(l) { return l.Producto && l.Cantidad > 0; });
+  if (!validLines.length) { showToast('Agrega al menos un producto con cantidad', '#e74c3c'); return; }
+
+  var btn = document.getElementById('btn-save-ncsi');
+  btn.disabled = true;
+  btn.textContent = '⏳ Guardando...';
+
+  try {
+    var result = await apiPost({
+      action: 'agregarKardexNC',
+      Fecha: fecha,
+      Empresa: empresa,
+      Tipo: 'Saldo_Inicial_NC',
+      Motivo: 'Saldo Inicial',
+      Observaciones: obs || 'Saldo inicial bodega NC',
+      lineas: validLines
+    });
+    if (!result.ok) throw new Error(result.error || 'Error al guardar');
+    closeNCSaldoModal();
+    showToast('✅ ' + result.added + ' saldo(s) inicial(es) NC cargado(s)');
+    await loadKardex();
+  } catch (err) {
+    showToast('❌ Error: ' + err.message, '#e74c3c');
+    btn.disabled = false;
+    btn.textContent = '✓ Cargar saldo inicial';
   }
 }
 

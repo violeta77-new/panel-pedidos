@@ -121,10 +121,10 @@
   <div id="panel-nc" style="display:none">
 
   <div class="stats">
+    <div class="sc" style="border-color:#1a5276"><div class="num" id="nc-s-saldo-ini" style="color:#1a5276">0</div><div class="lbl">Saldo Inicial</div></div>
     <div class="sc" style="border-color:#e67e22"><div class="num" id="nc-s-total" style="color:#e67e22">0</div><div class="lbl">Total Ingresos NC</div></div>
     <div class="sc" style="border-color:#27ae60"><div class="num" id="nc-s-salidas" style="color:#27ae60">0</div><div class="lbl">Total Salidas NC</div></div>
     <div class="sc" style="border-color:#c0392b"><div class="num" id="nc-s-saldo" style="font-weight:800;color:#c0392b">0</div><div class="lbl">Saldo en Bodega NC</div></div>
-    <div class="sc" style="border-color:#8e44ad"><div class="num" id="nc-s-productos" style="color:#8e44ad">0</div><div class="lbl">Productos NC</div></div>
   </div>
 
   <div class="filters">
@@ -153,6 +153,7 @@
       <h3>⚠️ Kardex Bodega No Conforme <span id="row-ct-nc" style="font-weight:400;color:#718096"></span></h3>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
         <button class="btn-dl" onclick="openNCModal('Ingreso_NC')" style="background:#e67e22">📥 Ingreso a Bodega NC</button>
+        <button class="btn-dl" onclick="openNCSaldoModal()" style="background:#1a5276">📦 Saldo inicial</button>
         <button class="btn-dl" onclick="openNCModal('Salida_NC')" style="background:#27ae60">📤 Salida de Bodega NC</button>
         <button class="btn-dl" onclick="exportNCExcel()">📥 Exportar Excel</button>
         <button class="btn-dl" onclick="loadKardex()">🔄 Actualizar datos</button>
@@ -274,6 +275,69 @@
     <div class="mftr" style="justify-content:center;gap:12px">
       <button class="btn-cancel" onclick="closeDeleteNC()">Cancelar</button>
       <button class="btn-confirm" id="btn-del-nc-confirm" onclick="confirmDeleteNC()" style="background:#e74c3c">🗑️ Sí, eliminar</button>
+    </div>
+  </div>
+</div>
+
+<!-- NC SALDO INICIAL MODAL -->
+<div class="overlay" id="nc-saldo-overlay">
+  <div class="modal-box" style="max-width:720px">
+    <div class="mhdr" style="background:linear-gradient(135deg,#1a5276,#2471a3)">
+      <div style="flex:1">
+        <h2>📦 Saldo Inicial — Bodega No Conforme</h2>
+        <div style="font-size:0.78rem;opacity:0.85;margin-top:4px">Define el inventario base de producto no conforme a una fecha de corte</div>
+      </div>
+      <button class="btn-close" onclick="closeNCSaldoModal()">✕</button>
+    </div>
+    <div class="mbody">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+        <div>
+          <label class="ef-label">Fecha de corte</label>
+          <input class="ef" id="ncsi-fecha" type="date">
+        </div>
+        <div>
+          <label class="ef-label">Empresa</label>
+          <select class="ef" id="ncsi-empresa">
+            <option value="">— Seleccionar —</option>
+            <option value="PARCELAR DE COLOMBIA SAS">PARCELAR</option>
+            <option value="GREEN AGROSOLUCIONES DE COLOMBIA SAS">GREEN</option>
+            <option value="SOLUCIONES INTEGRALES RESO SAS">RESO</option>
+            <option value="INSUMOS AGROPECUARIOS SOSTENIBLES SAS">IASO</option>
+            <option value="INSUMOS AGROPECUARIOS DE LA SABANA SAS">IAS</option>
+          </select>
+        </div>
+      </div>
+      <div style="border-top:1px solid #e2e8f0;padding-top:14px;margin-bottom:10px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <div style="font-weight:700;font-size:0.88rem;color:#2d3748">📦 Productos con saldo inicial NC</div>
+          <button onclick="addNCSaldoLine()" style="background:#1a5276;color:white;border:none;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:0.8rem;font-weight:700">+ Agregar línea</button>
+        </div>
+        <div style="overflow-x:auto">
+          <table style="font-size:0.82rem;margin-bottom:0">
+            <thead>
+              <tr style="background:#ebf5fb">
+                <th style="width:30px">#</th>
+                <th>Producto (buscar)</th>
+                <th style="width:110px">Presentación</th>
+                <th style="width:90px">Cantidad</th>
+                <th style="width:50px"></th>
+              </tr>
+            </thead>
+            <tbody id="ncsi-lines"></tbody>
+          </table>
+        </div>
+      </div>
+      <div style="margin-top:12px">
+        <label class="ef-label">Observaciones (opcional)</label>
+        <textarea class="ef" id="ncsi-observaciones" rows="2" placeholder="Notas sobre el saldo inicial NC" style="resize:vertical"></textarea>
+      </div>
+    </div>
+    <div class="mftr">
+      <div style="font-size:0.8rem;color:#718096">Los datos se guardan directamente en la nube</div>
+      <div class="mftr-btns">
+        <button class="btn-cancel" onclick="closeNCSaldoModal()">Cancelar</button>
+        <button class="btn-confirm" id="btn-save-ncsi" onclick="saveNCSaldo()" style="background:#1a5276">✓ Cargar saldo inicial</button>
+      </div>
     </div>
   </div>
 </div>
