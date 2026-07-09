@@ -942,14 +942,26 @@ function _normTxt(s) {
   return String(s).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
 }
 
+function _normVolume(s) {
+  s = s.replace(/\bbidon(?:\s+de)?\s+20\s*(?:litros?|lts?)\b/g, '1 bidon');
+  s = s.replace(/\bgalon(?:\s+de)?\s+4\s*(?:litros?|lts?)\b/g, '1 galon');
+  s = s.replace(/\b20\s*(?:litros?|lts?)\b/g, '1 bidon');
+  s = s.replace(/\b4\s*(?:litros?|lts?)\b/g, '1 galon');
+  return s;
+}
+
 function normalizarProductosConMaestro(productos) {
   if (!productosCache || !productosCache.length) return productos;
   var maestro = {};
+  var maestroVol = {};
   productosCache.forEach(function(m) {
     var key = _normTxt(m.producto) + '|' + _normTxt(m.presentacion);
     if (!maestro[key]) maestro[key] = m;
+    var vkey = _normVolume(key);
+    if (!maestroVol[vkey]) maestroVol[vkey] = m;
   });
   var maestroKeys = Object.keys(maestro);
+  var maestroVolKeys = Object.keys(maestroVol);
 
   return productos.map(function(p) {
     var np = _normTxt(p.producto);
@@ -964,6 +976,12 @@ function normalizarProductosConMaestro(productos) {
       return r;
     }
 
+    var vkey = _normVolume(key);
+    if (maestroVol[vkey]) {
+      var m = maestroVol[vkey];
+      return Object.assign({}, p, { producto: m.producto, presentacion: m.presentacion || p.presentacion, _normalizado: true, _original: p.producto });
+    }
+
     var candProd = [];
     maestroKeys.forEach(function(k) { if (k.split('|')[0] === np) candProd.push(maestro[k]); });
     if (candProd.length === 1) {
@@ -972,11 +990,21 @@ function normalizarProductosConMaestro(productos) {
       return Object.assign({}, p, { producto: m.producto, presentacion: m.presentacion || p.presentacion, _normalizado: true, _original: p.producto });
     }
 
+    if (!candProd.length) {
+      var vnp = _normVolume(np);
+      var candVolProd = [];
+      maestroVolKeys.forEach(function(k) { if (k.split('|')[0] === vnp) candVolProd.push(maestroVol[k]); });
+      if (candVolProd.length === 1) {
+        var m = candVolProd[0];
+        return Object.assign({}, p, { producto: m.producto, presentacion: m.presentacion || p.presentacion, _normalizado: true, _original: p.producto });
+      }
+    }
+
     var bestScore = 0, bestKey = null;
-    var queryStr = np + ' ' + nq;
+    var queryStr = _normVolume(np + ' ' + nq);
     maestroKeys.forEach(function(k) {
       var parts = k.split('|');
-      var candStr = parts[0] + ' ' + parts[1];
+      var candStr = _normVolume(parts[0] + ' ' + parts[1]);
       var longer = Math.max(queryStr.length, candStr.length);
       if (!longer) return;
       var dp = [];
