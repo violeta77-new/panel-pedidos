@@ -1442,6 +1442,19 @@ function setupProductoAutocomplete() {
 }
 
 // ── New Order Manual Entry ──
+function getLastOrderForClient(clienteName) {
+  if (!clienteName || !pedidos.length) return null;
+  var normClient = clienteName.toLowerCase().trim();
+  var clientOrders = pedidos.filter(function(p) {
+    return (p.Cliente || '').toLowerCase().trim() === normClient;
+  });
+  if (!clientOrders.length) return null;
+  clientOrders.sort(function(a, b) {
+    return +new Date(b.Fecha_Pedido || 0) - +new Date(a.Fecha_Pedido || 0);
+  });
+  return clientOrders[0];
+}
+
 var nuevoProductos = [];
 
 function populateNuevoDataLists() {
@@ -1500,6 +1513,15 @@ async function openNuevoPedido() {
       if (c.municipio) document.getElementById('nv-municipio').value = c.municipio;
       if (c.departamento) document.getElementById('nv-departamento').value = c.departamento;
       if (c.direccion) document.getElementById('nv-direccion').value = c.direccion;
+      var lastOrder = getLastOrderForClient(c.cliente);
+      if (lastOrder) {
+        if (lastOrder.Direccion_Envio) document.getElementById('nv-direccion').value = lastOrder.Direccion_Envio;
+        if (lastOrder.Municipio) document.getElementById('nv-municipio').value = lastOrder.Municipio;
+        if (lastOrder.Departamento) document.getElementById('nv-departamento').value = lastOrder.Departamento;
+        if (lastOrder.Plazo_Pago) document.getElementById('nv-plazo').value = lastOrder.Plazo_Pago;
+        if (lastOrder.Precio_Facturacion) document.getElementById('nv-precio').value = lastOrder.Precio_Facturacion;
+        if (lastOrder.Comercial && !document.getElementById('nv-comercial').value) document.getElementById('nv-comercial').value = lastOrder.Comercial;
+      }
     }
   });
   setupProductoAutocomplete();
