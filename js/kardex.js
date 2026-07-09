@@ -218,8 +218,10 @@ function buildMovimientos() {
     });
   });
 
-  // Salidas a producción (Reenvases) — SALIDA
+  // Salidas a producción (Reenvases) — SALIDA (solo Bodega Productos Buenos)
   kxReenvases.forEach(function(re) {
+    var bodega = re.Bodega || 'Productos Buenos';
+    if (bodega !== 'Productos Buenos') return;
     var cant = Number(re.Cantidad) || 0;
     if (cant <= 0) return;
     var rem = String(re.Remision || '').trim();
@@ -994,6 +996,27 @@ function switchKardexTab(tab) {
 
 function buildNCMovimientos() {
   ncMovimientos = [];
+
+  // Salidas a producción NC (Reenvases con Bodega No Conforme)
+  kxReenvases.forEach(function(re) {
+    var bodega = re.Bodega || 'Productos Buenos';
+    if (bodega !== 'Producto No Conforme') return;
+    var cant = Number(re.Cantidad) || 0;
+    if (cant <= 0) return;
+    ncMovimientos.push({
+      fecha: re.Fecha || '',
+      tipo: 'Salida',
+      motivo: 'Produccion_NC',
+      remision: re.Remision || '',
+      referencia: (re.Planta ? re.Planta : '') + (re.Observaciones ? ' — ' + re.Observaciones : ''),
+      empresa: re.Empresa || '',
+      producto: re.Producto || '',
+      presentacion: re.Presentacion || '',
+      cantidad: cant,
+      _ajusteId: null
+    });
+  });
+
   ncAjustes.forEach(function(a) {
     var cant = Number(a.Cantidad) || 0;
     if (cant <= 0) return;
@@ -1156,6 +1179,7 @@ var NC_MOTIVO_LABELS = {
   'Devolucion_proveedor': 'Dev. proveedor',
   'Reacondicionamiento': 'Reacondicionamiento',
   'Retorno_conforme': 'Retorno conforme',
+  'Produccion_NC': 'Salida Producción',
   'Otro': 'Otro'
 };
 
@@ -1171,6 +1195,7 @@ var NC_MOTIVO_COLORS = {
   'Devolucion_proveedor': '#1abc9c',
   'Reacondicionamiento': '#27ae60',
   'Retorno_conforme': '#0e6655',
+  'Produccion_NC': '#d35400',
   'Otro': '#718096'
 };
 
