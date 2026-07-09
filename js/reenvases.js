@@ -396,10 +396,8 @@ async function loadProductosCache() {
 
 async function openNewReenvase() {
   reEditId = null;
-  var isBuenos = activeTab === 'buenos';
-  document.getElementById('re-modal-title').textContent = isBuenos
-    ? '🏭 Nueva Salida — Productos Buenos'
-    : '🏭 Nueva Salida — Producto No Conforme';
+  document.getElementById('re-bodega').value = getBodegaFromTab();
+  document.getElementById('re-modal-title').textContent = '🏭 Nueva Salida a producción';
   document.getElementById('btn-save-re').textContent = '✓ Registrar salida';
   document.getElementById('btn-save-re').disabled = false;
 
@@ -423,8 +421,8 @@ async function editReenvase(id) {
   if (!r) return;
 
   reEditId = id;
-  var bodLabel = (r.Bodega || 'Productos Buenos');
-  document.getElementById('re-modal-title').textContent = '✏️ Editar Salida — ' + bodLabel;
+  document.getElementById('re-bodega').value = r.Bodega || 'Productos Buenos';
+  document.getElementById('re-modal-title').textContent = '✏️ Editar Salida';
   document.getElementById('btn-save-re').textContent = '✓ Guardar cambios';
   document.getElementById('btn-save-re').disabled = false;
 
@@ -546,7 +544,7 @@ async function saveReenvase() {
         action: 'editarReenvase', row: reEditId,
         Empresa: empresa, Planta: planta, Producto: producto, Presentacion: presentacion,
         Cantidad: cantidad, Remision: remision, Fecha: fecha,
-        Observaciones: observaciones, Bodega: getBodegaFromTab()
+        Observaciones: observaciones, Bodega: document.getElementById('re-bodega').value
       });
       if (!result.ok) throw new Error(result.error || 'Error al guardar');
       closeReModal();
@@ -576,7 +574,7 @@ async function saveReenvase() {
         action: 'agregarReenvase',
         Empresa: empresa, Planta: planta, Producto: p.producto, Presentacion: p.presentacion,
         Cantidad: p.cantidad, Remision: remision, Fecha: fecha,
-        Observaciones: (p.observaciones || '').trim(), Bodega: getBodegaFromTab()
+        Observaciones: (p.observaciones || '').trim(), Bodega: document.getElementById('re-bodega').value
       });
       if (!result.ok) throw new Error(result.error || 'Error al guardar línea ' + (i + 1));
       added++;
