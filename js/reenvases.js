@@ -9,6 +9,7 @@ var productosCache = null;
 var reLines = [{ producto: '', presentacion: '', cantidad: 0, observaciones: '' }];
 var reProdACs = [];
 var reEditProdAC = null;
+var activeTab = 'buenos';
 
 // ── Autocomplete engine ──
 
@@ -108,6 +109,30 @@ function setupReEditProdAC() {
   reEditProdAC = reInitAC(input, acOpts(input, '#re-edit-presentacion'));
 }
 
+function switchReTab(tab) {
+  activeTab = tab;
+  var btnB = document.getElementById('tab-buenos');
+  var btnNC = document.getElementById('tab-no-conforme');
+  btnB.className = 're-tab' + (tab === 'buenos' ? ' active-buenos' : '');
+  btnNC.className = 're-tab' + (tab === 'no_conforme' ? ' active-nc' : '');
+
+  var isBuenos = tab === 'buenos';
+  document.getElementById('card-title-re').textContent = isBuenos
+    ? 'Salidas — Productos Buenos'
+    : 'Salidas — Producto No Conforme';
+
+  var btnNew = document.getElementById('btn-new-re');
+  btnNew.style.background = isBuenos ? '#d35400' : '#c0392b';
+  btnNew.textContent = isBuenos ? '🏭 Nueva Salida (Buenos)' : '🏭 Nueva Salida (No Conforme)';
+
+  populateReFilters();
+  applyReFilters();
+}
+
+function getBodegaFromTab() {
+  return activeTab === 'buenos' ? 'Productos Buenos' : 'Producto No Conforme';
+}
+
 var EMPRESAS_SIGLA = {
   'PARCELAR DE COLOMBIA SAS': 'PARCELAR',
   'GREEN AGROSOLUCIONES DE COLOMBIA SAS': 'GREEN',
@@ -159,7 +184,10 @@ async function loadReenvases() {
 
 function populateReFilters() {
   var empresas = {};
+  var bodegaActual = getBodegaFromTab();
   allReenvases.forEach(function(r) {
+    var bod = r.Bodega || 'Productos Buenos';
+    if (bod !== bodegaActual) return;
     if (r.Empresa) empresas[r.Empresa] = 1;
   });
 
@@ -177,7 +205,10 @@ function applyReFilters() {
   var fEmp = document.getElementById('f-empresa').value;
   var fTxt = document.getElementById('f-txt').value.toLowerCase().trim();
 
+  var bodegaActual = getBodegaFromTab();
   filteredRe = allReenvases.filter(function(r) {
+    var bod = r.Bodega || 'Productos Buenos';
+    if (bod !== bodegaActual) return false;
     if (fEmp && r.Empresa !== fEmp) return false;
     if (fTxt) {
       var hay = [r.Empresa, r.Planta, r.Producto, r.Presentacion, r.Remision, r.Observaciones]
@@ -204,13 +235,17 @@ document.getElementById('f-txt').addEventListener('input', applyReFilters);
 // ── Stats ──
 
 function updateReStats() {
-  var conRem = 0, sinRem = 0, totalCant = 0;
+  var conRem = 0, sinRem = 0, totalCant = 0, totalTab = 0;
+  var bodegaActual = getBodegaFromTab();
   allReenvases.forEach(function(r) {
+    var bod = r.Bodega || 'Productos Buenos';
+    if (bod !== bodegaActual) return;
+    totalTab++;
     if (r.Remision && r.Remision.trim()) conRem++;
     else sinRem++;
     totalCant += Number(r.Cantidad) || 0;
   });
-  document.getElementById('s-total').textContent = allReenvases.length;
+  document.getElementById('s-total').textContent = totalTab;
   document.getElementById('s-con-remision').textContent = conRem;
   document.getElementById('s-sin-remision').textContent = sinRem;
   document.getElementById('s-cantidad').textContent = totalCant;
@@ -271,7 +306,10 @@ function renderReTable() {
 
   var tbody = document.getElementById('t-body-re');
   if (!filteredRe.length) {
-    tbody.innerHTML = '<tr><td colspan="' + RE_COLS.length + '" class="empty">No hay registros de salidas a producción</td></tr>';
+    var emptyMsg = activeTab === 'buenos'
+      ? 'No hay registros en Bodega Productos Buenos'
+      : 'No hay registros en Bodega Producto No Conforme';
+    tbody.innerHTML = '<tr><td colspan="' + RE_COLS.length + '" class="empty">' + emptyMsg + '</td></tr>';
     document.getElementById('row-ct').textContent = '';
     return;
   }
@@ -319,6 +357,7 @@ function viewReenvase(id) {
     '<span>📅 ' + fmtDate(r.Fecha) + '</span>';
 
   var html = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 24px;margin-bottom:18px;font-size:0.85rem">' +
+    field('Bodega', r.Bodega || 'Productos Buenos') +
     field('Empresa', EMPRESAS_SIGLA[r.Empresa] || r.Empresa) +
     field('Planta de destino', r.Planta) +
     field('Fecha', fmtDate(r.Fecha)) +
@@ -357,7 +396,10 @@ async function loadProductosCache() {
 
 async function openNewReenvase() {
   reEditId = null;
-  document.getElementById('re-modal-title').textContent = '🏭 Nueva Salida a producción';
+  var isBuenos = activeTab === 'buenos';
+  document.getElementById('re-modal-title').textContent = isBuenos
+    ? '🏭 Nueva Salida — Productos Buenos'
+    : '🏭 Nueva Salida — Producto No Conforme';
   document.getElementById('btn-save-re').textContent = '✓ Registrar salida';
   document.getElementById('btn-save-re').disabled = false;
 
@@ -381,7 +423,8 @@ async function editReenvase(id) {
   if (!r) return;
 
   reEditId = id;
-  document.getElementById('re-modal-title').textContent = '✏️ Editar Salida';
+  var bodLabel = (r.Bodega || 'Productos Buenos');
+  document.getElementById('re-modal-title').textContent = '✏️ Editar Salida — ' + bodLabel;
   document.getElementById('btn-save-re').textContent = '✓ Guardar cambios';
   document.getElementById('btn-save-re').disabled = false;
 
@@ -503,7 +546,7 @@ async function saveReenvase() {
         action: 'editarReenvase', row: reEditId,
         Empresa: empresa, Planta: planta, Producto: producto, Presentacion: presentacion,
         Cantidad: cantidad, Remision: remision, Fecha: fecha,
-        Observaciones: observaciones
+        Observaciones: observaciones, Bodega: getBodegaFromTab()
       });
       if (!result.ok) throw new Error(result.error || 'Error al guardar');
       closeReModal();
@@ -533,7 +576,7 @@ async function saveReenvase() {
         action: 'agregarReenvase',
         Empresa: empresa, Planta: planta, Producto: p.producto, Presentacion: p.presentacion,
         Cantidad: p.cantidad, Remision: remision, Fecha: fecha,
-        Observaciones: (p.observaciones || '').trim()
+        Observaciones: (p.observaciones || '').trim(), Bodega: getBodegaFromTab()
       });
       if (!result.ok) throw new Error(result.error || 'Error al guardar línea ' + (i + 1));
       added++;

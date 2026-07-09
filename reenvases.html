@@ -14,6 +14,11 @@
 .ac-item:hover,.ac-item.active{background:#ebf5fb}
 .ac-item strong{color:#1a5276}
 .ac-sub{font-size:.72rem;color:#718096;margin-top:2px}
+.re-tabs{display:flex;gap:0;margin-bottom:18px;border-bottom:2px solid #e2e8f0}
+button.re-tab{padding:11px 22px;border:none;background:none;cursor:pointer;font-size:.88rem;font-weight:700;color:#718096;border-bottom:3px solid transparent;margin-bottom:-2px;transition:all .2s;border-radius:6px 6px 0 0}
+button.re-tab:hover{color:#4a5568;background:#f7fafc}
+button.re-tab.active-buenos{color:#d35400;border-bottom-color:#d35400;background:#fef5ec}
+button.re-tab.active-nc{color:#c0392b;border-bottom-color:#c0392b;background:#fdf0ef}
 </style>
 </head>
 <body>
@@ -59,6 +64,11 @@
     <span id="sync-msg">Conectado a la nube. Los cambios se guardan automáticamente.</span>
   </div>
 
+  <div class="re-tabs">
+    <button class="re-tab active-buenos" id="tab-buenos" onclick="switchReTab('buenos')">📦 Bodega Productos Buenos</button>
+    <button class="re-tab" id="tab-no-conforme" onclick="switchReTab('no_conforme')">⚠️ Bodega Producto No Conforme</button>
+  </div>
+
   <div class="stats">
     <div class="sc total"><div class="num" id="s-total">0</div><div class="lbl">Total registros</div></div>
     <div class="sc entregado"><div class="num" id="s-con-remision">0</div><div class="lbl">Con remisión</div></div>
@@ -77,10 +87,10 @@
 
   <div class="card">
     <div class="card-head">
-      <h3>Salidas a producción <span id="row-ct" style="font-weight:400;color:#718096"></span></h3>
+      <h3><span id="card-title-re">Salidas — Productos Buenos</span> <span id="row-ct" style="font-weight:400;color:#718096"></span></h3>
       <div style="display:flex;gap:8px;align-items:center">
         <button id="btn-clear-sort-re" onclick="clearSortRe()" title="Quitar ordenamientos" style="display:none;background:none;border:1px solid #cbd5e0;color:#4a5568;padding:5px 11px;border-radius:6px;cursor:pointer;font-size:0.78rem;font-weight:600">✕ Limpiar orden</button>
-        <button class="btn-dl" onclick="openNewReenvase()" style="background:#d35400">🏭 Nueva Salida</button>
+        <button class="btn-dl" id="btn-new-re" onclick="openNewReenvase()" style="background:#d35400">🏭 Nueva Salida (Buenos)</button>
         <button class="btn-dl" onclick="loadReenvases()">🔄 Actualizar datos</button>
       </div>
     </div>

@@ -641,7 +641,8 @@ async function apiPost(body) {
         Producto: body.Producto || '',
         Presentacion: body.Presentacion || '', Cantidad: Number(body.Cantidad) || 0,
         Remision: body.Remision || '', Fecha: body.Fecha || '',
-        Observaciones: body.Observaciones || '', Fecha_Registro: now
+        Observaciones: body.Observaciones || '', Bodega: body.Bodega || 'Productos Buenos',
+        Fecha_Registro: now
       };
       var res = await _sb.from('Reenvases').insert([row]);
       if (res.error) return { ok: false, error: res.error.message };
@@ -654,7 +655,7 @@ async function apiPost(body) {
         Producto: body.Producto || '',
         Presentacion: body.Presentacion || '', Cantidad: Number(body.Cantidad) || 0,
         Remision: body.Remision || '', Fecha: body.Fecha || '',
-        Observaciones: body.Observaciones || ''
+        Observaciones: body.Observaciones || '', Bodega: body.Bodega || 'Productos Buenos'
       }).eq('id', body.row);
       if (res.error) return { ok: false, error: res.error.message };
       return { ok: true, updated: 1 };
