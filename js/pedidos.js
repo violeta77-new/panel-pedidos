@@ -413,7 +413,7 @@ function openDetail(idx) {
       var presEsc = (l.Presentacion||'').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
       return '<tr>' +
         '<td style="color:#a0aec0;font-size:0.74rem">' + (i+1) + '</td>' +
-        '<td><input class="ef md-prod" data-i="' + i + '" type="text" value="' + prodEsc + '" style="min-width:120px;font-weight:700"></td>' +
+        '<td><input class="ef md-prod" data-i="' + i + '" type="text" value="' + prodEsc + '" style="min-width:260px;font-weight:700"></td>' +
         '<td><input class="ef md-pres" data-i="' + i + '" type="text" value="' + presEsc + '" style="width:90px"></td>' +
         '<td style="text-align:center">' + (esBonif ? '<span style="background:#d5f5e3;color:#1e8449;padding:2px 8px;border-radius:10px;font-size:0.75rem;font-weight:700">Sí</span>' : '<span style="color:#718096;font-size:0.75rem">No</span>') + '</td>' +
         '<td><input class="ef md-cant" data-i="' + i + '" type="number" min="0" value="' + pedida + '" style="width:70px;text-align:right" oninput="updateDetailLine(' + i + ')"></td>' +
@@ -797,7 +797,7 @@ function renderEditLines() {
     var pres = (l.Presentacion||'').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
     return '<tr>' +
       '<td style="color:#a0aec0;font-size:0.74rem">' + (i+1) + '</td>' +
-      '<td><input class="ef ed-prod" data-i="' + i + '" type="text" value="' + prod + '"' + (locked ? ' style="background:#f7fafc"' : '') + '></td>' +
+      '<td><input class="ef ed-prod" data-i="' + i + '" type="text" value="' + prod + '" style="min-width:260px' + (locked ? ';background:#f7fafc' : '') + '"></td>' +
       '<td><input class="ef ed-pres" data-i="' + i + '" type="text" value="' + pres + '"' + (locked ? ' style="background:#f7fafc"' : '') + '></td>' +
       '<td><input class="ef ed-cant" data-i="' + i + '" type="number" min="0" value="' + (l.Cantidad||0) + '" style="width:80px;text-align:right" oninput="updateLineTotal(' + i + ')"></td>' +
       '<td><input class="ef ed-vuni" data-i="' + i + '" type="number" min="0" value="' + (l.Valor_Unitario||0) + '" style="width:100px;text-align:right" oninput="updateLineTotal(' + i + ')"></td>' +
@@ -1372,7 +1372,7 @@ function initAutocomplete(input, opts) {
     var r = input.getBoundingClientRect();
     dd.style.top = r.bottom + 'px';
     dd.style.left = r.left + 'px';
-    dd.style.width = Math.max(r.width, 250) + 'px';
+    dd.style.width = Math.max(r.width, 320) + 'px';
   }
 
   function show() {
@@ -1552,7 +1552,7 @@ function renderNuevoLines() {
     var pres = (p.presentacion||'').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
     return '<tr>' +
       '<td style="color:#a0aec0;font-size:0.74rem">' + (i+1) + '</td>' +
-      '<td><input class="ef nv-prod" data-i="' + i + '" type="text" value="' + prod + '" placeholder="Nombre del producto" style="min-width:140px"></td>' +
+      '<td><input class="ef nv-prod" data-i="' + i + '" type="text" value="' + prod + '" placeholder="Nombre del producto" style="min-width:260px"></td>' +
       '<td><input class="ef nv-pres" data-i="' + i + '" type="text" value="' + pres + '" placeholder="Ej: 1L, 20KG" style="width:100px"></td>' +
       '<td><input class="ef nv-cant" data-i="' + i + '" type="number" min="0" value="' + (p.cantidad||'') + '" placeholder="0" style="width:80px;text-align:right" oninput="updateNuevoLine(' + i + ')"></td>' +
       '<td><input class="ef nv-vuni" data-i="' + i + '" type="number" min="0" value="' + (p.valor_unitario||'') + '" placeholder="0" style="width:100px;text-align:right" oninput="updateNuevoLine(' + i + ')"></td>' +
