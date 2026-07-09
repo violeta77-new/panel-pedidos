@@ -169,6 +169,7 @@ async function loadFromAPI() {
         p.Remisiones = '';
       }
       if (!p.Estado_2) p.Estado_2 = 'Abierto';
+      if (!p.Estado_Entrega || p.Estado_Entrega.trim() === '') p.Estado_Entrega = 'Recibido';
       var cantE = Number(p.Cant_Entregada) || 0;
       var cantP = Number(p.Cant_Pendiente) || 0;
       var cantQ = Number(p.Cantidad) || 0;
@@ -1699,7 +1700,7 @@ function renderDetalle() {
 
   var rows = pedidos.filter(function(p) {
     if (fe && p.Nombre_Empresa !== fe) return false;
-    if (fc && (p.Cliente || '') !== fc) return false;
+    if (fc && (p.Cliente || '').toLowerCase().indexOf(fc.toLowerCase()) < 0) return false;
     if (fs) {
       var rawEst = norm(p.Estado_Entrega || 'Recibido');
       if (rawEst !== norm(fs)) return false;
@@ -1792,7 +1793,7 @@ function exportDetalleCSV() {
 
   var rows = pedidos.filter(function(p) {
     if (fe && p.Nombre_Empresa !== fe) return false;
-    if (fc && (p.Cliente || '') !== fc) return false;
+    if (fc && (p.Cliente || '').toLowerCase().indexOf(fc.toLowerCase()) < 0) return false;
     if (fs && norm(p.Estado_Entrega || 'Recibido') !== norm(fs)) return false;
     if (fs2 && (p.Estado_2 || 'Abierto').trim() !== fs2) return false;
     if (ft) {

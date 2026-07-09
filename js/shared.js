@@ -49,7 +49,7 @@ async function apiGet(action) {
     }
     if (action === 'getMaestroProductos') {
       var res = await _sb.from('maestro_productos').select('*');
-      if (res.error) return { ok: true, productos: [], source: 'error' };
+      if (res.error) return { ok: false, error: res.error.message, productos: [] };
       return {
         ok: true,
         productos: res.data.map(function(r) {
@@ -60,7 +60,7 @@ async function apiGet(action) {
     }
     if (action === 'getClientesUnicos') {
       var res = await _sb.from('ClientesUnicos').select('*');
-      if (res.error) return { ok: true, clientes: [], source: 'error' };
+      if (res.error) return { ok: false, error: res.error.message, clientes: [] };
       return {
         ok: true,
         clientes: res.data.map(function(r) {

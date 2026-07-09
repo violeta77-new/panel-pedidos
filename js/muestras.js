@@ -503,10 +503,17 @@ document.getElementById('view-mu-overlay').addEventListener('click', function(e)
 // ── New / Edit modal ──
 
 async function loadProductosCache() {
-  if (productosCache) return;
-  var res = await apiGet('getMaestroProductos');
-  if (res.ok && res.productos) productosCache = res.productos;
-  else productosCache = [];
+  if (productosCache && productosCache.length) return;
+  try {
+    var res = await apiGet('getMaestroProductos');
+    if (res.ok && res.productos && res.productos.length) {
+      productosCache = res.productos;
+    } else {
+      productosCache = null;
+    }
+  } catch (e) {
+    productosCache = null;
+  }
 }
 
 async function getNextConsecutivo(empresa) {
