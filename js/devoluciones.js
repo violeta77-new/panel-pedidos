@@ -403,9 +403,27 @@ function viewDevDetail(key) {
     devField('N° Factura', r.Num_Factura) +
     devField('Motivo', r.Motivo) +
     devField('Estado', estadoLabel) +
-    devField('N° Remisión', r.Remision) +
-    devField('Fecha Devolución', r.Fecha_Devolucion ? fmtDate(r.Fecha_Devolucion) : '—') +
-    '</div>';
+    '</div>' +
+    (function() {
+      var hasIngreso = r.Remision_Ingreso || r.Remision;
+      var hasSalida = r.Remision_Salida;
+      if (!hasIngreso && !hasSalida) return '';
+      var html = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:18px">';
+      html += '<div style="background:#fff8e1;border:1px solid #ffe082;border-radius:8px;padding:12px 14px">' +
+        '<div style="font-weight:700;font-size:0.82rem;color:#e65100;margin-bottom:8px">📥 Remisión de Ingreso</div>' +
+        devField('N° Remisión', r.Remision_Ingreso || r.Remision || '') +
+        devField('Bodega', r.Bodega_Ingreso || '') +
+        devField('Fecha', (r.Fecha_Ingreso || r.Fecha_Devolucion) ? fmtDate(r.Fecha_Ingreso || r.Fecha_Devolucion) : '—') +
+        '</div>';
+      html += '<div style="background:#e8f5e9;border:1px solid #a5d6a7;border-radius:8px;padding:12px 14px">' +
+        '<div style="font-weight:700;font-size:0.82rem;color:#2e7d32;margin-bottom:8px">📤 Remisión de Salida</div>' +
+        devField('N° Remisión', r.Remision_Salida || '') +
+        devField('Bodega', r.Bodega_Salida || '') +
+        devField('Fecha', r.Fecha_Salida ? fmtDate(r.Fecha_Salida) : '—') +
+        '</div>';
+      html += '</div>';
+      return html;
+    })();
 
   if (r.Observaciones) {
     html += '<div style="margin-bottom:14px"><div style="font-weight:700;font-size:0.78rem;color:#4a5568;text-transform:uppercase;margin-bottom:4px">Observaciones</div>' +
@@ -1129,8 +1147,12 @@ function openTramitarDev(key) {
     '<span>👤 ' + (r.Cliente || '—') + '</span>' +
     '<span>' + getSiglaDev(r.Empresa) + '</span>';
 
-  document.getElementById('tramitar-remision').value = r.Remision || '';
-  document.getElementById('tramitar-fecha').value = r.Fecha_Devolucion ? toDateInput(r.Fecha_Devolucion) : today();
+  document.getElementById('tramitar-remision-ingreso').value = r.Remision_Ingreso || r.Remision || '';
+  document.getElementById('tramitar-bodega-ingreso').value = r.Bodega_Ingreso || 'Productos Buenos';
+  document.getElementById('tramitar-fecha-ingreso').value = r.Fecha_Ingreso ? toDateInput(r.Fecha_Ingreso) : (r.Fecha_Devolucion ? toDateInput(r.Fecha_Devolucion) : today());
+  document.getElementById('tramitar-remision-salida').value = r.Remision_Salida || '';
+  document.getElementById('tramitar-bodega-salida').value = r.Bodega_Salida || 'Productos Buenos';
+  document.getElementById('tramitar-fecha-salida').value = r.Fecha_Salida ? toDateInput(r.Fecha_Salida) : today();
 
   var tbody = document.getElementById('tramitar-lines');
   tbody.innerHTML = tramitarDevLines.map(function(l, i) {
@@ -1157,10 +1179,16 @@ function closeTramitarDev() {
 document.getElementById('tramitar-dev-overlay').addEventListener('click', function(e) { if (isBackdropClick(e)) closeTramitarDev(); });
 
 async function saveTramitarDev() {
-  var remision = document.getElementById('tramitar-remision').value.trim();
-  var fecha = document.getElementById('tramitar-fecha').value;
-  if (!remision) { showToast('Ingresa el N° de remisión', '#e74c3c'); return; }
-  if (!fecha) { showToast('Selecciona la fecha de devolución', '#e74c3c'); return; }
+  var remIngreso = document.getElementById('tramitar-remision-ingreso').value.trim();
+  var bodegaIngreso = document.getElementById('tramitar-bodega-ingreso').value;
+  var fechaIngreso = document.getElementById('tramitar-fecha-ingreso').value;
+  var remSalida = document.getElementById('tramitar-remision-salida').value.trim();
+  var bodegaSalida = document.getElementById('tramitar-bodega-salida').value;
+  var fechaSalida = document.getElementById('tramitar-fecha-salida').value;
+  if (!remIngreso) { showToast('Ingresa el N° de remisión de ingreso', '#e74c3c'); return; }
+  if (!fechaIngreso) { showToast('Selecciona la fecha de ingreso', '#e74c3c'); return; }
+  if (!remSalida) { showToast('Ingresa el N° de remisión de salida', '#e74c3c'); return; }
+  if (!fechaSalida) { showToast('Selecciona la fecha de salida', '#e74c3c'); return; }
 
   document.querySelectorAll('.tramitar-cant').forEach(function(inp) {
     var i = Number(inp.dataset.line);
@@ -1174,8 +1202,12 @@ async function saveTramitarDev() {
   try {
     var result = await apiPost({
       action: 'tramitarDevolucion',
-      Remision: remision,
-      Fecha_Devolucion: fecha,
+      Remision_Ingreso: remIngreso,
+      Bodega_Ingreso: bodegaIngreso,
+      Fecha_Ingreso: fechaIngreso,
+      Remision_Salida: remSalida,
+      Bodega_Salida: bodegaSalida,
+      Fecha_Salida: fechaSalida,
       lineas: tramitarDevLines.map(function(l) { return { id: l.id, Cant_Entregada: l.Cant_Entregada }; })
     });
     if (!result.ok) throw new Error(result.error || 'Error al tramitar');

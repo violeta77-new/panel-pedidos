@@ -301,12 +301,31 @@ function viewCamDetail(key) {
     cf('N° Factura', r.Num_Factura) +
     cf('Fecha Compra', r.Fecha_Compra ? fmtDate(r.Fecha_Compra) : '—') +
     cf('Estado', estadoLabel) +
+    '</div>' +
     (function() {
-      var m = (r.Observaciones||'').match(/\[Remisión:\s*(.+?)\s*\|\s*Fecha:\s*(.+?)\]/);
-      if (!m) return '';
-      return cf('N° Remisión', m[1]) + cf('Fecha Remisión', fmtDate(m[2]));
-    })() +
-    '</div>';
+      var hasIngreso = r.Remision_Ingreso;
+      var hasSalida = r.Remision_Salida;
+      if (!hasIngreso && !hasSalida) {
+        var m = (r.Observaciones||'').match(/\[Remisión:\s*(.+?)\s*\|\s*Fecha:\s*(.+?)\]/);
+        if (m) return '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px 24px;margin-bottom:18px;font-size:0.85rem">' + cf('N° Remisión (legado)', m[1]) + cf('Fecha Remisión', fmtDate(m[2])) + '</div>';
+        return '';
+      }
+      var html = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:18px">';
+      html += '<div style="background:#fff8e1;border:1px solid #ffe082;border-radius:8px;padding:12px 14px">' +
+        '<div style="font-weight:700;font-size:0.82rem;color:#e65100;margin-bottom:8px">📥 Remisión de Ingreso</div>' +
+        cf('N° Remisión', r.Remision_Ingreso || '') +
+        cf('Bodega', r.Bodega_Ingreso || '') +
+        cf('Fecha', r.Fecha_Ingreso ? fmtDate(r.Fecha_Ingreso) : '—') +
+        '</div>';
+      html += '<div style="background:#e8f5e9;border:1px solid #a5d6a7;border-radius:8px;padding:12px 14px">' +
+        '<div style="font-weight:700;font-size:0.82rem;color:#2e7d32;margin-bottom:8px">📤 Remisión de Salida</div>' +
+        cf('N° Remisión', r.Remision_Salida || '') +
+        cf('Bodega', r.Bodega_Salida || '') +
+        cf('Fecha', r.Fecha_Salida ? fmtDate(r.Fecha_Salida) : '—') +
+        '</div>';
+      html += '</div>';
+      return html;
+    })();
 
   var linesCambiar = lines.filter(function(l) { return l.Tipo_Linea === 'CAMBIAR'; });
   var linesEntregar = lines.filter(function(l) { return l.Tipo_Linea === 'ENTREGAR'; });
@@ -649,9 +668,12 @@ function openGestionarCam(key) {
     '<span>👤 '+(r.Cliente||'—')+'</span>' +
     '<span>'+getSiglaCam(r.Empresa)+'</span>';
 
-  var remMatch = (r.Observaciones||'').match(/\[Remisión:\s*(.+?)\s*\|\s*Fecha:\s*(.+?)\]/);
-  document.getElementById('gestionar-cam-remision').value = remMatch ? remMatch[1] : '';
-  document.getElementById('gestionar-cam-fecha').value = remMatch ? toDateInput(remMatch[2]) : today();
+  document.getElementById('gestionar-cam-remision-ingreso').value = r.Remision_Ingreso || '';
+  document.getElementById('gestionar-cam-bodega-ingreso').value = r.Bodega_Ingreso || 'Productos Buenos';
+  document.getElementById('gestionar-cam-fecha-ingreso').value = r.Fecha_Ingreso ? toDateInput(r.Fecha_Ingreso) : today();
+  document.getElementById('gestionar-cam-remision-salida').value = r.Remision_Salida || '';
+  document.getElementById('gestionar-cam-bodega-salida').value = r.Bodega_Salida || 'Productos Buenos';
+  document.getElementById('gestionar-cam-fecha-salida').value = r.Fecha_Salida ? toDateInput(r.Fecha_Salida) : today();
   document.getElementById('btn-gestionar-cam').disabled = false;
   document.getElementById('btn-gestionar-cam').textContent = '✓ Cerrar cambio';
   document.getElementById('gestionar-cam-overlay').classList.add('show');
@@ -664,10 +686,16 @@ function closeGestionarCam() {
 document.getElementById('gestionar-cam-overlay').addEventListener('click', function(e) { if (isBackdropClick(e)) closeGestionarCam(); });
 
 async function saveGestionarCam() {
-  var remision = document.getElementById('gestionar-cam-remision').value.trim();
-  var fecha = document.getElementById('gestionar-cam-fecha').value;
-  if (!remision) { showToast('Ingresa el N° de remisión', '#e74c3c'); return; }
-  if (!fecha) { showToast('Selecciona la fecha de remisión', '#e74c3c'); return; }
+  var remIngreso = document.getElementById('gestionar-cam-remision-ingreso').value.trim();
+  var bodegaIngreso = document.getElementById('gestionar-cam-bodega-ingreso').value;
+  var fechaIngreso = document.getElementById('gestionar-cam-fecha-ingreso').value;
+  var remSalida = document.getElementById('gestionar-cam-remision-salida').value.trim();
+  var bodegaSalida = document.getElementById('gestionar-cam-bodega-salida').value;
+  var fechaSalida = document.getElementById('gestionar-cam-fecha-salida').value;
+  if (!remIngreso) { showToast('Ingresa el N° de remisión de ingreso', '#e74c3c'); return; }
+  if (!fechaIngreso) { showToast('Selecciona la fecha de ingreso', '#e74c3c'); return; }
+  if (!remSalida) { showToast('Ingresa el N° de remisión de salida', '#e74c3c'); return; }
+  if (!fechaSalida) { showToast('Selecciona la fecha de salida', '#e74c3c'); return; }
   if (!gestionarCamIds || !gestionarCamIds.length) return;
 
   var btn = document.getElementById('btn-gestionar-cam');
@@ -677,8 +705,12 @@ async function saveGestionarCam() {
   try {
     var result = await apiPost({
       action: 'gestionarCambio',
-      Remision: remision,
-      Fecha_Remision: fecha,
+      Remision_Ingreso: remIngreso,
+      Bodega_Ingreso: bodegaIngreso,
+      Fecha_Ingreso: fechaIngreso,
+      Remision_Salida: remSalida,
+      Bodega_Salida: bodegaSalida,
+      Fecha_Salida: fechaSalida,
       ids: gestionarCamIds
     });
     if (!result.ok) throw new Error(result.error || 'Error al gestionar');

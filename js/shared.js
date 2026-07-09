@@ -315,8 +315,14 @@ async function apiPost(body) {
       for (var i = 0; i < lineas.length; i++) {
         var lin = lineas[i];
         var res = await _sb.from('Devoluciones').update({
-          Remision: body.Remision || '',
-          Fecha_Devolucion: body.Fecha_Devolucion || '',
+          Remision: body.Remision_Ingreso || '',
+          Fecha_Devolucion: body.Fecha_Ingreso || '',
+          Remision_Ingreso: body.Remision_Ingreso || '',
+          Bodega_Ingreso: body.Bodega_Ingreso || 'Productos Buenos',
+          Fecha_Ingreso: body.Fecha_Ingreso || '',
+          Remision_Salida: body.Remision_Salida || '',
+          Bodega_Salida: body.Bodega_Salida || 'Productos Buenos',
+          Fecha_Salida: body.Fecha_Salida || '',
           Cant_Entregada: Number(lin.Cant_Entregada) || 0,
           Estado: 'Tramitada'
         }).eq('id', lin.id);
@@ -377,13 +383,14 @@ async function apiPost(body) {
 
     if (action === 'gestionarCambio') {
       var ids = body.ids || [];
-      var nota = '[Remisión: ' + (body.Remision || '') + ' | Fecha: ' + (body.Fecha_Remision || '') + ']';
       for (var i = 0; i < ids.length; i++) {
-        var cur = await _sb.from('CambiosMercancia').select('Observaciones').eq('id', ids[i]).single();
-        var obs = (cur.data && cur.data.Observaciones) ? cur.data.Observaciones : '';
-        var newObs = obs ? nota + ' ' + obs : nota;
         var res = await _sb.from('CambiosMercancia').update({
-          Observaciones: newObs,
+          Remision_Ingreso: body.Remision_Ingreso || '',
+          Bodega_Ingreso: body.Bodega_Ingreso || 'Productos Buenos',
+          Fecha_Ingreso: body.Fecha_Ingreso || '',
+          Remision_Salida: body.Remision_Salida || '',
+          Bodega_Salida: body.Bodega_Salida || 'Productos Buenos',
+          Fecha_Salida: body.Fecha_Salida || '',
           Estado: 'Cerrado'
         }).eq('id', ids[i]);
         if (res.error) return { ok: false, error: res.error.message };
