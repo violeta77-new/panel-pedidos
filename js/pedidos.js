@@ -416,7 +416,7 @@ function openDetail(idx) {
         '<td><input class="ef md-pres" data-i="' + i + '" type="text" value="' + presEsc + '" style="width:90px"></td>' +
         '<td style="text-align:center">' + (esBonif ? '<span style="background:#d5f5e3;color:#1e8449;padding:2px 8px;border-radius:10px;font-size:0.75rem;font-weight:700">Sí</span>' : '<span style="color:#718096;font-size:0.75rem">No</span>') + '</td>' +
         '<td><input class="ef md-cant" data-i="' + i + '" type="number" min="0" value="' + pedida + '" style="width:70px;text-align:right" oninput="updateDetailLine(' + i + ')"></td>' +
-        '<td><input class="ef md-ent" data-i="' + i + '" type="number" min="0" value="' + entregada + '" style="width:70px;text-align:right;color:#27ae60;font-weight:700" oninput="updateDetailLine(' + i + ')"></td>' +
+        '<td><input class="ef md-ent" data-i="' + i + '" type="number" min="0" max="' + pedida + '" value="' + entregada + '" style="width:70px;text-align:right;color:#27ae60;font-weight:700" oninput="updateDetailLine(' + i + ')"></td>' +
         '<td class="money"><span class="pend-tag ' + (pendiente > 0 ? 'pend' : 'ok') + '" id="md-pend-' + i + '">' + pendiente + '</span></td>' +
         '<td><span class="badge ' + badgeL + '">' + estL + '</span>' +
           (l.Remisiones ? '<div style="font-size:0.7rem;color:#4a5568;margin-top:3px">📄 ' + l.Remisiones + '</div>' : '') +
@@ -454,6 +454,17 @@ function updateDetailLine(i) {
   var cant = parseFloat(cants[i] && cants[i].value) || 0;
   var vuni = parseFloat(vunis[i] && vunis[i].value) || 0;
   var entregada = parseFloat(ents[i] && ents[i].value) || 0;
+  if (ents[i]) {
+    ents[i].max = cant;
+    if (entregada > cant) {
+      entregada = cant;
+      ents[i].value = cant;
+      ents[i].classList.add('error');
+      showToast('La cantidad entregada no puede superar la pedida (' + cant + ')', '#e74c3c');
+    } else {
+      ents[i].classList.remove('error');
+    }
+  }
   var vtot = cant * vuni;
   var vtotEl = document.getElementById('md-vtot-' + i);
   if (vtotEl) vtotEl.textContent = fmtMoney(vtot);
@@ -504,15 +515,22 @@ async function guardarTodo() {
   var cants = [].slice.call(document.querySelectorAll('.md-cant'));
   var vunis = [].slice.call(document.querySelectorAll('.md-vuni'));
   var ents  = [].slice.call(document.querySelectorAll('.md-ent'));
+  var entregadaExcedida = false;
   detailWorkingLines.forEach(function(l, i) {
     l.Producto = prods[i] ? prods[i].value.trim() : l.Producto;
     l.Presentacion = press[i] ? press[i].value.trim() : l.Presentacion;
     l.Cantidad = Number(cants[i] && cants[i].value) || 0;
     l.Valor_Unitario = Number(vunis[i] && vunis[i].value) || 0;
     l.Cant_Entregada = Number(ents[i] && ents[i].value) || 0;
+    if (l.Cant_Entregada > l.Cantidad) {
+      l.Cant_Entregada = l.Cantidad;
+      if (ents[i]) { ents[i].value = l.Cantidad; ents[i].classList.add('error'); }
+      entregadaExcedida = true;
+    }
     l.Valor_Total = l.Cantidad * l.Valor_Unitario;
     l.Cant_Pendiente = Math.max(0, l.Cantidad - l.Cant_Entregada);
   });
+  if (entregadaExcedida) { showToast('Se corrigieron cantidades entregadas que superaban las pedidas', '#e74c3c'); return; }
 
   var fecha = document.getElementById('m-fecha').value;
   var rem = document.getElementById('m-remision').value.trim();
@@ -1402,7 +1420,7 @@ function setupProductoAutocomplete() {
       items: function() {
         var emp = document.getElementById('nv-empresa').value;
         var prods = productosCache || [];
-        if (emp) prods = prods.filter(function(p) { return p.empresa === emp; });
+        if (emp) prods = prods.filter(function(p) { return !p.empresa || p.empresa === emp; });
         return prods;
       },
       display: function(p) {
