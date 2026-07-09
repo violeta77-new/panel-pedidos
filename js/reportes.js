@@ -452,20 +452,31 @@ function _buildRemisionesInner() {
     totalLineas++;
   });
 
-  // 6. Devoluciones — campo Remision
+  // 6. Devoluciones — Remisión de Ingreso y Remisión de Salida
   devoluciones.forEach(function(d) {
-    var rem = String(d.Remision || '').trim();
-    if (!rem) return;
     var empNombre = d.Empresa || '';
     if (fEmp && empNombre !== fEmp) return;
-    if (fTxt && rem.toLowerCase().indexOf(fTxt) < 0 && getSigla(empNombre).toLowerCase().indexOf(fTxt) < 0) return;
-    var key = empNombre + '||' + rem + '||Devolución';
-    _addRemision(map, key, empNombre, rem, 'Devolución', 'Dev. ' + (d.Consecutivo || ''), (d.Producto || '') + ' (' + (d.Presentacion || '') + ')', d.Cantidad, d.Fecha_Devolucion || d.Fecha);
-    empresasSet[getSigla(empNombre)] = true;
-    totalLineas++;
+    var remIngreso = String(d.Remision_Ingreso || d.Remision || '').trim();
+    if (remIngreso) {
+      if (!fTxt || remIngreso.toLowerCase().indexOf(fTxt) >= 0 || getSigla(empNombre).toLowerCase().indexOf(fTxt) >= 0) {
+        var keyIng = empNombre + '||' + remIngreso + '||Devolución (Ingreso)';
+        _addRemision(map, keyIng, empNombre, remIngreso, 'Dev. Ingreso', 'Dev. ' + (d.Consecutivo || ''), (d.Producto || '') + ' (' + (d.Presentacion || '') + ')', d.Cantidad, d.Fecha_Ingreso || d.Fecha_Devolucion || d.Fecha);
+        empresasSet[getSigla(empNombre)] = true;
+        totalLineas++;
+      }
+    }
+    var remSalida = String(d.Remision_Salida || '').trim();
+    if (remSalida) {
+      if (!fTxt || remSalida.toLowerCase().indexOf(fTxt) >= 0 || getSigla(empNombre).toLowerCase().indexOf(fTxt) >= 0) {
+        var keySal = empNombre + '||' + remSalida + '||Devolución (Salida)';
+        _addRemision(map, keySal, empNombre, remSalida, 'Dev. Salida', 'Dev. ' + (d.Consecutivo || ''), (d.Producto || '') + ' (' + (d.Presentacion || '') + ')', d.Cantidad, d.Fecha_Salida || d.Fecha);
+        empresasSet[getSigla(empNombre)] = true;
+        totalLineas++;
+      }
+    }
   });
 
-  // 7. Cambios de Mercancía — remisión extraída de Observaciones
+  // 7. Cambios de Mercancía — Remisión de Ingreso y Salida
   var cambiosGrouped = {};
   cambiosMerc.forEach(function(c) {
     var key = (c.Empresa||'') + '||' + (c.Consecutivo || c.id);
@@ -476,19 +487,44 @@ function _buildRemisionesInner() {
     var lines = cambiosGrouped[gKey];
     var r = lines[0];
     if (r.Estado !== 'Cerrado') return;
-    var m = (r.Observaciones||'').match(/\[Remisión:\s*(.+?)\s*\|\s*Fecha:\s*(.+?)\]/);
-    if (!m) return;
-    var numRem = m[1];
-    var fechaRem = m[2];
     var empNombre = r.Empresa || '';
     if (fEmp && empNombre !== fEmp) return;
-    if (fTxt && numRem.toLowerCase().indexOf(fTxt) < 0 && getSigla(empNombre).toLowerCase().indexOf(fTxt) < 0) return;
-    var key = empNombre + '||' + numRem + '||Cambio';
-    lines.forEach(function(l) {
-      _addRemision(map, key, empNombre, numRem, 'Cambio', 'Cambio ' + (r.Consecutivo || ''), (l.Producto || '') + ' (' + (l.Tipo_Linea || '') + ')', l.Cantidad, fechaRem);
-      totalLineas++;
-    });
-    empresasSet[getSigla(empNombre)] = true;
+    var remIngreso = String(r.Remision_Ingreso || '').trim();
+    var remSalida = String(r.Remision_Salida || '').trim();
+    if (remIngreso || remSalida) {
+      if (remIngreso) {
+        if (!fTxt || remIngreso.toLowerCase().indexOf(fTxt) >= 0 || getSigla(empNombre).toLowerCase().indexOf(fTxt) >= 0) {
+          var keyIng = empNombre + '||' + remIngreso + '||Cambio (Ingreso)';
+          lines.forEach(function(l) {
+            _addRemision(map, keyIng, empNombre, remIngreso, 'Cambio Ingreso', 'Cambio ' + (r.Consecutivo || ''), (l.Producto || '') + ' (' + (l.Tipo_Linea || '') + ')', l.Cantidad, r.Fecha_Ingreso);
+            totalLineas++;
+          });
+          empresasSet[getSigla(empNombre)] = true;
+        }
+      }
+      if (remSalida) {
+        if (!fTxt || remSalida.toLowerCase().indexOf(fTxt) >= 0 || getSigla(empNombre).toLowerCase().indexOf(fTxt) >= 0) {
+          var keySal = empNombre + '||' + remSalida + '||Cambio (Salida)';
+          lines.forEach(function(l) {
+            _addRemision(map, keySal, empNombre, remSalida, 'Cambio Salida', 'Cambio ' + (r.Consecutivo || ''), (l.Producto || '') + ' (' + (l.Tipo_Linea || '') + ')', l.Cantidad, r.Fecha_Salida);
+            totalLineas++;
+          });
+          empresasSet[getSigla(empNombre)] = true;
+        }
+      }
+    } else {
+      var m = (r.Observaciones||'').match(/\[Remisión:\s*(.+?)\s*\|\s*Fecha:\s*(.+?)\]/);
+      if (!m) return;
+      var numRem = m[1];
+      var fechaRem = m[2];
+      if (fTxt && numRem.toLowerCase().indexOf(fTxt) < 0 && getSigla(empNombre).toLowerCase().indexOf(fTxt) < 0) return;
+      var key = empNombre + '||' + numRem + '||Cambio';
+      lines.forEach(function(l) {
+        _addRemision(map, key, empNombre, numRem, 'Cambio', 'Cambio ' + (r.Consecutivo || ''), (l.Producto || '') + ' (' + (l.Tipo_Linea || '') + ')', l.Cantidad, fechaRem);
+        totalLineas++;
+      });
+      empresasSet[getSigla(empNombre)] = true;
+    }
   });
 
   // 8. Remisiones anuladas (registro manual)
@@ -556,7 +592,7 @@ function sortedRemData() {
 }
 
 function renderRemTable() {
-  var MOD_COLORS = { 'Pedido': '#2980b9', 'Ingreso': '#27ae60', 'Orden de Compra': '#8e44ad', 'Muestra': '#e67e22', 'Salida a producción': '#d35400', 'Devolución': '#c0392b', 'Cambio': '#16a085', 'Anulada': '#7f8c8d' };
+  var MOD_COLORS = { 'Pedido': '#2980b9', 'Ingreso': '#27ae60', 'Orden de Compra': '#8e44ad', 'Muestra': '#e67e22', 'Salida a producción': '#d35400', 'Devolución': '#c0392b', 'Dev. Ingreso': '#e74c3c', 'Dev. Salida': '#c0392b', 'Cambio': '#16a085', 'Cambio Ingreso': '#1abc9c', 'Cambio Salida': '#16a085', 'Anulada': '#7f8c8d' };
   var cols = [
     { id: 'empresa', label: 'Empresa' },
     { id: 'empresaOrigen', label: 'Emp. Origen' },
