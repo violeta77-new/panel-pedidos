@@ -7,6 +7,7 @@ var reenvases = [];
 var devoluciones = [];
 var remisionesAnuladas = [];
 var cambiosMerc = [];
+var kardexNC = [];
 var aggregated = [];
 var rptSort = { col: 'pendiente', dir: 'desc' };
 
@@ -72,7 +73,8 @@ async function loadReportes() {
       apiGet('getReenvases').catch(function() { return { ok: true, reenvases: [] }; }),
       apiGet('getDevoluciones').catch(function() { return { ok: true, devoluciones: [] }; }),
       apiGet('getRemisionesAnuladas').catch(function() { return { ok: true, remisionesAnuladas: [] }; }),
-      apiGet('getCambios').catch(function() { return { ok: true, cambios: [] }; })
+      apiGet('getCambios').catch(function() { return { ok: true, cambios: [] }; }),
+      apiGet('getKardexNC').catch(function() { return { ok: true, ajustesNC: [] }; })
     ]);
     ingresos = (results[0].ingresos || []);
     ordenesCompra = (results[1].ordenes || []);
@@ -81,6 +83,7 @@ async function loadReportes() {
     devoluciones = (results[4].devoluciones || []);
     remisionesAnuladas = (results[5].remisionesAnuladas || []);
     cambiosMerc = (results[6].cambios || []);
+    kardexNC = (results[7].ajustesNC || []);
 
     populateRptFilters();
     buildReport();
@@ -527,7 +530,21 @@ function _buildRemisionesInner() {
     }
   });
 
-  // 8. Remisiones anuladas (registro manual)
+  // 8. Kardex NC — Ingresos y Salidas de Producto No Conforme
+  kardexNC.forEach(function(nc) {
+    var rem = String(nc.Remision || '').trim();
+    if (!rem) return;
+    var empNombre = nc.Empresa || '';
+    if (fEmp && empNombre !== fEmp) return;
+    if (fTxt && rem.toLowerCase().indexOf(fTxt) < 0 && getSigla(empNombre).toLowerCase().indexOf(fTxt) < 0) return;
+    var tipoLabel = nc.Tipo === 'Ingreso_NC' ? 'NC Ingreso' : 'NC Salida';
+    var key = empNombre + '||' + rem + '||' + tipoLabel;
+    _addRemision(map, key, empNombre, rem, tipoLabel, nc.Motivo || '', (nc.Producto || '') + ' (' + (nc.Presentacion || '') + ')', nc.Cantidad, nc.Fecha);
+    empresasSet[getSigla(empNombre)] = true;
+    totalLineas++;
+  });
+
+  // 9. Remisiones anuladas (registro manual)
   remisionesAnuladas.forEach(function(ra) {
     var rem = String(ra.Remision || '').trim();
     if (!rem) return;
