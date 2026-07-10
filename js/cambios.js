@@ -123,8 +123,8 @@ function buildCamProdSearch(cls, idx) {
     if (!matches.length) return;
     var list = document.createElement('div');
     list.className = 'autocomplete-list cam-prod-ac';
-    list.style.cssText = 'position:absolute;z-index:100;background:white;border:1px solid #cbd5e0;border-radius:6px;box-shadow:0 4px 16px rgba(0,0,0,0.12);max-height:200px;overflow-y:auto;width:100%;left:0;top:100%';
-    matches.slice(0,15).forEach(function(p) {
+    list.style.cssText = 'position:absolute;z-index:100;background:white;border:1px solid #cbd5e0;border-radius:6px;box-shadow:0 4px 16px rgba(0,0,0,0.12);max-height:350px;overflow-y:auto;width:100%;left:0;top:100%';
+    matches.slice(0,25).forEach(function(p) {
       var item = document.createElement('div');
       item.style.cssText = 'padding:8px 12px;cursor:pointer;font-size:0.82rem;border-bottom:1px solid #f0f4f8;display:flex;justify-content:space-between';
       item.innerHTML = '<span style="font-weight:600">'+(p.producto||'')+'</span><span style="color:#718096;font-size:0.75rem">'+(p.presentacion||'')+'</span>';
