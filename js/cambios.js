@@ -382,7 +382,7 @@ function renderCamLines(tipo) {
     tbody.innerHTML = arr.map(function(l, i) {
       return '<tr>' +
         '<td style="color:#a0aec0;font-size:0.74rem">'+(i+1)+'</td>' +
-        '<td style="position:relative"><div style="position:relative"><input class="ef '+prodCls+'" data-line="'+i+'" type="text" value="'+((l.Producto||'').replace(/"/g,'&quot;'))+'" placeholder="Buscar producto..." autocomplete="off"></div></td>' +
+        '<td style="position:relative;min-width:260px"><div style="position:relative"><input class="ef '+prodCls+'" data-line="'+i+'" type="text" value="'+((l.Producto||'').replace(/"/g,'&quot;'))+'" placeholder="Buscar producto..." autocomplete="off" style="min-width:240px"></div></td>' +
         '<td><input class="ef cam-cant-cambiar" data-line="'+i+'" type="number" min="0" value="'+(l.Cantidad||'')+'" placeholder="0" style="width:65px;text-align:right"></td>' +
         '<td><input class="ef cam-lote-cambiar" data-line="'+i+'" type="text" value="'+((l.Lote_Vencimiento||'').replace(/"/g,'&quot;'))+'" placeholder="Lote / vencimiento"></td>' +
         '<td><input class="ef cam-razon" data-line="'+i+'" type="text" value="'+((l.Razon_Cambio||'').replace(/"/g,'&quot;'))+'" placeholder="Razón del cambio"></td>' +
@@ -393,7 +393,7 @@ function renderCamLines(tipo) {
     tbody.innerHTML = arr.map(function(l, i) {
       return '<tr>' +
         '<td style="color:#a0aec0;font-size:0.74rem">'+(i+1)+'</td>' +
-        '<td style="position:relative"><div style="position:relative"><input class="ef '+prodCls+'" data-line="'+i+'" type="text" value="'+((l.Producto||'').replace(/"/g,'&quot;'))+'" placeholder="Buscar producto..." autocomplete="off"></div></td>' +
+        '<td style="position:relative;min-width:260px"><div style="position:relative"><input class="ef '+prodCls+'" data-line="'+i+'" type="text" value="'+((l.Producto||'').replace(/"/g,'&quot;'))+'" placeholder="Buscar producto..." autocomplete="off" style="min-width:240px"></div></td>' +
         '<td><input class="ef cam-cant-entregar" data-line="'+i+'" type="number" min="0" value="'+(l.Cantidad||'')+'" placeholder="0" style="width:65px;text-align:right"></td>' +
         '<td><input class="ef cam-lote-entregar" data-line="'+i+'" type="text" value="'+((l.Lote_Vencimiento||'').replace(/"/g,'&quot;'))+'" placeholder="Lote / vencimiento"></td>' +
         '<td><input class="ef cam-fecha-cambio" data-line="'+i+'" type="date" value="'+(l.Fecha_Cambio||'')+'"></td>' +
