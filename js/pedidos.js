@@ -1571,8 +1571,7 @@ function populateNuevoDataLists() {
 }
 
 function populateComercialSelect() {
-  var sel = document.getElementById('nv-comercial');
-  var prev = sel.value;
+  var dl = document.getElementById('dl-comercial');
   var seen = {};
   var list = [];
   pedidos.forEach(function(p) {
@@ -1580,9 +1579,7 @@ function populateComercialSelect() {
     if (c && !seen[c.toLowerCase()]) { seen[c.toLowerCase()] = true; list.push(c); }
   });
   list.sort(function(a, b) { return a.localeCompare(b, 'es'); });
-  sel.innerHTML = '<option value="">— Seleccionar comercial —</option>' +
-    list.map(function(c) { return '<option value="' + c.replace(/"/g, '&quot;') + '">' + c + '</option>'; }).join('');
-  if (prev) sel.value = prev;
+  dl.innerHTML = list.map(function(c) { return '<option value="' + c.replace(/"/g, '&quot;') + '">'; }).join('');
 }
 
 async function openNuevoPedido() {
