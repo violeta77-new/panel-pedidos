@@ -633,6 +633,19 @@ async function apiPost(body) {
       return { ok: true, added: rows.length };
     }
 
+    if (action === 'editarKardexNC') {
+      var upd = {
+        Fecha: body.Fecha || '', Empresa: body.Empresa || '',
+        Producto: body.Producto || '', Presentacion: body.Presentacion || '',
+        Tipo: body.Tipo || '', Cantidad: Number(body.Cantidad) || 0,
+        Motivo: body.Motivo || '', Remision: body.Remision || '',
+        Observaciones: body.Observaciones || ''
+      };
+      var res = await _sb.from('KardexNC').update(upd).eq('id', body.row);
+      if (res.error) return { ok: false, error: res.error.message };
+      return { ok: true, updated: 1 };
+    }
+
     if (action === 'eliminarKardexNC') {
       var res = await _sb.from('KardexNC').delete().eq('id', body.row);
       if (res.error) return { ok: false, error: res.error.message };

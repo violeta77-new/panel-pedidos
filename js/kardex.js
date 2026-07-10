@@ -1219,6 +1219,7 @@ function renderNCTable() {
     var entradaStr = m.tipo === 'Entrada' ? '<span style="color:#e67e22;font-weight:700">+' + m.cantidad.toLocaleString('es-CO') + '</span>' : '';
     var salidaStr = m.tipo === 'Salida' ? '<span style="color:#27ae60;font-weight:700">−' + m.cantidad.toLocaleString('es-CO') + '</span>' : '';
     var saldoColor = m._saldo < 0 ? '#e74c3c' : '#c0392b';
+    var editBtn = m._ajusteId ? '<button class="btn-edit" onclick="openEditNC(' + m._ajusteId + ')" title="Editar registro" style="font-size:0.72rem;padding:3px 8px">✏️</button>' : '';
     var deleteBtn = m._ajusteId ? '<button class="btn-del" onclick="openDeleteNC(' + m._ajusteId + ',\'' + (m.tipo || '').replace(/'/g, "\\'") + '\',' + m.cantidad + ')" title="Eliminar registro" style="font-size:0.72rem;padding:3px 8px">🗑️</button>' : '';
 
     return '<tr' + (m.motivo === 'Saldo_Inicial' ? ' style="background:#f0f9ff"' : '') + '>' +
@@ -1233,7 +1234,7 @@ function renderNCTable() {
       '<td style="text-align:right">' + salidaStr + '</td>' +
       '<td style="text-align:right;font-weight:800;color:' + saldoColor + '">' + m._saldo.toLocaleString('es-CO') + '</td>' +
       '<td style="font-size:0.78rem;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + (m.referencia || '').replace(/"/g, '&quot;') + '">' + (m.referencia || '—') + '</td>' +
-      '<td>' + deleteBtn + '</td>' +
+      '<td><div style="display:flex;gap:4px">' + editBtn + deleteBtn + '</div></td>' +
     '</tr>';
   }).join('');
 }
@@ -1280,6 +1281,7 @@ var ncLineas = [];
 var ncModalTipo = 'Ingreso_NC';
 
 function openNCModal(tipo) {
+  editNCId = null;
   ncModalTipo = tipo;
   var isIngreso = tipo === 'Ingreso_NC';
   document.getElementById('nc-modal-title').textContent = isIngreso ? '📥 Ingreso a Bodega No Conforme' : '📤 Salida de Bodega No Conforme';
@@ -1349,6 +1351,7 @@ function readNCLines() {
 }
 
 async function saveNC() {
+  if (editNCId) { await saveEditNC(); return; }
   var fecha = document.getElementById('nc-fecha').value;
   var empresa = document.getElementById('nc-empresa').value;
   var motivo = document.getElementById('nc-motivo').value;
@@ -1385,6 +1388,79 @@ async function saveNC() {
     showToast('❌ Error: ' + err.message, '#e74c3c');
     btn.disabled = false;
     btn.textContent = ncModalTipo === 'Ingreso_NC' ? '✓ Registrar ingreso' : '✓ Registrar salida';
+  }
+}
+
+// ── NC Edit ──
+var editNCId = null;
+
+function openEditNC(id) {
+  var reg = ncAjustes.find(function(a) { return (a.__row || a.id) === id; });
+  if (!reg) { showToast('Registro no encontrado', '#e74c3c'); return; }
+
+  editNCId = id;
+  var isIngreso = reg.Tipo === 'Ingreso_NC' || reg.Tipo === 'Saldo_Inicial_NC';
+  ncModalTipo = reg.Tipo;
+
+  document.getElementById('nc-modal-title').textContent = '✏️ Editar registro NC';
+  document.getElementById('nc-modal-sub').textContent = 'Modifica los datos del registro de bodega No Conforme';
+  document.getElementById('nc-modal-hdr').style.background = 'linear-gradient(135deg,#2c3e50,#34495e)';
+  document.getElementById('btn-save-nc').style.background = '#2c3e50';
+  document.getElementById('btn-save-nc').textContent = '✓ Guardar cambios';
+  document.getElementById('btn-save-nc').disabled = false;
+
+  document.getElementById('nc-fecha').value = reg.Fecha || '';
+  document.getElementById('nc-empresa').value = reg.Empresa || '';
+  document.getElementById('nc-motivo').value = reg.Motivo || 'Otro';
+  document.getElementById('nc-remision').value = reg.Remision || '';
+  document.getElementById('nc-observaciones').value = reg.Observaciones || '';
+
+  ncLineas = [{ Producto: reg.Producto || '', Presentacion: reg.Presentacion || '', Cantidad: reg.Cantidad || 0 }];
+  renderNCLines();
+  document.getElementById('nc-overlay').classList.add('show');
+}
+
+async function saveEditNC() {
+  var fecha = document.getElementById('nc-fecha').value;
+  var empresa = document.getElementById('nc-empresa').value;
+  var motivo = document.getElementById('nc-motivo').value;
+  var remision = document.getElementById('nc-remision').value.trim();
+  var obs = document.getElementById('nc-observaciones').value.trim();
+
+  if (!fecha) { showToast('Selecciona la fecha', '#e74c3c'); return; }
+  if (!empresa) { showToast('Selecciona la empresa', '#e74c3c'); return; }
+
+  readNCLines();
+  var line = ncLineas[0];
+  if (!line || !line.Producto || line.Cantidad <= 0) { showToast('Completa el producto y cantidad', '#e74c3c'); return; }
+
+  var btn = document.getElementById('btn-save-nc');
+  btn.disabled = true;
+  btn.textContent = '⏳ Guardando...';
+
+  try {
+    var result = await apiPost({
+      action: 'editarKardexNC',
+      row: editNCId,
+      Fecha: fecha,
+      Empresa: empresa,
+      Tipo: ncModalTipo,
+      Producto: line.Producto,
+      Presentacion: line.Presentacion,
+      Cantidad: line.Cantidad,
+      Motivo: motivo,
+      Remision: remision,
+      Observaciones: obs
+    });
+    if (!result.ok) throw new Error(result.error || 'Error al guardar');
+    editNCId = null;
+    closeNCModal();
+    showToast('✅ Registro NC actualizado');
+    await loadKardex();
+  } catch (err) {
+    showToast('❌ Error: ' + err.message, '#e74c3c');
+    btn.disabled = false;
+    btn.textContent = '✓ Guardar cambios';
   }
 }
 
