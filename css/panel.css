@@ -341,3 +341,30 @@ thead th:not(.sort-asc):not(.sort-desc) .sort-icon::after { content: ' \2195'; c
 .inv-disp-ok  { background: #e8f5e9; color: #2e7d32; }
 .inv-disp-low { background: #fff3e0; color: #e65100; }
 .inv-disp-neg { background: #fce4ec; color: #c62828; }
+
+/* ── PAGINATION ── */
+.pagination {
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 14px 16px 10px; flex-wrap: wrap;
+}
+.pagination .pg-info {
+  font-size: 0.8rem; color: #718096; margin-right: 10px;
+}
+.pagination button {
+  min-width: 34px; height: 34px; border: 1px solid #cbd5e0;
+  background: white; color: #4a5568; border-radius: 6px; cursor: pointer;
+  font-size: 0.82rem; font-weight: 600; transition: all 0.15s;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.pagination button:hover:not(:disabled) { background: #ebf5fb; border-color: #1a5276; color: #1a5276; }
+.pagination button.pg-active { background: #1a5276; color: white; border-color: #1a5276; }
+.pagination button:disabled { opacity: 0.4; cursor: default; }
+.pagination .pg-ellipsis {
+  min-width: 28px; height: 34px; display: inline-flex; align-items: center;
+  justify-content: center; font-size: 0.82rem; color: #a0aec0;
+}
+.pagination select {
+  border: 1px solid #cbd5e0; border-radius: 6px; padding: 4px 8px;
+  font-size: 0.8rem; color: #4a5568; background: white; cursor: pointer;
+  margin-left: 10px;
+}

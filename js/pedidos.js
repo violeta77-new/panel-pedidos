@@ -269,9 +269,10 @@ function populateFilters() {
   if (prevEmp) fe.value = prevEmp;
   if (prevCli) fc.value = prevCli;
   if (!filtersAttached) {
+    function onFilterChange() { currentPage = 1; renderTable(); }
     ['f-emp','f-cli','f-est','f-est2','f-txt'].forEach(function(id) {
-      document.getElementById(id).addEventListener('change', renderTable);
-      document.getElementById(id).addEventListener('input', renderTable);
+      document.getElementById(id).addEventListener('change', onFilterChange);
+      document.getElementById(id).addEventListener('input', onFilterChange);
     });
     filtersAttached = true;
   }
@@ -304,7 +305,65 @@ function clearFilters() {
   document.getElementById('f-est').value = '';
   document.getElementById('f-est2').value = '';
   document.getElementById('f-txt').value = '';
+  currentPage = 1;
   renderTable();
+}
+
+// ── Pagination ──
+var currentPage = 1;
+var pageSize = 25;
+
+function goToPage(p) {
+  currentPage = p;
+  renderTable();
+  var card = document.querySelector('#panel-ordenes .card');
+  if (card) card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function changePageSize(val) {
+  pageSize = Number(val) || 25;
+  currentPage = 1;
+  renderTable();
+}
+
+function renderPagination(totalRows) {
+  var el = document.getElementById('pagination');
+  if (!el) return;
+  var totalPages = Math.ceil(totalRows / pageSize);
+  if (totalPages <= 1) { el.innerHTML = ''; return; }
+
+  var start = (currentPage - 1) * pageSize + 1;
+  var end = Math.min(currentPage * pageSize, totalRows);
+  var html = '<span class="pg-info">' + start + '–' + end + ' de ' + totalRows + '</span>';
+
+  html += '<button ' + (currentPage <= 1 ? 'disabled' : 'onclick="goToPage(1)"') + ' title="Primera">«</button>';
+  html += '<button ' + (currentPage <= 1 ? 'disabled' : 'onclick="goToPage(' + (currentPage - 1) + ')"') + ' title="Anterior">‹</button>';
+
+  var range = [];
+  if (totalPages <= 7) {
+    for (var i = 1; i <= totalPages; i++) range.push(i);
+  } else {
+    range.push(1);
+    if (currentPage > 3) range.push('...');
+    for (var i = Math.max(2, currentPage - 1); i <= Math.min(totalPages - 1, currentPage + 1); i++) range.push(i);
+    if (currentPage < totalPages - 2) range.push('...');
+    range.push(totalPages);
+  }
+  range.forEach(function(p) {
+    if (p === '...') { html += '<span class="pg-ellipsis">…</span>'; return; }
+    html += '<button class="' + (p === currentPage ? 'pg-active' : '') + '" onclick="goToPage(' + p + ')">' + p + '</button>';
+  });
+
+  html += '<button ' + (currentPage >= totalPages ? 'disabled' : 'onclick="goToPage(' + (currentPage + 1) + ')"') + ' title="Siguiente">›</button>';
+  html += '<button ' + (currentPage >= totalPages ? 'disabled' : 'onclick="goToPage(' + totalPages + ')"') + ' title="Última">»</button>';
+
+  html += '<select onchange="changePageSize(this.value)">';
+  [25, 50, 100].forEach(function(n) {
+    html += '<option value="' + n + '"' + (pageSize === n ? ' selected' : '') + '>' + n + ' / pág</option>';
+  });
+  html += '</select>';
+
+  el.innerHTML = html;
 }
 
 // ── Render table ──
@@ -315,17 +374,25 @@ function renderTable() {
   document.getElementById('s-par').textContent = all.filter(function(e) { return e === 'Parcial'; }).length;
   document.getElementById('s-ent').textContent = all.filter(function(e) { return e === 'Entregado'; }).length;
   document.getElementById('s-tot').textContent = consecs.length;
-  document.getElementById('row-ct').textContent = '(' + rows.length + ' mostradas)';
+
+  var totalRows = rows.length;
+  var totalPages = Math.ceil(totalRows / pageSize) || 1;
+  if (currentPage > totalPages) currentPage = totalPages;
+  document.getElementById('row-ct').textContent = '(' + totalRows + ' mostradas)';
 
   renderHeader();
 
   var tbody = document.getElementById('t-body');
   if (!rows.length) {
     tbody.innerHTML = '<tr><td colspan="12"><div class="empty">No hay órdenes con los filtros seleccionados.</div></td></tr>';
+    renderPagination(0);
     return;
   }
 
-  tbody.innerHTML = rows.map(function(c) {
+  var startIdx = (currentPage - 1) * pageSize;
+  var pageRows = rows.slice(startIdx, startIdx + pageSize);
+
+  tbody.innerHTML = pageRows.map(function(c) {
     var lines = getLinesFor(c);
     var est = derivedStatus(lines);
     var est2 = derivedEstado2(lines);
@@ -357,6 +424,8 @@ function renderTable() {
       '</div></td>' +
     '</tr>';
   }).join('');
+
+  renderPagination(totalRows);
 
   var detPanel = document.getElementById('panel-detalle');
   if (detPanel && detPanel.style.display !== 'none') renderDetalle();
