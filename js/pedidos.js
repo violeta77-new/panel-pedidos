@@ -709,6 +709,37 @@ async function guardarTodo() {
       }
     }
 
+    if (entregas.length > 0) {
+      var entregasPDF = entregas.map(function(ent) {
+        var dl = detailWorkingLines[ent._idx];
+        var vUni = dl ? (Number(dl.Valor_Unitario) || 0) : 0;
+        return {
+          producto: dl ? dl.Producto : '',
+          presentacion: dl ? dl.Presentacion : '',
+          cantidad: ent.cantidad,
+          valor_unitario: vUni,
+          valor_total: ent.cantidad * vUni,
+          bonificado: dl ? (dl.Bonificado || '') : ''
+        };
+      });
+      var totalEntrega = entregasPDF.reduce(function(s, e) { return s + (e.valor_total || 0); }, 0);
+      generarRemisionPDF({
+        empresa: c.Nombre_Empresa,
+        consecutivo: c.Consecutivo,
+        fecha_pedido: hdr.Fecha_Pedido,
+        cliente: hdr.Cliente,
+        nit: hdr.NIT,
+        comercial: hdr.Comercial,
+        municipio: hdr.Municipio,
+        departamento: hdr.Departamento,
+        telefono: hdr.Telefono,
+        remision: rem,
+        fecha_entrega: fecha,
+        entregas: entregasPDF,
+        total: totalEntrega
+      });
+    }
+
     closeModal();
     var msg = entregas.length > 0
       ? '✅ Cambios guardados + ' + entregas.length + ' entrega(s) registrada(s)'
@@ -2037,6 +2068,115 @@ function exportOrdenesExcel() {
 }
 
 // ── PDF Export ──
+function generarRemisionPDF(data) {
+  var jsPDF = window.jspdf.jsPDF;
+  var doc = new jsPDF();
+  var pw = doc.internal.pageSize.getWidth();
+
+  var accent = [39, 174, 96];
+  var primary = [26, 82, 118];
+  var darkText = [45, 55, 72];
+  var grayText = [113, 128, 150];
+
+  doc.setFillColor(accent[0], accent[1], accent[2]);
+  doc.rect(0, 0, pw, 30, 'F');
+
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(16);
+  doc.setFont(undefined, 'bold');
+  doc.text('REMISION' + (data.remision ? '  N° ' + String(data.remision) : ''), 14, 13);
+  doc.setFontSize(10);
+  doc.setFont(undefined, 'normal');
+  doc.text(String(data.empresa || ''), 14, 21);
+  doc.setFontSize(9);
+  doc.text('Pedido #' + String(data.consecutivo || ''), pw - 14, 13, { align: 'right' });
+  doc.text('Fecha entrega: ' + String(data.fecha_entrega || ''), pw - 14, 21, { align: 'right' });
+
+  var y = 40;
+  doc.setTextColor(darkText[0], darkText[1], darkText[2]);
+  doc.setFontSize(9);
+
+  var left = [
+    ['Cliente', data.cliente],
+    ['NIT', data.nit],
+    ['Telefono', data.telefono],
+  ];
+  var right = [
+    ['Comercial', data.comercial],
+    ['Municipio', data.municipio],
+    ['Departamento', data.departamento],
+  ];
+
+  var halfW = (pw - 28) / 2;
+  var maxF = Math.max(left.length, right.length);
+  for (var fi = 0; fi < maxF; fi++) {
+    if (fi < left.length && left[fi][1]) {
+      doc.setFont(undefined, 'bold');
+      doc.text(left[fi][0] + ':', 14, y);
+      doc.setFont(undefined, 'normal');
+      doc.text(String(left[fi][1]), 55, y);
+    }
+    if (fi < right.length && right[fi][1]) {
+      doc.setFont(undefined, 'bold');
+      doc.text(right[fi][0] + ':', 14 + halfW, y);
+      doc.setFont(undefined, 'normal');
+      doc.text(String(right[fi][1]), 55 + halfW, y);
+    }
+    y += 6;
+  }
+
+  y += 4;
+
+  var tableBody = (data.entregas || []).map(function(p, i) {
+    return [
+      i + 1,
+      String(p.producto || ''),
+      String(p.presentacion || ''),
+      Number(p.cantidad) || 0,
+      fmtMoney(p.valor_unitario),
+      fmtMoney(p.valor_total),
+      p.bonificado === 'Si' || p.bonificado === 'Sí' ? 'Si' : 'No'
+    ];
+  });
+
+  doc.autoTable({
+    startY: y,
+    head: [['#', 'Producto', 'Presentacion', 'Cant. Entregada', 'Val. Unitario', 'Val. Total', 'Bonif.']],
+    body: tableBody,
+    theme: 'grid',
+    headStyles: { fillColor: accent, fontSize: 8, fontStyle: 'bold', halign: 'center' },
+    bodyStyles: { fontSize: 8 },
+    columnStyles: {
+      0: { halign: 'center', cellWidth: 10 },
+      1: { cellWidth: 55 },
+      3: { halign: 'right', cellWidth: 22 },
+      4: { halign: 'right', cellWidth: 26 },
+      5: { halign: 'right', cellWidth: 26 },
+      6: { halign: 'center', cellWidth: 14 }
+    },
+    margin: { left: 14, right: 14 },
+    styles: { cellPadding: 3 }
+  });
+
+  var finalY = doc.lastAutoTable.finalY + 10;
+  doc.setFillColor(212, 239, 223);
+  doc.roundedRect(pw - 82, finalY - 5, 68, 14, 3, 3, 'F');
+  doc.setFontSize(11);
+  doc.setTextColor(accent[0], accent[1], accent[2]);
+  doc.setFont(undefined, 'bold');
+  doc.text('Total: ' + fmtMoney(data.total), pw - 16, finalY + 4, { align: 'right' });
+
+  finalY += 20;
+  doc.setFontSize(7);
+  doc.setTextColor(grayText[0], grayText[1], grayText[2]);
+  doc.setFont(undefined, 'normal');
+  doc.text('Generado: ' + new Date().toLocaleString('es-CO'), 14, finalY);
+
+  var sigla = getSigla(data.empresa) || 'Remision';
+  var fileName = 'Remision_' + sigla + '_' + (data.consecutivo || '') + (data.remision ? '_' + String(data.remision) : '') + '.pdf';
+  doc.save(fileName);
+}
+
 function generarPedidoPDF(data) {
   var jsPDF = window.jspdf.jsPDF;
   var doc = new jsPDF();
