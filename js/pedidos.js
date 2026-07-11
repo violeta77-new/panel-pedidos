@@ -1372,6 +1372,24 @@ async function confirmUpload() {
     });
     if (!result.ok) throw new Error(result.error || 'Error al cargar');
     await agregarProductosNuevosAlMaestro(uploadData.productos, uploadData.nombre_empresa);
+    generarPedidoPDF({
+      empresa: uploadData.nombre_empresa,
+      consecutivo: uploadData.consecutivo,
+      fecha: uploadData.fecha_pedido,
+      cliente: uploadData.cliente,
+      nit: uploadData.nit,
+      telefono: uploadData.telefono,
+      direccion: uploadData.direccion_envio,
+      municipio: uploadData.municipio,
+      departamento: uploadData.departamento,
+      comercial: uploadData.comercial,
+      plazo: uploadData.plazo_pago,
+      precio: uploadData.precio_facturacion,
+      observaciones: uploadData.observaciones,
+      total: uploadData.total_orden,
+      productos: uploadData.productos,
+      archivo: uploadData.archivo_fuente
+    });
     closeUpload();
     showToast('Pedido cargado: ' + (result.added||0) + ' linea(s) agregadas');
     await loadFromAPI();
@@ -1784,6 +1802,24 @@ async function guardarNuevoPedido() {
     if (!result.ok) throw new Error(result.error || 'Error al guardar');
 
     await agregarProductosNuevosAlMaestro(productosValidos, empresa);
+    generarPedidoPDF({
+      empresa: empresa,
+      consecutivo: consecutivo,
+      fecha: fecha,
+      cliente: cliente,
+      nit: document.getElementById('nv-nit').value.trim(),
+      telefono: document.getElementById('nv-telefono').value.trim(),
+      direccion: document.getElementById('nv-direccion').value.trim(),
+      municipio: document.getElementById('nv-municipio').value.trim(),
+      departamento: document.getElementById('nv-departamento').value.trim(),
+      comercial: document.getElementById('nv-comercial').value.trim(),
+      plazo: document.getElementById('nv-plazo').value.trim(),
+      precio: document.getElementById('nv-precio').value.trim(),
+      observaciones: document.getElementById('nv-observaciones').value.trim(),
+      total: totalOrden,
+      productos: productosValidos,
+      archivo: 'Ingreso manual'
+    });
     closeNuevo();
     showToast('✅ Pedido creado: ' + (result.added||0) + ' línea(s) agregadas');
     await loadFromAPI();
@@ -1998,6 +2034,131 @@ function exportOrdenesExcel() {
   XLSX.utils.book_append_sheet(wb, ws, 'Pedidos');
   XLSX.writeFile(wb, 'Pedidos_' + today() + '.xlsx');
   showToast('Excel exportado: ' + rows.length + ' órdenes', '#27ae60');
+}
+
+// ── PDF Export ──
+function generarPedidoPDF(data) {
+  var jsPDF = window.jspdf.jsPDF;
+  var doc = new jsPDF();
+  var pw = doc.internal.pageSize.getWidth();
+
+  var primary = [26, 82, 118];
+  var darkText = [45, 55, 72];
+  var grayText = [113, 128, 150];
+
+  doc.setFillColor(primary[0], primary[1], primary[2]);
+  doc.rect(0, 0, pw, 30, 'F');
+
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(16);
+  doc.setFont(undefined, 'bold');
+  doc.text('PEDIDO #' + String(data.consecutivo || ''), 14, 13);
+  doc.setFontSize(10);
+  doc.setFont(undefined, 'normal');
+  doc.text(String(data.empresa || ''), 14, 21);
+  doc.setFontSize(9);
+  doc.text('Fecha: ' + String(data.fecha || ''), pw - 14, 13, { align: 'right' });
+  if (data.archivo) doc.text(String(data.archivo), pw - 14, 21, { align: 'right' });
+
+  var y = 40;
+  doc.setTextColor(darkText[0], darkText[1], darkText[2]);
+  doc.setFontSize(9);
+
+  var left = [
+    ['Cliente', data.cliente],
+    ['NIT', data.nit],
+    ['Teléfono', data.telefono],
+    ['Municipio', data.municipio],
+    ['Departamento', data.departamento],
+  ];
+  var right = [
+    ['Comercial', data.comercial],
+    ['Plazo de Pago', data.plazo],
+    ['Precio Facturación', data.precio],
+    ['Dirección', data.direccion],
+  ];
+
+  var halfW = (pw - 28) / 2;
+  var maxF = Math.max(left.length, right.length);
+  for (var fi = 0; fi < maxF; fi++) {
+    if (fi < left.length && left[fi][1]) {
+      doc.setFont(undefined, 'bold');
+      doc.text(left[fi][0] + ':', 14, y);
+      doc.setFont(undefined, 'normal');
+      doc.text(String(left[fi][1]), 55, y);
+    }
+    if (fi < right.length && right[fi][1]) {
+      doc.setFont(undefined, 'bold');
+      doc.text(right[fi][0] + ':', 14 + halfW, y);
+      doc.setFont(undefined, 'normal');
+      doc.text(String(right[fi][1]), 55 + halfW, y);
+    }
+    y += 6;
+  }
+
+  if (data.observaciones) {
+    y += 3;
+    doc.setFillColor(254, 249, 231);
+    doc.roundedRect(14, y - 4, pw - 28, 14, 2, 2, 'F');
+    doc.setFont(undefined, 'bold');
+    doc.setTextColor(125, 102, 8);
+    doc.text('Observaciones:', 18, y + 1);
+    doc.setFont(undefined, 'normal');
+    var obsLines = doc.splitTextToSize(String(data.observaciones), pw - 90);
+    doc.text(obsLines, 62, y + 1);
+    y += 14;
+  }
+
+  y += 4;
+  doc.setTextColor(darkText[0], darkText[1], darkText[2]);
+
+  var tableBody = (data.productos || []).map(function(p, i) {
+    return [
+      i + 1,
+      String(p.producto || ''),
+      String(p.presentacion || ''),
+      Number(p.cantidad) || 0,
+      fmtMoney(p.valor_unitario),
+      fmtMoney(p.valor_total),
+      p.bonificado === 'Sí' ? 'Sí' : 'No'
+    ];
+  });
+
+  doc.autoTable({
+    startY: y,
+    head: [['#', 'Producto', 'Presentación', 'Cantidad', 'Val. Unitario', 'Val. Total', 'Bonif.']],
+    body: tableBody,
+    theme: 'grid',
+    headStyles: { fillColor: primary, fontSize: 8, fontStyle: 'bold', halign: 'center' },
+    bodyStyles: { fontSize: 8 },
+    columnStyles: {
+      0: { halign: 'center', cellWidth: 10 },
+      1: { cellWidth: 55 },
+      3: { halign: 'right', cellWidth: 18 },
+      4: { halign: 'right', cellWidth: 26 },
+      5: { halign: 'right', cellWidth: 26 },
+      6: { halign: 'center', cellWidth: 14 }
+    },
+    margin: { left: 14, right: 14 },
+    styles: { cellPadding: 3 }
+  });
+
+  var finalY = doc.lastAutoTable.finalY + 10;
+  doc.setFillColor(235, 245, 251);
+  doc.roundedRect(pw - 82, finalY - 5, 68, 14, 3, 3, 'F');
+  doc.setFontSize(11);
+  doc.setTextColor(primary[0], primary[1], primary[2]);
+  doc.setFont(undefined, 'bold');
+  doc.text('Total: ' + fmtMoney(data.total), pw - 16, finalY + 4, { align: 'right' });
+
+  finalY += 20;
+  doc.setFontSize(7);
+  doc.setTextColor(grayText[0], grayText[1], grayText[2]);
+  doc.setFont(undefined, 'normal');
+  doc.text('Generado: ' + new Date().toLocaleString('es-CO'), 14, finalY);
+
+  var sigla = getSigla(data.empresa) || 'Pedido';
+  doc.save('Pedido_' + sigla + '_' + (data.consecutivo || 'nuevo') + '.pdf');
 }
 
 // ── Auto-load on page open ──
