@@ -1619,11 +1619,12 @@ function populateNuevoDataLists() {
   }).join('');
 }
 
-function populateComercialSelect() {
+function populateComercialSelect(empresa) {
   var dl = document.getElementById('dl-comercial');
   var seen = {};
   var list = [];
   pedidos.forEach(function(p) {
+    if (empresa && (p.Empresa || '') !== empresa) return;
     var c = (p.Comercial || '').trim();
     if (c && !seen[c.toLowerCase()]) { seen[c.toLowerCase()] = true; list.push(c); }
   });
@@ -1649,7 +1650,12 @@ async function openNuevoPedido() {
   document.getElementById('btn-guardar-nuevo').disabled = false;
   document.getElementById('btn-guardar-nuevo').textContent = '✏️ Guardar pedido';
   nuevoProductos = [{ producto:'', presentacion:'', cantidad:0, valor_unitario:0, valor_total:0, bonificado:'' }];
-  populateComercialSelect();
+  populateComercialSelect('');
+  var nvEmpSel = document.getElementById('nv-empresa');
+  nvEmpSel.onchange = function() {
+    document.getElementById('nv-comercial').value = '';
+    populateComercialSelect(nvEmpSel.value);
+  };
   populateNuevoDataLists();
   renderNuevoLines();
   document.getElementById('nuevo-overlay').classList.add('show');
