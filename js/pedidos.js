@@ -1624,7 +1624,7 @@ function populateComercialSelect(empresa) {
   var seen = {};
   var list = [];
   pedidos.forEach(function(p) {
-    if (empresa && (p.Empresa || '') !== empresa) return;
+    if (empresa && (p.Nombre_Empresa || '') !== empresa) return;
     var c = (p.Comercial || '').trim();
     if (c && !seen[c.toLowerCase()]) { seen[c.toLowerCase()] = true; list.push(c); }
   });
