@@ -2068,6 +2068,41 @@ function exportOrdenesExcel() {
 }
 
 // ── PDF Export ──
+function exportarPedidoDesdeModal() {
+  if (activeIdx == null) return;
+  var c = consecs[activeIdx];
+  var lines = getLinesFor(c);
+  var obsText = document.getElementById('m-observaciones').value.trim();
+  var archivo = lines.length ? (lines[0].Archivo_Fuente || '') : '';
+  generarPedidoPDF({
+    empresa: c.Nombre_Empresa,
+    consecutivo: c.Consecutivo,
+    fecha: c.Fecha_Pedido,
+    cliente: document.getElementById('md-cliente').value.trim() || c.Cliente,
+    nit: document.getElementById('md-nit').value.trim() || c.NIT,
+    telefono: document.getElementById('md-telefono').value.trim() || c.Telefono,
+    direccion: c.Direccion_Envio,
+    municipio: document.getElementById('md-municipio').value.trim() || c.Municipio,
+    departamento: document.getElementById('md-departamento').value.trim() || c.Departamento,
+    comercial: document.getElementById('md-comercial').value.trim() || c.Comercial,
+    plazo: document.getElementById('md-plazo').value.trim() || c.Plazo_Pago,
+    precio: document.getElementById('md-precio').value.trim() || c.Precio_Facturacion,
+    observaciones: obsText,
+    total: c.Total_Orden,
+    productos: lines.map(function(l) {
+      return {
+        producto: l.Producto,
+        presentacion: l.Presentacion,
+        cantidad: l.Cantidad,
+        valor_unitario: l.Valor_Unitario,
+        valor_total: l.Valor_Total,
+        bonificado: l.Bonificado
+      };
+    }),
+    archivo: archivo
+  });
+}
+
 function generarRemisionPDF(data) {
   var jsPDF = window.jspdf.jsPDF;
   var doc = new jsPDF();
