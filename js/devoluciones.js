@@ -1223,26 +1223,293 @@ async function saveTramitarDev() {
 
 // ── Tab switching ──
 function switchTab(tab) {
-  var devTab = document.getElementById('tab-devoluciones');
-  var camTab = document.getElementById('tab-cambios');
-  var btnDev = document.getElementById('tab-btn-dev');
-  var btnCam = document.getElementById('tab-btn-cam');
-  if (tab === 'cambios') {
-    devTab.style.display = 'none';
-    camTab.style.display = 'block';
-    btnDev.style.borderBottomColor = 'transparent';
-    btnDev.style.color = '#718096';
-    btnCam.style.borderBottomColor = '#8e44ad';
-    btnCam.style.color = '#8e44ad';
+  var tabs = [
+    { id: 'tab-devoluciones', btn: 'tab-btn-dev', color: '#e67e22', key: 'devoluciones' },
+    { id: 'tab-cambios', btn: 'tab-btn-cam', color: '#8e44ad', key: 'cambios' },
+    { id: 'tab-porproducto', btn: 'tab-btn-prod', color: '#1a5276', key: 'porproducto' }
+  ];
+  tabs.forEach(function(t) {
+    var panel = document.getElementById(t.id);
+    var btn = document.getElementById(t.btn);
+    if (t.key === tab) {
+      panel.style.display = 'block';
+      btn.style.borderBottomColor = t.color;
+      btn.style.color = t.color;
+    } else {
+      panel.style.display = 'none';
+      btn.style.borderBottomColor = 'transparent';
+      btn.style.color = '#718096';
+    }
+  });
+  if (tab === 'cambios' && typeof loadCambios === 'function' && !window._cambiosLoaded) { loadCambios(); window._cambiosLoaded = true; }
+  if (tab === 'porproducto') {
     if (typeof loadCambios === 'function' && !window._cambiosLoaded) { loadCambios(); window._cambiosLoaded = true; }
-  } else {
-    devTab.style.display = 'block';
-    camTab.style.display = 'none';
-    btnDev.style.borderBottomColor = '#e67e22';
-    btnDev.style.color = '#e67e22';
-    btnCam.style.borderBottomColor = 'transparent';
-    btnCam.style.color = '#718096';
+    calcularPorProducto();
   }
+}
+
+// ══════════════════════════════════════════
+// ── DETALLE POR PRODUCTO ──
+// ══════════════════════════════════════════
+
+var prodData = [];
+var prodFiltered = [];
+var prodFiltersAttached = false;
+
+function calcularPorProducto() {
+  var map = {};
+
+  devoluciones.forEach(function(r) {
+    var prod = r.Producto || '';
+    if (!prod) return;
+    var emp = r.Empresa || '';
+    var fEmp = document.getElementById('fp-empresa').value;
+    if (fEmp && emp !== fEmp) return;
+    if (!map[prod]) map[prod] = { producto: prod, devCant: 0, devValor: 0, devCount: 0, camCant: 0, camCount: 0, empresas: {}, clientes: {}, motivos: {}, _devLines: [], _camLines: [] };
+    var cant = Number(r.Cantidad) || 0;
+    var cantEnt = Number(r.Cant_Entregada) || 0;
+    var valor = Number(r.Valor_Total) || 0;
+    map[prod].devCant += cantEnt || cant;
+    map[prod].devValor += valor;
+    map[prod].devCount++;
+    if (emp) map[prod].empresas[getSiglaDev(emp)] = true;
+    if (r.Cliente) map[prod].clientes[r.Cliente] = true;
+    if (r.Motivo) map[prod].motivos[r.Motivo] = (map[prod].motivos[r.Motivo] || 0) + 1;
+    map[prod]._devLines.push(r);
+  });
+
+  if (typeof cambios !== 'undefined') {
+    cambios.forEach(function(r) {
+      var tipo = r.Tipo_Linea || '';
+      if (tipo !== 'Cambiar') return;
+      var prod = r.Producto || '';
+      if (!prod) return;
+      var emp = r.Empresa || '';
+      var fEmp = document.getElementById('fp-empresa').value;
+      if (fEmp && emp !== fEmp) return;
+      if (!map[prod]) map[prod] = { producto: prod, devCant: 0, devValor: 0, devCount: 0, camCant: 0, camCount: 0, empresas: {}, clientes: {}, motivos: {}, _devLines: [], _camLines: [] };
+      var cant = Number(r.Cantidad) || 0;
+      map[prod].camCant += cant;
+      map[prod].camCount++;
+      if (emp) map[prod].empresas[getSiglaCam ? getSiglaCam(emp) : getSiglaDev(emp)] = true;
+      if (r.Cliente) map[prod].clientes[r.Cliente] = true;
+      map[prod]._camLines.push(r);
+    });
+  }
+
+  prodData = Object.keys(map).sort().map(function(k) { return map[k]; });
+
+  if (!prodFiltersAttached) {
+    document.getElementById('fp-empresa').addEventListener('change', function() { calcularPorProducto(); });
+    document.getElementById('fp-buscar').addEventListener('input', renderPorProducto);
+    document.getElementById('fp-tipo').addEventListener('change', renderPorProducto);
+    prodFiltersAttached = true;
+  }
+
+  renderPorProducto();
+}
+
+function clearProdFilters() {
+  document.getElementById('fp-empresa').value = '';
+  document.getElementById('fp-buscar').value = '';
+  document.getElementById('fp-tipo').value = '';
+  calcularPorProducto();
+}
+
+function refreshProdTab() {
+  loadDevoluciones().then(function() {
+    if (typeof loadCambios === 'function') loadCambios().then(function() { calcularPorProducto(); });
+    else calcularPorProducto();
+  });
+}
+
+function renderPorProducto() {
+  var buscar = (document.getElementById('fp-buscar').value || '').toLowerCase().trim();
+  var tipo = document.getElementById('fp-tipo').value;
+
+  prodFiltered = prodData.filter(function(row) {
+    if (buscar && row.producto.toLowerCase().indexOf(buscar) < 0) return false;
+    if (tipo === 'devoluciones' && row.devCount === 0) return false;
+    if (tipo === 'cambios' && row.camCount === 0) return false;
+    return true;
+  });
+
+  prodFiltered.sort(function(a, b) { return (b.devCant + b.camCant) - (a.devCant + a.camCant); });
+
+  var totalDev = 0, totalCam = 0, totalValor = 0;
+  prodFiltered.forEach(function(row) {
+    totalDev += row.devCant;
+    totalCam += row.camCant;
+    totalValor += row.devValor;
+  });
+
+  document.getElementById('sp-productos').textContent = prodFiltered.length;
+  document.getElementById('sp-total-dev').textContent = totalDev.toLocaleString('es-CO');
+  document.getElementById('sp-total-cam').textContent = totalCam.toLocaleString('es-CO');
+  document.getElementById('sp-valor').textContent = fmtMoney(totalValor);
+  document.getElementById('row-ct-prod').textContent = '(' + prodFiltered.length + ' productos)';
+
+  renderProdTable();
+}
+
+function renderProdTable() {
+  var cols = ['#', 'Producto', 'Dev.', 'Uds. Devueltas', 'Cambios', 'Uds. Cambios', 'Valor Dev.', 'Empresas', 'Clientes', 'Motivo Principal', ''];
+  document.getElementById('t-head-prod').innerHTML = cols.map(function(c) { return '<th>' + c + '</th>'; }).join('');
+
+  var tbody = document.getElementById('t-body-prod');
+  if (!prodFiltered.length) {
+    tbody.innerHTML = '<tr><td colspan="' + cols.length + '"><div class="empty" style="text-align:center;padding:32px;color:#718096">No hay datos con los filtros seleccionados.</div></td></tr>';
+    document.getElementById('t-foot-prod').innerHTML = '';
+    return;
+  }
+
+  tbody.innerHTML = prodFiltered.map(function(row, i) {
+    var empresasList = Object.keys(row.empresas).sort().join(', ') || '—';
+    var clienteCount = Object.keys(row.clientes).length;
+    var motivoPrincipal = '—';
+    var maxMot = 0;
+    Object.keys(row.motivos).forEach(function(m) {
+      if (row.motivos[m] > maxMot) { maxMot = row.motivos[m]; motivoPrincipal = m; }
+    });
+    var totalUds = row.devCant + row.camCant;
+
+    return '<tr>' +
+      '<td style="color:#718096;font-size:0.78rem">' + (i + 1) + '</td>' +
+      '<td style="font-weight:600;font-size:0.84rem;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + row.producto.replace(/"/g, '&quot;') + '">' + row.producto + '</td>' +
+      '<td style="text-align:center"><span style="background:#fef5e7;color:#e67e22;padding:2px 8px;border-radius:10px;font-weight:700;font-size:0.78rem">' + row.devCount + '</span></td>' +
+      '<td style="text-align:right;font-weight:700;color:' + (row.devCant > 0 ? '#e67e22' : '#cbd5e0') + '">' + row.devCant.toLocaleString('es-CO') + '</td>' +
+      '<td style="text-align:center"><span style="background:#f3e8ff;color:#8e44ad;padding:2px 8px;border-radius:10px;font-weight:700;font-size:0.78rem">' + row.camCount + '</span></td>' +
+      '<td style="text-align:right;font-weight:700;color:' + (row.camCant > 0 ? '#8e44ad' : '#cbd5e0') + '">' + row.camCant.toLocaleString('es-CO') + '</td>' +
+      '<td style="text-align:right;font-weight:700;font-size:0.82rem">' + fmtMoney(row.devValor) + '</td>' +
+      '<td style="font-size:0.76rem;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + empresasList.replace(/"/g, '&quot;') + '">' + empresasList + '</td>' +
+      '<td style="text-align:center;font-weight:600">' + clienteCount + '</td>' +
+      '<td style="font-size:0.76rem;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + motivoPrincipal.replace(/"/g, '&quot;') + '">' + motivoPrincipal + '</td>' +
+      '<td><button class="btn-edit" onclick="openProdDetail(\'' + row.producto.replace(/'/g, "\\'").replace(/"/g, '&quot;') + '\')" title="Ver detalle" style="background:#1a5276;font-size:0.72rem;padding:4px 8px;border-radius:5px;color:white;border:none;cursor:pointer;font-weight:700">📋 Ver</button></td>' +
+    '</tr>';
+  }).join('');
+
+  var tDev = 0, tCam = 0, tValor = 0;
+  prodFiltered.forEach(function(r) { tDev += r.devCant; tCam += r.camCant; tValor += r.devValor; });
+  document.getElementById('t-foot-prod').innerHTML =
+    '<td></td><td style="font-size:0.84rem;color:#2d3748">TOTALES</td>' +
+    '<td style="text-align:center">' + prodFiltered.reduce(function(s, r) { return s + r.devCount; }, 0) + '</td>' +
+    '<td style="text-align:right;color:#e67e22">' + tDev.toLocaleString('es-CO') + '</td>' +
+    '<td style="text-align:center">' + prodFiltered.reduce(function(s, r) { return s + r.camCount; }, 0) + '</td>' +
+    '<td style="text-align:right;color:#8e44ad">' + tCam.toLocaleString('es-CO') + '</td>' +
+    '<td style="text-align:right">' + fmtMoney(tValor) + '</td>' +
+    '<td></td><td></td><td></td><td></td>';
+}
+
+function openProdDetail(producto) {
+  var row = null;
+  for (var i = 0; i < prodData.length; i++) {
+    if (prodData[i].producto === producto) { row = prodData[i]; break; }
+  }
+  if (!row) return;
+
+  document.getElementById('prod-detail-title').textContent = '📦 ' + row.producto;
+  document.getElementById('prod-detail-sub').textContent =
+    row.devCount + ' devolución(es) · ' + row.camCount + ' cambio(s) · ' + (row.devCant + row.camCant) + ' unidades totales';
+
+  var html = '';
+
+  if (row._devLines.length) {
+    html += '<div style="margin-bottom:20px">' +
+      '<div style="font-weight:700;font-size:0.88rem;color:#e67e22;margin-bottom:10px;display:flex;align-items:center;gap:8px">' +
+        '<span style="background:#e67e22;color:white;padding:2px 10px;border-radius:10px;font-size:0.76rem">' + row.devCount + '</span> Devoluciones — ' + row.devCant.toLocaleString('es-CO') + ' uds — ' + fmtMoney(row.devValor) +
+      '</div>' +
+      '<div style="overflow-x:auto"><table style="font-size:0.82rem;width:100%"><thead><tr style="background:#fef5e7">' +
+        '<th>Fecha</th><th>Empresa</th><th>Consec.</th><th>Cliente</th><th>Motivo</th><th style="text-align:right">Cantidad</th><th style="text-align:right">Devuelta</th><th style="text-align:right">Valor</th><th>Estado</th>' +
+      '</tr></thead><tbody>';
+    row._devLines.forEach(function(d) {
+      var estado = d.Estado === 'Tramitada'
+        ? '<span style="background:#d4edda;color:#155724;padding:2px 8px;border-radius:8px;font-size:0.72rem;font-weight:700">Tramitada</span>'
+        : '<span style="background:#fff3cd;color:#856404;padding:2px 8px;border-radius:8px;font-size:0.72rem;font-weight:700">Pendiente</span>';
+      html += '<tr>' +
+        '<td style="white-space:nowrap">' + fmtDate(d.Fecha) + '</td>' +
+        '<td><span class="sigla-badge ' + getSiglaClassDev(d.Empresa) + '">' + getSiglaDev(d.Empresa) + '</span></td>' +
+        '<td style="text-align:center;font-weight:600">' + (d.Consecutivo || '—') + '</td>' +
+        '<td style="font-weight:600">' + (d.Cliente || '—') + '</td>' +
+        '<td style="font-size:0.76rem;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + (d.Motivo || '').replace(/"/g, '&quot;') + '">' + (d.Motivo || '—') + '</td>' +
+        '<td style="text-align:right">' + (Number(d.Cantidad) || 0) + '</td>' +
+        '<td style="text-align:right;font-weight:700;color:#e67e22">' + (Number(d.Cant_Entregada) || 0) + '</td>' +
+        '<td style="text-align:right;font-weight:700">' + fmtMoney(d.Valor_Total) + '</td>' +
+        '<td>' + estado + '</td>' +
+      '</tr>';
+    });
+    html += '</tbody></table></div></div>';
+  }
+
+  if (row._camLines.length) {
+    html += '<div>' +
+      '<div style="font-weight:700;font-size:0.88rem;color:#8e44ad;margin-bottom:10px;display:flex;align-items:center;gap:8px">' +
+        '<span style="background:#8e44ad;color:white;padding:2px 10px;border-radius:10px;font-size:0.76rem">' + row.camCount + '</span> Cambios — ' + row.camCant.toLocaleString('es-CO') + ' uds' +
+      '</div>' +
+      '<div style="overflow-x:auto"><table style="font-size:0.82rem;width:100%"><thead><tr style="background:#f3e8ff">' +
+        '<th>Fecha</th><th>Empresa</th><th>Consec.</th><th>Cliente</th><th style="text-align:right">Cantidad</th><th>Razón</th><th>Estado</th>' +
+      '</tr></thead><tbody>';
+    row._camLines.forEach(function(c) {
+      var estado = (c.Estado || 'Pendiente');
+      var estadoBadge = estado === 'Cerrado'
+        ? '<span style="background:#d4edda;color:#155724;padding:2px 8px;border-radius:8px;font-size:0.72rem;font-weight:700">Cerrado</span>'
+        : estado === 'Completado'
+          ? '<span style="background:#cce5ff;color:#004085;padding:2px 8px;border-radius:8px;font-size:0.72rem;font-weight:700">Completado</span>'
+          : '<span style="background:#fff3cd;color:#856404;padding:2px 8px;border-radius:8px;font-size:0.72rem;font-weight:700">' + estado + '</span>';
+      html += '<tr>' +
+        '<td style="white-space:nowrap">' + fmtDate(c.Fecha_Solicitud || c.Fecha) + '</td>' +
+        '<td><span class="sigla-badge ' + getSiglaClassDev(c.Empresa) + '">' + getSiglaDev(c.Empresa) + '</span></td>' +
+        '<td style="text-align:center;font-weight:600">' + (c.Consecutivo || '—') + '</td>' +
+        '<td style="font-weight:600">' + (c.Cliente || '—') + '</td>' +
+        '<td style="text-align:right;font-weight:700;color:#8e44ad">' + (Number(c.Cantidad) || 0) + '</td>' +
+        '<td style="font-size:0.76rem;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + (c.Razon || '').replace(/"/g, '&quot;') + '">' + (c.Razon || '—') + '</td>' +
+        '<td>' + estadoBadge + '</td>' +
+      '</tr>';
+    });
+    html += '</tbody></table></div></div>';
+  }
+
+  document.getElementById('prod-detail-body').innerHTML = html;
+  document.getElementById('prod-detail-overlay').classList.add('show');
+}
+
+function closeProdDetail() {
+  document.getElementById('prod-detail-overlay').classList.remove('show');
+}
+
+document.getElementById('prod-detail-overlay').addEventListener('click', function(e) { if (isBackdropClick(e)) closeProdDetail(); });
+
+function exportProdExcel() {
+  if (!prodFiltered.length) { showToast('No hay datos para exportar.', '#e74c3c'); return; }
+
+  var data = prodFiltered.map(function(row, i) {
+    var motivoPrincipal = '—';
+    var maxMot = 0;
+    Object.keys(row.motivos).forEach(function(m) {
+      if (row.motivos[m] > maxMot) { maxMot = row.motivos[m]; motivoPrincipal = m; }
+    });
+    return {
+      '#': i + 1,
+      'Producto': row.producto,
+      'N° Devoluciones': row.devCount,
+      'Uds. Devueltas': row.devCant,
+      'N° Cambios': row.camCount,
+      'Uds. Cambios': row.camCant,
+      'Valor Devoluciones': row.devValor,
+      'Empresas': Object.keys(row.empresas).sort().join(', '),
+      'N° Clientes': Object.keys(row.clientes).length,
+      'Motivo Principal': motivoPrincipal
+    };
+  });
+
+  var ws = XLSX.utils.json_to_sheet(data);
+  ws['!cols'] = [
+    { wch: 5 }, { wch: 35 }, { wch: 14 }, { wch: 14 }, { wch: 12 },
+    { wch: 12 }, { wch: 18 }, { wch: 25 }, { wch: 12 }, { wch: 30 }
+  ];
+  var wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Detalle por Producto');
+  XLSX.writeFile(wb, 'Devoluciones_por_Producto_' + today() + '.xlsx');
+  showToast('Excel exportado: ' + prodFiltered.length + ' productos');
 }
 
 // ── Auto-load ──

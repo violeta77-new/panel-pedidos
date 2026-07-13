@@ -57,6 +57,7 @@
   <div style="display:flex;gap:0;margin-bottom:18px;border-bottom:2px solid #e2e8f0">
     <button id="tab-btn-dev" onclick="switchTab('devoluciones')" style="padding:10px 24px;font-size:0.88rem;font-weight:700;border:none;background:none;cursor:pointer;border-bottom:3px solid #e67e22;color:#e67e22;margin-bottom:-2px;transition:all 0.2s">🔄 Devoluciones</button>
     <button id="tab-btn-cam" onclick="switchTab('cambios')" style="padding:10px 24px;font-size:0.88rem;font-weight:700;border:none;background:none;cursor:pointer;border-bottom:3px solid transparent;color:#718096;margin-bottom:-2px;transition:all 0.2s">🔁 Cambios de Mercancía</button>
+    <button id="tab-btn-prod" onclick="switchTab('porproducto')" style="padding:10px 24px;font-size:0.88rem;font-weight:700;border:none;background:none;cursor:pointer;border-bottom:3px solid transparent;color:#718096;margin-bottom:-2px;transition:all 0.2s">📦 Detalle por Producto</button>
   </div>
 
   <!-- ═══ TAB DEVOLUCIONES ═══ -->
@@ -173,6 +174,83 @@
     </div>
   </div>
   </div><!-- /tab-cambios -->
+
+  <!-- ═══ TAB DETALLE POR PRODUCTO ═══ -->
+  <div id="tab-porproducto" style="display:none">
+  <div class="stats">
+    <div class="sc total"><div class="num" id="sp-productos">0</div><div class="lbl">Productos</div></div>
+    <div class="sc entregado"><div class="num" id="sp-total-dev">0</div><div class="lbl">Uds. Devueltas</div></div>
+    <div class="sc parcial"><div class="num" id="sp-total-cam">0</div><div class="lbl">Uds. Cambios</div></div>
+    <div class="sc recibido"><div class="num" id="sp-valor">$0</div><div class="lbl">Valor Total Dev.</div></div>
+  </div>
+
+  <div class="filters">
+    <div class="fg">
+      <label>Empresa</label>
+      <select id="fp-empresa">
+        <option value="">Todas</option>
+        <option value="PARCELAR DE COLOMBIA SAS">PARCELAR</option>
+        <option value="GREEN AGROSOLUCIONES DE COLOMBIA SAS">GREEN</option>
+        <option value="SOLUCIONES INTEGRALES RESO SAS">RESO</option>
+        <option value="INSUMOS AGROPECUARIOS SOSTENIBLES SAS">IASO</option>
+        <option value="INSUMOS AGROPECUARIOS DE LA SABANA SAS">IAS</option>
+      </select>
+    </div>
+    <div class="fg">
+      <label>Buscar producto</label>
+      <input type="text" id="fp-buscar" placeholder="Escriba para filtrar..." style="min-width:200px">
+    </div>
+    <div class="fg">
+      <label>Tipo</label>
+      <select id="fp-tipo">
+        <option value="">Todos</option>
+        <option value="devoluciones">Solo Devoluciones</option>
+        <option value="cambios">Solo Cambios</option>
+      </select>
+    </div>
+    <button onclick="clearProdFilters()" style="margin-left:auto;background:none;border:1px solid #cbd5e0;color:#4a5568;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:0.82rem;font-weight:600;transition:background 0.2s" onmouseover="this.style.background='#f7fafc'" onmouseout="this.style.background='none'">✕ Limpiar filtros</button>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <h3>📦 Devoluciones y Cambios por Producto <span id="row-ct-prod" style="font-weight:400;color:#718096"></span></h3>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn-dl" onclick="exportProdExcel()">📥 Exportar Excel</button>
+        <button class="btn-dl" onclick="refreshProdTab()">🔄 Actualizar</button>
+      </div>
+    </div>
+    <div style="overflow-x:auto">
+      <table>
+        <thead>
+          <tr id="t-head-prod"></tr>
+        </thead>
+        <tbody id="t-body-prod"></tbody>
+        <tfoot>
+          <tr id="t-foot-prod" style="background:#f0f4f8;font-weight:800"></tr>
+        </tfoot>
+      </table>
+    </div>
+  </div>
+
+  <!-- Detalle expandido -->
+  <div class="overlay" id="prod-detail-overlay">
+    <div class="modal-box" style="max-width:900px">
+      <div class="mhdr" style="background:linear-gradient(135deg,#2c3e50,#34495e)">
+        <div style="flex:1">
+          <h2 id="prod-detail-title">📦 Detalle del Producto</h2>
+          <div style="font-size:0.78rem;opacity:0.85;margin-top:4px" id="prod-detail-sub"></div>
+        </div>
+        <button class="btn-close" onclick="closeProdDetail()">✕</button>
+      </div>
+      <div class="mbody" id="prod-detail-body" style="max-height:70vh;overflow-y:auto"></div>
+      <div class="mftr">
+        <div></div>
+        <button class="btn-cancel" onclick="closeProdDetail()">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  </div><!-- /tab-porproducto -->
 
 </div>
 
