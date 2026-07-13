@@ -56,6 +56,7 @@
   <div style="display:flex;gap:0;margin-bottom:0;border-bottom:2px solid #e2e8f0">
     <button id="tab-kardex" onclick="switchKardexTab('kardex')" style="padding:10px 24px;font-size:0.88rem;font-weight:700;border:none;cursor:pointer;background:#0e6655;color:white;border-radius:8px 8px 0 0;transition:all 0.2s">📋 Kardex General</button>
     <button id="tab-nc" onclick="switchKardexTab('nc')" style="padding:10px 24px;font-size:0.88rem;font-weight:700;border:none;cursor:pointer;background:#f7fafc;color:#718096;border-radius:8px 8px 0 0;transition:all 0.2s">⚠️ Bodega No Conforme</button>
+    <button id="tab-exist" onclick="switchKardexTab('exist')" style="padding:10px 24px;font-size:0.88rem;font-weight:700;border:none;cursor:pointer;background:#f7fafc;color:#718096;border-radius:8px 8px 0 0;transition:all 0.2s">📊 Existencias por Empresa</button>
   </div>
 
   <!-- ═══ TAB: KARDEX GENERAL ═══ -->
@@ -177,6 +178,55 @@
   </div>
 
   </div><!-- /panel-nc -->
+
+  <!-- ═══ TAB: EXISTENCIAS POR EMPRESA ═══ -->
+  <div id="panel-exist" style="display:none">
+
+  <div class="stats">
+    <div class="sc" style="border-color:#2c3e50"><div class="num" id="ex-s-productos" style="color:#2c3e50">0</div><div class="lbl">Productos</div></div>
+    <div class="sc" style="border-color:#0e6655"><div class="num" id="ex-s-empresas" style="color:#0e6655">0</div><div class="lbl">Empresas con stock</div></div>
+    <div class="sc" style="border-color:#27ae60"><div class="num" id="ex-s-total" style="color:#27ae60;font-weight:800">0</div><div class="lbl">Total Unidades</div></div>
+  </div>
+
+  <div class="filters">
+    <div class="fg">
+      <label>Buscar producto</label>
+      <input type="text" id="ex-f-buscar" placeholder="Escriba para filtrar..." style="min-width:240px">
+    </div>
+    <div class="fg">
+      <label>Mostrar</label>
+      <select id="ex-f-mostrar">
+        <option value="todos">Todos los productos</option>
+        <option value="con_stock">Solo con existencia > 0</option>
+        <option value="sin_stock">Solo sin existencia</option>
+        <option value="negativo">Solo saldo negativo</option>
+      </select>
+    </div>
+    <button onclick="clearExistFilters()" style="margin-left:auto;background:none;border:1px solid #cbd5e0;color:#4a5568;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:0.82rem;font-weight:600;transition:background 0.2s" onmouseover="this.style.background='#f7fafc'" onmouseout="this.style.background='none'">✕ Limpiar filtros</button>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <h3>📊 Existencias de Producto Bueno por Empresa <span id="row-ct-ex" style="font-weight:400;color:#718096"></span></h3>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <button class="btn-dl" onclick="exportExistExcel()">📥 Exportar Excel</button>
+        <button class="btn-dl" onclick="loadKardex()">🔄 Actualizar datos</button>
+      </div>
+    </div>
+    <div id="ex-table-wrap" style="overflow-x:auto">
+      <table>
+        <thead>
+          <tr id="t-head-ex"></tr>
+        </thead>
+        <tbody id="t-body-ex"></tbody>
+        <tfoot>
+          <tr id="t-foot-ex" style="background:#f0f4f8;font-weight:800"></tr>
+        </tfoot>
+      </table>
+    </div>
+  </div>
+
+  </div><!-- /panel-exist -->
 
 </div>
 
