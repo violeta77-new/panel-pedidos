@@ -2108,21 +2108,31 @@ function generarRemisionPDF(data) {
   ];
 
   var halfW = (pw - 28) / 2;
+  var leftValX = 55;
+  var rightLabelX = 14 + halfW;
+  var rightValX = 55 + halfW;
+  var leftValMaxW = rightLabelX - leftValX - 4;
+  var rightValMaxW = pw - 14 - rightValX;
   var maxF = Math.max(left.length, right.length);
   for (var fi = 0; fi < maxF; fi++) {
+    var rowH = 0;
     if (fi < left.length && left[fi][1]) {
       doc.setFont(undefined, 'bold');
       doc.text(left[fi][0] + ':', 14, y);
       doc.setFont(undefined, 'normal');
-      doc.text(String(left[fi][1]), 55, y);
+      var lLines = doc.splitTextToSize(String(left[fi][1]), leftValMaxW);
+      doc.text(lLines, leftValX, y);
+      rowH = Math.max(rowH, (lLines.length - 1) * 4);
     }
     if (fi < right.length && right[fi][1]) {
       doc.setFont(undefined, 'bold');
-      doc.text(right[fi][0] + ':', 14 + halfW, y);
+      doc.text(right[fi][0] + ':', rightLabelX, y);
       doc.setFont(undefined, 'normal');
-      doc.text(String(right[fi][1]), 55 + halfW, y);
+      var rLines = doc.splitTextToSize(String(right[fi][1]), rightValMaxW);
+      doc.text(rLines, rightValX, y);
+      rowH = Math.max(rowH, (rLines.length - 1) * 4);
     }
-    y += 6;
+    y += 6 + rowH;
   }
 
   y += 4;
@@ -2219,34 +2229,47 @@ function generarPedidoPDF(data) {
   ];
 
   var halfW = (pw - 28) / 2;
+  var leftValX = 55;
+  var rightLabelX = 14 + halfW;
+  var rightValX = 55 + halfW;
+  var leftValMaxW = rightLabelX - leftValX - 4;
+  var rightValMaxW = pw - 14 - rightValX;
   var maxF = Math.max(left.length, right.length);
   for (var fi = 0; fi < maxF; fi++) {
+    var rowH = 0;
     if (fi < left.length && left[fi][1]) {
       doc.setFont(undefined, 'bold');
       doc.text(left[fi][0] + ':', 14, y);
       doc.setFont(undefined, 'normal');
-      doc.text(String(left[fi][1]), 55, y);
+      var lLines = doc.splitTextToSize(String(left[fi][1]), leftValMaxW);
+      doc.text(lLines, leftValX, y);
+      rowH = Math.max(rowH, (lLines.length - 1) * 4);
     }
     if (fi < right.length && right[fi][1]) {
       doc.setFont(undefined, 'bold');
-      doc.text(right[fi][0] + ':', 14 + halfW, y);
+      doc.text(right[fi][0] + ':', rightLabelX, y);
       doc.setFont(undefined, 'normal');
-      doc.text(String(right[fi][1]), 55 + halfW, y);
+      var rLines = doc.splitTextToSize(String(right[fi][1]), rightValMaxW);
+      doc.text(rLines, rightValX, y);
+      rowH = Math.max(rowH, (rLines.length - 1) * 4);
     }
-    y += 6;
+    y += 6 + rowH;
   }
 
   if (data.observaciones) {
     y += 3;
+    doc.setFont(undefined, 'normal');
+    var obsMaxW = pw - 28 - 48;
+    var obsLines = doc.splitTextToSize(String(data.observaciones), obsMaxW);
+    var obsH = Math.max(14, obsLines.length * 4 + 8);
     doc.setFillColor(254, 249, 231);
-    doc.roundedRect(14, y - 4, pw - 28, 14, 2, 2, 'F');
+    doc.roundedRect(14, y - 4, pw - 28, obsH, 2, 2, 'F');
     doc.setFont(undefined, 'bold');
     doc.setTextColor(125, 102, 8);
     doc.text('Observaciones:', 18, y + 1);
     doc.setFont(undefined, 'normal');
-    var obsLines = doc.splitTextToSize(String(data.observaciones), pw - 90);
     doc.text(obsLines, 62, y + 1);
-    y += 14;
+    y += obsH;
   }
 
   y += 4;
