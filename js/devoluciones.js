@@ -1241,10 +1241,17 @@ function switchTab(tab) {
       btn.style.color = '#718096';
     }
   });
-  if (tab === 'cambios' && typeof loadCambios === 'function' && !window._cambiosLoaded) { loadCambios(); window._cambiosLoaded = true; }
+  if (tab === 'cambios' && typeof loadCambios === 'function' && !window._cambiosLoaded) {
+    window._cambiosLoaded = true;
+    loadCambios();
+  }
   if (tab === 'porproducto') {
-    if (typeof loadCambios === 'function' && !window._cambiosLoaded) { loadCambios(); window._cambiosLoaded = true; }
-    calcularPorProducto();
+    if (typeof loadCambios === 'function' && !window._cambiosLoaded) {
+      window._cambiosLoaded = true;
+      loadCambios().then(function() { calcularPorProducto(); });
+    } else {
+      calcularPorProducto();
+    }
   }
 }
 
