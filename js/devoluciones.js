@@ -1280,8 +1280,8 @@ function calcularPorProducto() {
 
   if (typeof cambios !== 'undefined') {
     cambios.forEach(function(r) {
-      var tipo = r.Tipo_Linea || '';
-      if (tipo !== 'Cambiar') return;
+      var tipo = (r.Tipo_Linea || '').toUpperCase();
+      if (tipo !== 'CAMBIAR') return;
       var prod = r.Producto || '';
       if (!prod) return;
       var emp = r.Empresa || '';
