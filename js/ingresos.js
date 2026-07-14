@@ -5,7 +5,7 @@ var catalogoProductos = [];
 var ingLineas = [];
 
 // ── Constants ──
-var ORIGENES = ['Planta Mosquera', 'Planta Cachipay'];
+var ORIGENES = ['Planta Mosquera', 'Planta Cachipay', 'Proveedor Carval'];
 var EMPRESAS_HOLDING = [
   { value: 'PARCELAR DE COLOMBIA SAS', sigla: 'PARCELAR' },
   { value: 'GREEN AGROSOLUCIONES DE COLOMBIA SAS', sigla: 'GREEN' },
