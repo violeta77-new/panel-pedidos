@@ -371,6 +371,9 @@ function onOrigenChange() {
   if (empresa) {
     document.getElementById('ing-empresa-origen').value = empresa;
   }
+  var sinRemOrigen = origen === 'Proveedor Carval' || origen === 'Chia Abago';
+  document.getElementById('ing-remision-origen-wrap').style.display = sinRemOrigen ? 'none' : '';
+  if (sinRemOrigen) document.getElementById('ing-remision-origen').value = '';
 }
 
 // ── New Ingreso Modal ──
@@ -392,6 +395,7 @@ function openNewIngreso() {
 
   ingLineas = [{ Producto: '', Presentacion: '', Cantidad: '' }];
   renderIngLines();
+  onOrigenChange();
   document.getElementById('ing-overlay').classList.add('show');
 }
 
@@ -429,6 +433,7 @@ function openEditIng(row) {
   document.getElementById('ing-edit-presentacion').value = r.Presentacion || '';
   document.getElementById('ing-edit-cantidad').value = r.Cantidad || '';
 
+  onOrigenChange();
   document.getElementById('ing-overlay').classList.add('show');
 }
 
