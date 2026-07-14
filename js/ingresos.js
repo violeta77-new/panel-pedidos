@@ -371,9 +371,13 @@ function onOrigenChange() {
   if (empresa) {
     document.getElementById('ing-empresa-origen').value = empresa;
   }
-  var sinRemOrigen = origen === 'Proveedor Carval' || origen === 'Chia Abago';
-  document.getElementById('ing-remision-origen-wrap').style.display = sinRemOrigen ? 'none' : '';
-  if (sinRemOrigen) document.getElementById('ing-remision-origen').value = '';
+  var esExterno = origen === 'Proveedor Carval' || origen === 'Chia Abago';
+  document.getElementById('ing-empresa-origen-wrap').style.display = esExterno ? 'none' : '';
+  document.getElementById('ing-remision-origen-wrap').style.display = esExterno ? 'none' : '';
+  if (esExterno) {
+    document.getElementById('ing-empresa-origen').value = '';
+    document.getElementById('ing-remision-origen').value = '';
+  }
 }
 
 // ── New Ingreso Modal ──
