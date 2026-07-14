@@ -126,7 +126,8 @@ function buildMovimientos() {
   kxIngresos.forEach(function(ing) {
     var cant = Number(ing.Cantidad) || 0;
     if (cant <= 0) return;
-    var esCachipay = (ing.Origen || '').toLowerCase().indexOf('cachipay') >= 0;
+    var origenLc = (ing.Origen || '').toLowerCase();
+    var esCachipay = origenLc.indexOf('cachipay') >= 0 || origenLc.indexOf('proveedor') >= 0;
     // ENTRADA destino
     if (ing.Empresa_Destino) {
       kxMovimientos.push({
