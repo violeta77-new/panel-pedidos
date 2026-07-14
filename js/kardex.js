@@ -180,24 +180,40 @@ function buildMovimientos() {
     });
   });
 
-  // Órdenes de Compra — ENTRADA
+  // Órdenes de Compra — ENTRADA destino + SALIDA origen
   kxOrdenes.forEach(function(oc) {
     var cant = Number(oc.Cantidad) || 0;
     if (cant <= 0) return;
     var rem = String(oc.Remision || '').trim();
     if (!rem) return;
-    kxMovimientos.push({
-      fecha: oc.Fecha || '',
-      tipo: 'Entrada',
-      modulo: 'Órdenes de Compra',
-      remision: rem,
-      referencia: 'OC ' + (oc.Consecutivo || '') + (oc.Proveedor ? ' — ' + oc.Proveedor : ''),
-      empresa: oc.Empresa_Destino || '',
-      producto: oc.Producto || '',
-      presentacion: oc.Presentacion || '',
-      cantidad: cant,
-      _ajusteId: null
-    });
+    if (oc.Empresa_Destino) {
+      kxMovimientos.push({
+        fecha: oc.Fecha || '',
+        tipo: 'Entrada',
+        modulo: 'Órdenes de Compra',
+        remision: rem,
+        referencia: 'OC ' + (oc.Consecutivo || '') + ' — Desde ' + getSiglaKx(oc.Empresa_Origen),
+        empresa: oc.Empresa_Destino,
+        producto: oc.Producto || '',
+        presentacion: oc.Presentacion || '',
+        cantidad: cant,
+        _ajusteId: null
+      });
+    }
+    if (oc.Empresa_Origen && oc.Empresa_Origen !== oc.Empresa_Destino) {
+      kxMovimientos.push({
+        fecha: oc.Fecha || '',
+        tipo: 'Salida',
+        modulo: 'Órdenes de Compra',
+        remision: rem,
+        referencia: 'OC ' + (oc.Consecutivo || '') + ' — Hacia ' + getSiglaKx(oc.Empresa_Destino),
+        empresa: oc.Empresa_Origen,
+        producto: oc.Producto || '',
+        presentacion: oc.Presentacion || '',
+        cantidad: cant,
+        _ajusteId: null
+      });
+    }
   });
 
   // Muestras — SALIDA
