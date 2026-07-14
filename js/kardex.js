@@ -6,6 +6,7 @@ var kxMuestras = [];
 var kxReenvases = [];
 var kxDevoluciones = [];
 var kxAjustes = [];
+var kxCambios = [];
 var kxCatalogo = [];
 var kxMovimientos = [];
 var kxFiltered = [];
@@ -58,7 +59,8 @@ async function loadKardex() {
       apiGet('getDevoluciones').catch(function() { return { ok: true, devoluciones: [] }; }),
       apiGet('getKardexAjustes').catch(function() { return { ok: true, ajustes: [] }; }),
       apiGet('getMaestroProductos').catch(function() { return { ok: true, productos: [] }; }),
-      apiGet('getKardexNC').catch(function() { return { ok: true, ajustesNC: [] }; })
+      apiGet('getKardexNC').catch(function() { return { ok: true, ajustesNC: [] }; }),
+      apiGet('getCambios').catch(function() { return { ok: true, cambios: [] }; })
     ]);
 
     kxPedidos = (results[0].pedidos || []).filter(function(p) {
@@ -72,6 +74,7 @@ async function loadKardex() {
     kxAjustes = results[6].ajustes || [];
     kxCatalogo = results[7].productos || [];
     ncAjustes = results[8].ajustesNC || [];
+    kxCambios = results[9].cambios || [];
 
     buildMovimientos();
     buildNCMovimientos();
@@ -83,7 +86,7 @@ async function loadKardex() {
 
     loadZone.style.display = 'none';
     mainEl.style.display = 'block';
-    var total = kxPedidos.length + kxIngresos.length + kxOrdenes.length + kxMuestras.length + kxReenvases.length + kxDevoluciones.length;
+    var total = kxPedidos.length + kxIngresos.length + kxOrdenes.length + kxMuestras.length + kxReenvases.length + kxDevoluciones.length + kxCambios.length;
     setSyncStatus('ok', 'Conectado a la nube. Última actualización: ' + new Date().toLocaleTimeString('es-CO'));
     document.getElementById('hdr-status').textContent = '☁️ Supabase · ' + total + ' transacciones';
   } catch (err) {
@@ -175,6 +178,28 @@ function buildMovimientos() {
       empresa: d.Empresa || '',
       producto: d.Producto || '',
       presentacion: d.Presentacion || '',
+      cantidad: cant,
+      _ajusteId: null
+    });
+  });
+
+  // Cambios de Mercancía — SALIDA (producto sale de bodega productos buenos)
+  kxCambios.forEach(function(c) {
+    var cant = Number(c.Cantidad) || 0;
+    if (cant <= 0) return;
+    var estado = (c.Estado || '').toLowerCase();
+    if (estado !== 'cerrado' && estado !== 'cerrada') return;
+    var rem = String(c.Remision_Salida || '').trim();
+    if (!rem) return;
+    kxMovimientos.push({
+      fecha: c.Fecha_Salida || c.Fecha_Solicitud || '',
+      tipo: 'Salida',
+      modulo: 'Cambios',
+      remision: rem,
+      referencia: 'Cambio ' + (c.Consecutivo || '') + (c.Cliente ? ' — ' + c.Cliente : ''),
+      empresa: c.Empresa || '',
+      producto: c.Producto || '',
+      presentacion: c.Presentacion || '',
       cantidad: cant,
       _ajusteId: null
     });
