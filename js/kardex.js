@@ -202,12 +202,13 @@ function buildMovimientos() {
 
   // Muestras — SALIDA
   kxMuestras.forEach(function(m) {
-    var cant = Number(m.Cant_Entregada || m.Cantidad) || 0;
+    var cantE = Number(m.Cant_Entregada);
+    var cant = (isNaN(cantE) || cantE === 0) ? 0 : cantE;
     if (cant <= 0) return;
     var rem = String(m.Remision || '').trim();
     if (!rem) return;
     kxMovimientos.push({
-      fecha: m.Fecha_Entrega || m.Fecha_Solicitud || '',
+      fecha: m.Fecha_Despacho || m.Fecha_Entrega || m.Fecha_Solicitud || '',
       tipo: 'Salida',
       modulo: 'Muestras',
       remision: rem,
