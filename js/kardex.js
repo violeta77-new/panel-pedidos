@@ -183,8 +183,9 @@ function buildMovimientos() {
     });
   });
 
-  // Cambios de Mercancía — SALIDA (producto sale de bodega productos buenos)
+  // Cambios de Mercancía — SALIDA (solo líneas ENTREGAR salen de bodega productos buenos)
   kxCambios.forEach(function(c) {
+    if (c.Tipo_Linea !== 'ENTREGAR') return;
     var cant = Number(c.Cantidad) || 0;
     if (cant <= 0) return;
     var estado = (c.Estado || '').toLowerCase();
