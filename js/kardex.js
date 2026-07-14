@@ -1628,8 +1628,16 @@ var existFiltersAttached = false;
 function calcularExistencias() {
   var saldos = {};
 
+  var fechaCorte = null;
+  kxMovimientos.forEach(function(m) {
+    if (m.modulo === 'Saldo Inicial' && m.fecha) {
+      if (!fechaCorte || m.fecha < fechaCorte) fechaCorte = m.fecha;
+    }
+  });
+
   kxMovimientos.forEach(function(m) {
     if (!m.producto || !m.empresa) return;
+    if (fechaCorte && m.fecha < fechaCorte) return;
     var key = m.producto;
     if (!saldos[key]) {
       saldos[key] = { producto: m.producto };
