@@ -454,7 +454,8 @@ async function saveIngreso() {
 
   if (!fecha) { showToast('Selecciona la fecha', '#e74c3c'); return; }
   if (!origen) { showToast('Selecciona el origen', '#e74c3c'); return; }
-  if (!empresa_origen) { showToast('Selecciona la empresa origen', '#e74c3c'); return; }
+  var esExterno = origen === 'Proveedor Carval' || origen === 'Chia Abago';
+  if (!esExterno && !empresa_origen) { showToast('Selecciona la empresa origen', '#e74c3c'); return; }
   if (!empresa_destino) { showToast('Selecciona la empresa destino', '#e74c3c'); return; }
   if (!responsable) { showToast('Ingresa el responsable', '#e74c3c'); return; }
 
